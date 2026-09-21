@@ -1,0 +1,57 @@
+# Snowflake App Runtime manifest (v2 layout: this single file carries both the deployment
+# configuration read by the CLI and the build phases read by the builder service).
+version: 2
+
+name: SC_ONTOLOGY_APP
+database: SUPPLY_CHAIN
+schema: APPS
+query_warehouse: COMPUTE_WH
+
+label: "Supply Chain Ontology"
+description: >-
+  Governed conversational analytics over a supply chain ontology. One set of canonical metric
+  definitions, expressed as Snowflake semantic views, proven to resolve identically for
+  planning, procurement and logistics. Team 3M-ONTOLOGIST.
+icon: public/icon.svg
+
+# Keep the upload to source only. node_modules is reinstalled by the install phase and .next
+# is rebuilt by the build phase; uploading either bloats the bundle and can corrupt the build.
+ignore:
+  - node_modules
+  - .next
+  - .git
+  - "*.log"
+  - output
+
+# Non-secret runtime configuration. The app reads no Snowflake SECRET objects, so there is
+# deliberately no `secrets:` block.
+environment_variables:
+  - name: SNOWFLAKE_WAREHOUSE
+    value: "COMPUTE_WH"
+  # Tells proxy.ts that the platform is authenticating callers, so the demo sign-in gate is
+  # skipped here. Snowflake App Runtime authenticates every ingress request and injects the
+  # caller identity, so asking a signed-in Snowflake user to log in again would be redundant.
+  #
+  # This is set explicitly rather than inferred: the gate runs in the Edge runtime, which cannot
+  # read the mounted /snowflake/session/token file, and guessing wrong in the permissive
+  # direction would leave the app open. Outside SPCS the variable is absent, the gate engages,
+  # and AUTH_SECRET + DEMO_USERS become required.
+  - name: SNOWFLAKE_SERVICE_AUTH
+    value: "spcs"
+
+install:
+  commands:
+    - ["npm", "ci", "--include=dev"]
+
+build:
+  commands:
+    - ["npm", "run", "build"]
+    # next.config.mjs sets output: 'standalone', which omits these two directories.
+    # Without both copies every /_next/static and /public asset 404s after deploy.
+    - ["cp", "-r", ".next/static", ".next/standalone/.next/static"]
+    - ["cp", "-r", "public", ".next/standalone/public"]
+    # The standalone output ships its own node_modules; drop the root copy.
+    - ["rm", "-rf", "node_modules"]
+
+run:
+  command: ["node", ".next/standalone/server.js"]

@@ -1,0 +1,34 @@
+# dependencies
+node_modules
+
+# next build output
+.next
+out
+
+# Snowflake App Runtime bundle output
+output
+
+# local env — never commit credentials
+.env
+.env.local
+.env*.local
+
+# logs produced while developing
+*.log
+
+# editor / OS
+.DS_Store
+.idea
+.vscode
+
+# vercel
+.vercel
+.env*
+
+# local verification artifacts
+dev.out.log
+dev.err.log
+_*.html
+_pw.txt
+_cookie.txt
+cookies.txt

@@ -1,0 +1,427 @@
+@import "tailwindcss";
+
+/*
+ * THEMING
+ * -------
+ * Brand colors are defined as CSS variables below.
+ * To change the color scheme, edit the values in :root.
+ * Light/dark mode is handled automatically via the variable overrides below.
+ *
+ * TYPE SCALE AND SPACING
+ * ----------------------
+ * This is an Operate-mode surface: a governance console where people are in a task, not being
+ * persuaded. That dictates a fixed rem scale (not fluid clamps — a heading that shrinks inside a
+ * panel looks worse, not better), a tight ratio, and one family carrying headings, labels and data.
+ *
+ * The scale below deliberately has FEWER, MORE SEPARATED steps than what it replaced. The previous
+ * UI ran 9px, 10px, 11px and 12px as four distinct semantic roles — four steps inside a 3px range,
+ * indistinguishable at a glance, with 247 elements at 10px on one page. The floor is now 11px and
+ * the steps are 11 / 12 / 13 / 14, which the eye can actually rank.
+ *
+ * Spacing offers three intervals on purpose, so that distance carries meaning:
+ *   --space-tight (6px)  within a labelled group
+ *   --space-group (16px) between groups inside a section
+ *   --space-section(40px) between sections
+ * Previously almost everything was 12px, so nothing on any page could be skimmed.
+ */
+
+/*
+ * Bind the `dark:` variant to the .dark CLASS, not to prefers-color-scheme.
+ *
+ * Tailwind v4's default `dark:` variant compiles to a prefers-color-scheme media query, but this app
+ * switches themes by putting `.dark` on <html> (next-themes). Without this declaration the two
+ * disagree: on a machine whose OS prefers dark, every `dark:` utility stayed active while the app
+ * was in LIGHT mode, so dark-theme accents (emerald-400, amber-400, red-400) rendered on white
+ * cards at ratios as low as 1.70:1. The theme toggle appeared to work only because the CSS variables
+ * below are class-scoped; the 24 `dark:` utilities were not.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    /* Brand tokens */
+    --brand-primary: #29b5e8;
+    --brand-primary-foreground: #ffffff;
+    --brand-nav-bg: #0a2f5a;
+    --brand-nav-fg: #ffffff;
+    /*
+     * The logo mark, which is a separate token from `--brand-primary` because the mark sits directly
+     * on the page surface rather than on a fill. The vivid cyan reaches only 2.2:1 on the light
+     * background, so it read as washed out; this deeper tone keeps the brand hue while staying
+     * legible. In dark mode the cyan is already the right answer and is restored below.
+     */
+    --brand-mark: #0a6a8e;
+
+    /* shadcn/ui semantic tokens — slate-based light mode */
+    /*
+     * The page sits one step below the cards rather than matching them. A white card on a white
+     * page has no elevation, so every group needed a border to exist at all — which is how the old
+     * UI ended up three bordered boxes deep. A tinted page surface lets a card read as raised with
+     * a 1px hairline instead of a heavy outline.
+     */
+    --background: #f7f9fb;
+    --foreground: #0f172a;        /* slate-900 */
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+
+    /* Primary wired to brand color */
+    /*
+     * `--primary` is the INTERACTIVE token and must pass contrast against its own foreground;
+     * `--brand-primary` is the identity colour and stays vivid for the logo, rings and neutral
+     * chart strokes. They were the same value, which made every filled button white-on-#29b5e8 at
+     * 2.37:1 — the "Run drift test" control failed AA in both themes.
+     */
+    --primary: #0a6a8e;
+    --primary-foreground: #ffffff;
+
+    --secondary: #eef2f7;
+    --secondary-foreground: #0f172a;
+    --muted: #eef2f7;
+    /*
+     * Secondary text must clear 4.5:1 on BOTH the page and the card, at 11px. slate-500 measured
+     * 3.87:1 on the chip surface, so this is darkened until the chips and REALIZED/views tags pass.
+     */
+    --muted-foreground: #4b5a6e;
+    --accent: #eef2f7;
+    --accent-foreground: #0f172a;
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: #ffffff;
+    --border: #dde5ee;
+    --input: #cfdae7;
+    --ring: var(--brand-primary);
+    --radius: 0.625rem;
+
+    /*
+     * The brand cyan is a FILL colour, not a text colour: #29b5e8 on white is 2.37:1, which fails
+     * AA badly and was being used for the main call-to-action on every metric card. `--link` is the
+     * accessible text-weight version of the same hue; the bright cyan stays for fills and rings.
+     */
+    --link: #0a6a8e;
+
+    /*
+     * Shadows carry the surface's own hue rather than neutral black, and every one has an offset
+     * plus a soft blur — a zero-offset halo is decoration, not depth.
+     */
+    --shadow-card: 0 1px 2px -1px rgb(15 23 42 / 0.08), 0 2px 8px -2px rgb(15 23 42 / 0.06);
+    --shadow-raised: 0 2px 4px -2px rgb(15 23 42 / 0.10), 0 8px 24px -6px rgb(15 23 42 / 0.10);
+
+    /*
+     * Status hues, used for both chips and charts so a metric's colour means the same thing in both.
+     * Light-mode values are the -700 steps rather than -600: at 11px these carry real text, and
+     * emerald-600 (3.77:1) and amber-600 (3.19:1) both fail AA on a white card.
+     */
+    --status-good: #047857;
+    --status-warn: #92400e;
+    --status-bad: #b91c1c;
+    --status-neutral: #55627a;
+
+  /*
+   * Categorical chart palette.
+   *
+   * These were REFERENCED before they were DEFINED. components/operations-charts.tsx asks for
+   * `var(--chart-N, var(--primary))` and components/ask-charts.tsx for `var(--chart-N)`; with no
+   * definition anywhere the first silently collapsed every series onto one colour and the second fell
+   * back to black. A CSS variable that does not exist fails quietly, which is why it survived this
+   * long.
+   *
+   * Five hues, ordered so the first is the brand colour: a single-series chart — the common case —
+   * then looks like the rest of the app, and only a genuinely multi-series chart reaches for the
+   * others. Spaced around the wheel rather than shaded from one hue, because adjacent categories must
+   * be told apart at a glance and a monochrome ramp reads as an ordering that the categories do not
+   * have.
+   */
+  --chart-1: #29b5e8;
+  --chart-2: #6366f1;
+  --chart-3: #0d9488;
+  --chart-4: #d97706;
+  --chart-5: #9333ea;
+
+    /* Type scale — fixed rem, ratio ~1.2, floor 11px. */
+    --fs-label: 0.6875rem;  /* 11px — uppercase group labels, chips, mono keys */
+    --fs-meta: 0.75rem;     /* 12px — secondary prose, captions, table cells */
+    --fs-body: 0.8125rem;   /* 13px — primary body copy */
+    --fs-subhead: 0.875rem; /* 14px — card titles, section headings */
+    --fs-title: 1.125rem;   /* 18px — sub-section titles */
+    --fs-page: 1.75rem;     /* 28px — page heading; must outrank the metric values below it */
+    --fs-value: 1.625rem;   /* 26px — metric values */
+
+    /* Spacing intervals with distinct meanings. */
+    --space-tight: 0.375rem;
+    --space-group: 1rem;
+    --space-section: 2.5rem;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-link: var(--link);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  .dark {
+    /* Off-black, not #000: a tinted dark surface reads as a material rather than a void. */
+    --background: #0b1220;
+    --foreground: #f8fafc;       /* slate-50 */
+    --card: #141d2e;
+    --card-foreground: #f8fafc;
+    --popover: #141d2e;
+    --popover-foreground: #f8fafc;
+    --secondary: #1e2939;
+    --secondary-foreground: #f8fafc;
+    --muted: #1e2939;
+    --muted-foreground: #9aa8bd;
+    --accent: #1e2939;
+    --accent-foreground: #f8fafc;
+    --border: #2b3850;
+    --input: #3a4a66;
+    /* On a dark surface the bright cyan already clears AA, so it needs no darkening. */
+    --link: #56c8f0;
+    /* The mark is drawn on the dark page surface, where the vivid cyan is the correct tone. */
+    --brand-mark: var(--brand-primary);
+    /* Dark text on the bright fill, rather than white on it, which is 2.37:1. */
+    --primary: var(--brand-primary);
+    --primary-foreground: #06283a;
+
+    --shadow-card: 0 1px 2px -1px rgb(0 0 0 / 0.5), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+    --shadow-raised: 0 2px 4px -2px rgb(0 0 0 / 0.5), 0 8px 24px -6px rgb(0 0 0 / 0.45);
+
+    --status-good: #34d399;
+    --status-warn: #fbbf24;
+    --status-bad: #f87171;
+    --status-neutral: #94a3b8;
+
+  /* Lifted for contrast against the dark surface; same hue order as the light theme. */
+  --chart-1: #38bdf8;
+  --chart-2: #818cf8;
+  --chart-3: #2dd4bf;
+  --chart-4: #fbbf24;
+  --chart-5: #c084fc;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /*
+   * BROWSER SURFACES
+   * The parts nobody draws still carry the design. Selection, the caret, scrollbars, focus rings
+   * and the numerals in data tables all ship with browser defaults that belong to no design
+   * system, and leaving them is the clearest signal that a page was assembled rather than built.
+   */
+  ::selection {
+    background: color-mix(in oklab, var(--brand-primary) 26%, transparent);
+    color: var(--foreground);
+  }
+
+  :root {
+    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
+    scrollbar-width: thin;
+    caret-color: var(--brand-primary);
+    accent-color: var(--brand-primary);
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
+
+  /* One visible, consistent focus ring for keyboard users, on every control. */
+  :focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  /* A mouse click should not leave a ring behind, but a keyboard tab must. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Data is read by comparing columns of digits, so figures must not change width. */
+  table, .tabular, [class*="tabular-nums"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Headings should not leave one orphaned word; prose should not leave one orphaned line. */
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+
+  a, button {
+    scroll-margin-top: 5rem;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * Semantic type roles. Named rather than inlined as arbitrary pixel values so the scale stays
+   * enforceable — the previous UI drifted to four indistinguishable sizes precisely because every
+   * usage picked its own number.
+   */
+  .u-label {
+    font-size: var(--fs-label);
+    line-height: 1.3;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .u-meta {
+    font-size: var(--fs-meta);
+    line-height: 1.55;
+    color: var(--muted-foreground);
+  }
+  .u-body {
+    font-size: var(--fs-body);
+    line-height: 1.6;
+  }
+  .u-subhead {
+    font-size: var(--fs-subhead);
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: -0.006em;
+  }
+  .u-value {
+    font-size: var(--fs-value);
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .u-mono {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: var(--fs-label);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * Status colour, driven by the same tokens the charts use.
+   *
+   * These replace hand-paired `text-emerald-600 dark:text-emerald-400` utilities. One token per
+   * status means the chip, the value, the sparkline and the chart bar cannot disagree, and the
+   * light/dark values are chosen for contrast on their own surface rather than by palette symmetry.
+   */
+  .u-good { color: var(--status-good); }
+  .u-warn { color: var(--status-warn); }
+  .u-bad { color: var(--status-bad); }
+  .u-neutral { color: var(--status-neutral); }
+
+  .u-chip-good {
+    border-color: color-mix(in oklab, var(--status-good) 35%, transparent);
+    background: color-mix(in oklab, var(--status-good) 10%, transparent);
+    color: var(--status-good);
+  }
+  .u-chip-warn {
+    border-color: color-mix(in oklab, var(--status-warn) 35%, transparent);
+    background: color-mix(in oklab, var(--status-warn) 10%, transparent);
+    color: var(--status-warn);
+  }
+  .u-chip-bad {
+    border-color: color-mix(in oklab, var(--status-bad) 35%, transparent);
+    background: color-mix(in oklab, var(--status-bad) 10%, transparent);
+    color: var(--status-bad);
+  }
+  .u-chip-neutral {
+    border-color: var(--border);
+    background: color-mix(in oklab, var(--muted) 70%, transparent);
+    color: var(--muted-foreground);
+  }
+  .u-dot-good { background: var(--status-good); }
+  .u-dot-warn { background: var(--status-warn); }
+  .u-dot-bad { background: var(--status-bad); }
+  .u-dot-neutral { background: var(--status-neutral); }
+
+  /* Prose measure. Data can run dense and wide; sentences cannot. */
+  .u-prose {
+    max-width: 68ch;
+  }
+
+  /*
+   * Inline text action. Uses --link rather than the brand cyan so it passes AA in light mode, and
+   * sits at 12px rather than 11px because it is a control, not a caption.
+   */
+  .u-action {
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    color: var(--link);
+    transition: color 160ms ease-out;
+  }
+  .u-action:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /*
+   * A card is a raised surface, not an outline. One hairline plus a tinted shadow, so nesting a
+   * group inside a card does not require a second border to be legible.
+   */
+  .u-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+  .u-card-interactive {
+    transition: box-shadow 180ms ease-out, border-color 180ms ease-out, transform 180ms ease-out;
+  }
+  .u-card-interactive:hover {
+    box-shadow: var(--shadow-raised);
+    border-color: color-mix(in oklab, var(--brand-primary) 30%, var(--border));
+  }
+
+  /* Fades the edges of a horizontally scrolling strip so a cut-off item reads as scrollable. */
+  .u-scroll-x {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .u-scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+}
