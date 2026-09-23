@@ -21,6 +21,7 @@ import {
   getOntologyRelationships,
   getPersonas,
   getMetricOutlook,
+  getDatabaseScale,
   querySemanticView,
   semanticViewSql,
   num,
@@ -60,6 +61,13 @@ function col(ref: string): string {
   return ref.split(".")[1].toUpperCase()
 }
 
+/** Compact row count for a brag-line stat, e.g. 7792217 -> "7.79M". */
+function compactRows(n: number): string {
+  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`
+  return String(n)
+}
+
 /**
  * Format a period-on-period change in the metric's own unit.
  *
@@ -96,12 +104,13 @@ function deltaTone(current: number | null, previous: number | null, direction: s
 // ---------------------------------------------------------------------------
 
 async function GovernanceHeadline({ period }: { period: ResolvedPeriod }) {
-  const [registry, drift, entities, relationships, personas, backlog] = await Promise.all([
+  const [registry, drift, entities, relationships, personas, scale, backlog] = await Promise.all([
     getMetricRegistry(),
     getLatestDrift(),
     getOntologyEntities(),
     getOntologyRelationships(),
     getPersonas(),
+    getDatabaseScale(),
     /**
      * What the as-of rule excluded.
      *
@@ -124,9 +133,10 @@ async function GovernanceHeadline({ period }: { period: ResolvedPeriod }) {
 
   const openOrderLines = num(backlog[0]?.ORDER_LINE_COUNT) ?? 0
   const openPoLines = num(backlog[0]?.PO_LINE_COUNT) ?? 0
+  const scaleBreakdown = scale.bySchema.map((s) => `${s.schema} ${compactRows(s.rows)}`).join(" + ")
 
   return (
-    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       <StatTile
         label="Governed metrics"
         value={String(registry.length)}
@@ -144,6 +154,11 @@ async function GovernanceHeadline({ period }: { period: ResolvedPeriod }) {
         sub={`${dims.length} conformed dimensions, ${facts.length} facts, ${relationships.length} relationships`}
       />
       <StatTile label="Personas" value={String(personas.length)} sub="Real Snowflake roles with enforced grants" />
+      <StatTile
+        label="Database scale"
+        value={`~${compactRows(scale.totalRows)} rows`}
+        sub={`${scale.baseTables} base tables, ${scale.views} views, ${scale.semanticViews} semantic views across ${scale.schemaCount} schemas (${scaleBreakdown})`}
+      />
       <StatTile
         label="Open commitment"
         value={formatNumber(openOrderLines)}

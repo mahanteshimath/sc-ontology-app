@@ -305,6 +305,49 @@ export const getEntityAttributes = cachedMetadata(async function getEntityAttrib
 })
 
 // ---------------------------------------------------------------------------
+// Database scale — read live so a rebuild is reflected without a redeploy
+// ---------------------------------------------------------------------------
+
+export interface DatabaseScale {
+  baseTables: number
+  views: number
+  semanticViews: number
+  schemaCount: number
+  totalRows: number
+  bySchema: { schema: string; rows: number }[]
+}
+
+export const getDatabaseScale = cachedMetadata(async function getDatabaseScale(): Promise<DatabaseScale> {
+  const [tables, semantic] = await Promise.all([
+    querySnowflake(`
+      SELECT table_schema, COUNT_IF(table_type = 'BASE TABLE') AS base_tables,
+             COUNT_IF(table_type = 'VIEW') AS views,
+             SUM(IFF(table_type = 'BASE TABLE', row_count, 0)) AS row_total
+        FROM SUPPLY_CHAIN.INFORMATION_SCHEMA.TABLES
+       WHERE table_schema != 'INFORMATION_SCHEMA'
+       GROUP BY table_schema
+    `),
+    querySnowflake(`SELECT COUNT(*) AS n FROM SUPPLY_CHAIN.INFORMATION_SCHEMA.SEMANTIC_VIEWS`),
+  ])
+
+  const populated = tables.filter((r) => (num(r.BASE_TABLES) ?? 0) > 0 || (num(r.VIEWS) ?? 0) > 0)
+  const semanticViewCount = num(semantic[0]?.N) ?? 0
+  return {
+    baseTables: populated.reduce((s, r) => s + (num(r.BASE_TABLES) ?? 0), 0),
+    views: populated.reduce((s, r) => s + (num(r.VIEWS) ?? 0), 0),
+    semanticViews: semanticViewCount,
+    // SEMANTIC holds no base tables or regular views, only semantic views, so it is not counted by
+    // the schema loop above — add it back rather than undercounting a schema that is clearly in use.
+    schemaCount: populated.length + (semanticViewCount > 0 ? 1 : 0),
+    totalRows: populated.reduce((s, r) => s + (num(r.ROW_TOTAL) ?? 0), 0),
+    bySchema: populated
+      .map((r) => ({ schema: r.TABLE_SCHEMA as string, rows: num(r.ROW_TOTAL) ?? 0 }))
+      .filter((r) => r.rows > 0)
+      .sort((a, b) => b.rows - a.rows),
+  }
+})
+
+// ---------------------------------------------------------------------------
 // Governance: drift + the recorded pre-remediation divergence
 // ---------------------------------------------------------------------------
 
