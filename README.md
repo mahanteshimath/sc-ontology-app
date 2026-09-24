@@ -253,7 +253,7 @@ npm run smoke                # 21 end-to-end checks — needs the dev server run
 
 ## Building the database from scratch
 
-Everything in Snowflake is reproducible from `sql/`. Nothing is created by hand.
+Everything in Snowflake is reproducible from `sql/`. Nothing is to be created by hand.
 
 ```bash
 node scripts/rebuild.mjs                 # everything, in order
