@@ -42,6 +42,10 @@ import {
 } from "@/lib/period"
 import { assessTarget, ragChipClass, ragTextClass } from "@/lib/target"
 import { formatMetric, formatNumber } from "@/lib/format"
+import { currentSession } from "@/lib/session"
+import { BrandMark } from "@/components/brand-mark"
+import { Button } from "@/components/ui/button"
+import { ArrowRight, BarChart3, DatabaseZap, Network, ShieldCheck } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -56,6 +60,91 @@ const HEADLINE = [
 
 const VIEW = "SC_ONTOLOGY_360"
 const TREND_DIM = "calendar.cal_period"
+
+function LandingPage() {
+  return (
+    <main className="min-h-screen overflow-hidden bg-[#08131f] text-white">
+      <div className="relative isolate">
+        <div className="pointer-events-none absolute inset-0 -z-10 opacity-70 [background-image:linear-gradient(rgba(100,190,220,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(100,190,220,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
+        <div className="pointer-events-none absolute right-[-12rem] top-[-12rem] -z-10 h-[34rem] w-[34rem] rounded-full border border-cyan-300/10 bg-cyan-300/[0.04] shadow-[0_0_120px_rgba(41,181,232,0.14)]" />
+
+        <header className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+          <Link href="/" className="flex items-center gap-3" aria-label="Supply Chain Ontology home">
+            <span className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-200/10 text-cyan-200">
+              <BrandMark className="h-7 w-7" />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold tracking-[0.16em] text-white">SUPPLY CHAIN</span>
+              <span className="block text-[10px] tracking-[0.28em] text-cyan-200/70">ONTOLOGY CONTROL TOWER</span>
+            </span>
+          </Link>
+          <Link href="/login?next=%2F" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
+            Sign in <ArrowRight className="ml-1 inline-block h-4 w-4" aria-hidden />
+          </Link>
+        </header>
+
+        <section className="mx-auto grid min-h-[calc(100vh-81px)] w-full max-w-[1400px] items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:px-12 lg:pb-24 lg:pt-4">
+          <div className="max-w-3xl">
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-200/[0.07] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]" />
+              Governed operational intelligence
+            </div>
+            <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:text-6xl lg:text-7xl">
+              One operating picture for every supply chain decision.
+            </h1>
+            <p className="mt-7 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+              Connect supplier performance, fulfillment, inventory, landed cost, manufacturing, and demand through one governed ontology built for accountable action.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="h-12 rounded-lg bg-cyan-300 px-6 text-[#06283a] shadow-[0_10px_30px_rgba(41,181,232,0.18)] hover:bg-cyan-200">
+                <Link href="/login?next=%2F">
+                  Enter the control tower <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </Button>
+              <a href="#architecture" className="inline-flex h-12 items-center justify-center rounded-lg border border-white/15 px-6 text-sm font-medium text-slate-200 transition-colors hover:border-cyan-200/40 hover:bg-white/[0.05]">
+                See how it works
+              </a>
+            </div>
+            <div className="mt-12 grid max-w-xl grid-cols-3 gap-5 border-t border-white/10 pt-5">
+              <div><div className="text-2xl font-semibold text-white">14</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Governed metrics</div></div>
+              <div><div className="text-2xl font-semibold text-white">11</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Ontology entities</div></div>
+              <div><div className="text-2xl font-semibold text-emerald-300">0 spread</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Drift target</div></div>
+            </div>
+          </div>
+
+          <div id="architecture" className="relative">
+            <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-3 shadow-[0_30px_80px_rgba(0,0,0,0.24)] backdrop-blur-sm">
+              <div className="rounded-xl border border-white/10 bg-[#0d1d2b] p-5 sm:p-7">
+                <div className="flex items-center justify-between border-b border-white/10 pb-5">
+                  <div><div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Decision fabric</div><div className="mt-1 text-sm text-slate-400">Live governance posture</div></div>
+                  <div className="flex items-center gap-2 text-xs text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-300" />Operational</div>
+                </div>
+                <div className="mt-6 space-y-3">
+                  {[
+                    { icon: DatabaseZap, label: "Canonical facts", value: "Atomic grain\nreconciled", tone: "text-cyan-200" },
+                    { icon: Network, label: "Semantic ontology", value: "Shared entities\nand relationships", tone: "text-violet-200" },
+                    { icon: ShieldCheck, label: "Governance", value: "Role-scoped\ntrusted metrics", tone: "text-emerald-200" },
+                  ].map(({ icon: Icon, label, value, tone }) => (
+                    <div key={label} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-lg border border-white/8 bg-white/[0.035] p-4">
+                      <span className={`grid h-10 w-10 place-items-center rounded-lg bg-white/[0.06] ${tone}`}><Icon className="h-5 w-5" aria-hidden /></span>
+                      <span><span className="block text-sm font-medium text-white">{label}</span><span className="mt-1 block whitespace-pre-line text-xs leading-5 text-slate-400">{value}</span></span>
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-slate-500">verified</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-[#102939] p-4"><div className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Cortex-ready</div><div className="mt-2 text-xl font-semibold text-white">8 views</div><div className="mt-1 text-xs text-slate-400">Domain-specific analysis surfaces</div></div>
+                  <div className="rounded-lg bg-[#132d2a] p-4"><div className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Access posture</div><div className="mt-2 text-xl font-semibold text-emerald-200">RBAC + RAP</div><div className="mt-1 text-xs text-slate-400">Enforced in Snowflake</div></div>
+                </div>
+              </div>
+            </div>
+            <div className="absolute -bottom-5 -left-4 hidden rounded-lg border border-cyan-200/20 bg-[#102939] px-4 py-3 shadow-xl sm:block"><div className="flex items-center gap-2 text-xs text-cyan-100"><BarChart3 className="h-4 w-4" /> Ask with provenance</div></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  )
+}
 
 function col(ref: string): string {
   return ref.split(".")[1].toUpperCase()
@@ -458,6 +547,9 @@ export default async function OverviewPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+  const session = await currentSession()
+  if (!session) return <LandingPage />
+
   const sp = await searchParams
   const one = (k: string) => (Array.isArray(sp[k]) ? sp[k]![0] : (sp[k] as string | undefined)) ?? null
   const period = resolvePeriod({ id: one("period"), from: one("from"), to: one("to"), asOf: one("asOf") })

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { ArrowRight } from "lucide-react"
 
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter()
@@ -39,34 +40,36 @@ export function LoginForm({ next }: { next: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-border bg-card p-4 space-y-3">
+    <form onSubmit={submit} className="space-y-4 rounded-xl border border-white/10 bg-white/[0.06] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
       <label className="flex flex-col gap-1.5">
-        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Username</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Username</span>
         <input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           autoFocus
-          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+          required
+          className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-200/70 focus:ring-2 focus:ring-cyan-200/15"
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Password</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Password</span>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
-          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+          required
+          className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-200/70 focus:ring-2 focus:ring-cyan-200/15"
         />
       </label>
       {error && (
-        <div className="rounded-md border u-chip-bad p-2 text-xs">
+        <div role="alert" className="rounded-lg border border-red-300/20 bg-red-300/[0.08] p-3 text-xs text-red-200">
           {error}
         </div>
       )}
-      <Button type="submit" className="w-full" disabled={pending || !username || !password}>
-        {pending ? "Signing in…" : "Sign in"}
+      <Button type="submit" size="lg" className="h-11 w-full rounded-lg bg-cyan-300 text-[#06283a] hover:bg-cyan-200" disabled={pending || !username || !password}>
+        {pending ? "Authenticating…" : "Continue securely"} {!pending && <ArrowRight className="h-4 w-4" aria-hidden />}
       </Button>
     </form>
   )

@@ -33,6 +33,7 @@ export function AppHeader({
 
   // The sign-in page is its own self-contained screen; a nav bar on it is noise.
   if (pathname === "/login") return null
+  if (pathname === "/" && !user) return null
 
   /*
    * The header is two rows on small screens and one on large.
