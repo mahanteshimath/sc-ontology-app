@@ -21,7 +21,7 @@ export function PageShell({
   children: React.ReactNode
 }) {
   return (
-    <main className="w-full max-w-[1400px] mx-auto px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-10 space-y-10">
+    <main className="w-full max-w-[1400px] mx-auto px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-10 space-y-10 min-w-0 overflow-x-hidden">
       <header className="relative overflow-hidden rounded-xl border border-border bg-card px-5 py-5 shadow-[var(--shadow-card)] sm:px-7 sm:py-6">
         <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-[var(--brand-primary)]" />
         <div className="pointer-events-none absolute right-0 top-0 h-28 w-72 bg-[linear-gradient(135deg,transparent_10%,color-mix(in_oklab,var(--brand-primary)_9%,transparent))]" />
@@ -96,17 +96,10 @@ export function StatTile({
   )
 }
 
-/** Monospace provenance block: shows the exact SQL or definition behind a number. */
-export function Provenance({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/50 p-4">
-      <div className="u-label mb-2">{label}</div>
-      <pre className="u-mono leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
-        {children}
-      </pre>
-    </div>
-  )
-}
+import { ProvenanceModal } from "@/components/provenance-modal"
+
+/** Monospace provenance block: shows the exact SQL or definition behind a number in a modal dialog. */
+export const Provenance = ProvenanceModal
 
 /**
  * PASS / FAIL pill for drift status, or a target-aware RAG pill.

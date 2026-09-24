@@ -509,7 +509,7 @@ describe("querySnowflake: retry on terminated connection", () => {
     })
 
     const mod = await import("@/lib/snowflake")
-    querySnowflake = mod.querySnowflake
+    querySnowflake = mod.querySnowflake as any
   })
 
   afterEach(() => {
@@ -676,14 +676,14 @@ describe("querySnowflake: dev/preview ignores callersRights", () => {
   afterEach(() => {
     vi.doUnmock("fs")
     vi.doUnmock("next/headers")
-    process.env.NODE_ENV = originalNodeEnv
+    ;(process.env as Record<string, string>).NODE_ENV = originalNodeEnv
   })
 
   it("uses the owner's-rights token for a callersRights query in preview and logs it", async () => {
     // Preview runs the app with NODE_ENV=development (forced by the preview host's dev
     // server) and an SPCS service token present, so callersRights is downgraded to owner's
     // rights and a note is logged to the app output (visible in the preview log pane).
-    process.env.NODE_ENV = "development"
+    (process.env as Record<string, string>).NODE_ENV = "development"
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
 
     const rows = await querySnowflake("SELECT 1", { callersRights: true })
@@ -696,7 +696,7 @@ describe("querySnowflake: dev/preview ignores callersRights", () => {
   })
 
   it("in a real deployment (production), a callersRights query still requires the caller token header", async () => {
-    process.env.NODE_ENV = "production"
+    (process.env as Record<string, string>).NODE_ENV = "production"
 
     // Header returns null, so caller's rights is attempted and throws as before.
     await expect(querySnowflake("SELECT 1", { callersRights: true })).rejects.toThrow(
@@ -721,7 +721,7 @@ describe("querySnowflake: warns in local dev when callersRights requested", () =
   beforeEach(async () => {
     vi.resetModules()
     // Local dev: dev mode, password creds, and no SPCS service token.
-    process.env.NODE_ENV = "development"
+    ;(process.env as Record<string, string>).NODE_ENV = "development"
     process.env.SNOWFLAKE_USER = "dev-user"
     process.env.SNOWFLAKE_PASSWORD = "dev-pass"
 
@@ -752,7 +752,7 @@ describe("querySnowflake: warns in local dev when callersRights requested", () =
   afterEach(() => {
     vi.doUnmock("fs")
     warnSpy.mockRestore()
-    process.env.NODE_ENV = originalNodeEnv
+    (process.env as Record<string, string>).NODE_ENV = originalNodeEnv
     delete process.env.SNOWFLAKE_USER
     delete process.env.SNOWFLAKE_PASSWORD
   })

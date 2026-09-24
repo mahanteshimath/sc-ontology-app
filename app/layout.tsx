@@ -23,8 +23,11 @@ export default async function RootLayout({
   const session = await currentSession()
 
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
+    <html lang="en" className="overflow-x-hidden w-full max-w-full" suppressHydrationWarning>
+      <head>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      </head>
+      <body className="antialiased min-h-screen bg-background text-foreground overflow-x-hidden w-full max-w-full">
         <ThemeProvider>
           <QueryProvider>
             <AppHeader
