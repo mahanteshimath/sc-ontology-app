@@ -13,12 +13,14 @@ import {
   ClipboardCheck,
   Database,
   GitCompareArrows,
+  Globe,
   Network,
 } from "lucide-react"
 
 const NAV = [
   { href: "/", label: "Overview", icon: BarChart3 },
   { href: "/operations", label: "Operations", icon: Boxes },
+  { href: "/network-risk", label: "Network Risk", icon: Globe },
   { href: "/ask", label: "Ask", icon: BotMessageSquare },
   { href: "/outlook", label: "Outlook", icon: ClipboardCheck },
   { href: "/ontology", label: "Ontology", icon: Network },
@@ -57,7 +59,7 @@ export function AppHeader({
    * own full-width row below `md` with a masked edge so a cut-off link reads as scrollable.
    */
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-50 w-full max-w-full overflow-x-hidden border-b border-border bg-background/95 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6">
         <div className="flex items-center gap-3 py-3">
           <Link href="/" className="flex items-center gap-2.5 min-w-0 rounded-md">
@@ -72,8 +74,8 @@ export function AppHeader({
             </span>
           </Link>
 
-          {/* On md+ the nav shares the brand's row; below that it moves to its own row. */}
-          <nav aria-label="Primary" className="hidden md:flex items-center gap-0.5 u-scroll-x">
+          {/* On xl+ the nav shares the brand's row; below that it moves to its own row. */}
+          <nav aria-label="Primary" className="hidden xl:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden py-1">
             {NAV.map((item) => (
               <NavLink key={item.href} item={item} pathname={pathname} />
             ))}
@@ -102,11 +104,10 @@ export function AppHeader({
         </div>
 
         {/*
-          Wraps rather than scrolls below md. A horizontal scroll strip left Ask and Operations
-          off-screen with no affordance a user would notice, which hid a third of the app; six short
-          labels fit two rows at 390px, so every destination is simply visible.
+          Wraps rather than scrolls below xl. A horizontal scroll strip left Ask and Operations
+          off-screen with no affordance a user would notice.
         */}
-        <nav aria-label="Primary" className="md:hidden flex flex-wrap items-center gap-1 pb-2.5">
+        <nav aria-label="Primary" className="xl:hidden flex flex-wrap items-center gap-1 pb-2.5">
           {NAV.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}

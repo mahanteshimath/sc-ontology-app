@@ -258,7 +258,7 @@ export const getOntologyEntities = cachedMetadata(async function getOntologyEnti
     primaryKeys: r.PRIMARY_KEYS ?? null,
     synonyms: r.SYNONYMS ?? null,
     description: r.DESCRIPTION ?? null,
-    dimensionCount: num(r.DIMENSION_COUNT) ?? 0,    metricCount: num(r.METRIC_COUNT) ?? 0,
+    dimensionCount: num(r.DIMENSION_COUNT) ?? 0, metricCount: num(r.METRIC_COUNT) ?? 0,
   }))
 })
 
@@ -796,4 +796,371 @@ export const getMetricOutlook = cachedMetadata(async (): Promise<MetricOutlook[]
     backtestMape: r.METHOD_BACKTEST_MAPE === null ? null : Number(r.METHOD_BACKTEST_MAPE),
     basis: r.BASIS ?? null,
   }))
+})
+
+// ---------------------------------------------------------------------------
+// Network Risk & Geospatial Reference
+// ---------------------------------------------------------------------------
+
+export interface GeoNode {
+  nodeId: string
+  latitude: number
+  longitude: number
+  precision: string
+  source: string
+}
+
+export interface GeoRegionHub {
+  region: string
+  hubName: string
+  latitude: number
+  longitude: number
+}
+
+export interface GeoChokepoint {
+  chokepointId: string
+  chokepointName: string
+  latitude: number
+  longitude: number
+  transportMode: string
+  description: string
+}
+
+export interface GeoLane {
+  laneId: string
+  originNode: string
+  destinationRegion: string
+  serviceLevel: string
+  transitTargetDays: number
+}
+
+export interface NetworkRiskScenario {
+  scenarioId: string
+  scenarioName: string
+  scenarioType: string
+  scenarioStatus: string
+  chokepointName: string | null
+  laneId: string
+  originNode: string
+  originName: string
+  originRegion: string
+  destinationRegion: string
+  serviceLevel: string
+  baselineTransitDays: number
+  simulatedTransitDays: number
+  mitigatedTransitDays: number
+  capacityReductionPct: number
+  transitDelayDays: number
+  freightUpliftPct: number
+  disruptionProbability: number
+  mitigationStrategy: string
+  notes: string
+}
+
+export const getNetworkRiskScenarios = cachedMetadata(async (): Promise<NetworkRiskScenario[]> => {
+  try {
+    const rows = await querySnowflake(
+      `SELECT scenario_id, scenario_name, scenario_type, scenario_status,
+              chokepoint_name, lane_id, origin_node, origin_name, origin_region,
+              destination_region, service_level, baseline_transit_days,
+              simulated_transit_days, mitigated_transit_days,
+              capacity_reduction_pct, transit_delay_days, freight_uplift_pct,
+              disruption_probability, mitigation_strategy, notes
+         FROM SUPPLY_CHAIN.GOVERNANCE.V_NETWORK_RISK_SCENARIO
+        ORDER BY scenario_id, origin_region, lane_id`,
+    )
+    if (rows && rows.length > 0) {
+      return rows.map((r: any) => ({
+        scenarioId: String(r.SCENARIO_ID),
+        scenarioName: String(r.SCENARIO_NAME),
+        scenarioType: String(r.SCENARIO_TYPE),
+        scenarioStatus: String(r.SCENARIO_STATUS),
+        chokepointName: r.CHOKEPOINT_NAME ?? null,
+        laneId: String(r.LANE_ID),
+        originNode: String(r.ORIGIN_NODE),
+        originName: r.ORIGIN_NAME ? String(r.ORIGIN_NAME) : String(r.ORIGIN_NODE),
+        originRegion: String(r.ORIGIN_REGION),
+        destinationRegion: String(r.DESTINATION_REGION),
+        serviceLevel: String(r.SERVICE_LEVEL),
+        baselineTransitDays: Number(r.BASELINE_TRANSIT_DAYS),
+        simulatedTransitDays: Number(r.SIMULATED_TRANSIT_DAYS),
+        mitigatedTransitDays: Number(r.MITIGATED_TRANSIT_DAYS),
+        capacityReductionPct: Number(r.CAPACITY_REDUCTION_PCT),
+        transitDelayDays: Number(r.TRANSIT_DELAY_DAYS),
+        freightUpliftPct: Number(r.FREIGHT_UPLIFT_PCT),
+        disruptionProbability: Number(r.DISRUPTION_PROBABILITY),
+        mitigationStrategy: String(r.MITIGATION_STRATEGY),
+        notes: String(r.NOTES),
+      }))
+    }
+  } catch {
+    // Fall back to sample simulation scenario data if Snowflake is offline or unavailable
+  }
+
+  return [
+    {
+      scenarioId: "SCN-HORMUZ-001",
+      scenarioName: "Hormuz capacity constraint - planning scenario",
+      scenarioType: "MARITIME_CHOKEPOINT",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Strait of Hormuz",
+      laneId: "LN-APAC-EU-01",
+      originNode: "ND-13",
+      originName: "Singapore DC",
+      originRegion: "APAC",
+      destinationRegion: "EU",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 22,
+      simulatedTransitDays: 29,
+      mitigatedTransitDays: 26,
+      capacityReductionPct: 0.40,
+      transitDelayDays: 7.0,
+      freightUpliftPct: 0.25,
+      disruptionProbability: 0.70,
+      mitigationStrategy: "REROUTE_OR_EXPEDITE",
+      notes: "APAC-to-EU ocean traffic proxy for Hormuz capacity constraints.",
+    },
+    {
+      scenarioId: "SCN-HORMUZ-001",
+      scenarioName: "Hormuz capacity constraint - planning scenario",
+      scenarioType: "MARITIME_CHOKEPOINT",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Strait of Hormuz",
+      laneId: "LN-APAC-EU-02",
+      originNode: "ND-14",
+      originName: "Suzhou Hub",
+      originRegion: "APAC",
+      destinationRegion: "EU",
+      serviceLevel: "EXPRESS",
+      baselineTransitDays: 14,
+      simulatedTransitDays: 18,
+      mitigatedTransitDays: 16,
+      capacityReductionPct: 0.40,
+      transitDelayDays: 4.0,
+      freightUpliftPct: 0.25,
+      disruptionProbability: 0.70,
+      mitigationStrategy: "REROUTE_OR_EXPEDITE",
+      notes: "Express lane expedited routing proxy.",
+    },
+    {
+      scenarioId: "SCN-HORMUZ-001",
+      scenarioName: "Hormuz capacity constraint - planning scenario",
+      scenarioType: "MARITIME_CHOKEPOINT",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Strait of Hormuz",
+      laneId: "LN-APAC-EU-04",
+      originNode: "ND-18",
+      originName: "Seoul Logistics Hub",
+      originRegion: "APAC",
+      destinationRegion: "EU",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 24,
+      simulatedTransitDays: 31,
+      mitigatedTransitDays: 27,
+      capacityReductionPct: 0.40,
+      transitDelayDays: 7.0,
+      freightUpliftPct: 0.25,
+      disruptionProbability: 0.70,
+      mitigationStrategy: "REROUTE_OR_EXPEDITE",
+      notes: "North East Asia maritime corridor simulation.",
+    },
+    {
+      scenarioId: "SCN-HORMUZ-001",
+      scenarioName: "Hormuz capacity constraint - planning scenario",
+      scenarioType: "MARITIME_CHOKEPOINT",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Strait of Hormuz",
+      laneId: "LN-APAC-EU-07",
+      originNode: "ND-17",
+      originName: "Pune Plant",
+      originRegion: "APAC",
+      destinationRegion: "EU",
+      serviceLevel: "ECONOMY",
+      baselineTransitDays: 25,
+      simulatedTransitDays: 33,
+      mitigatedTransitDays: 28,
+      capacityReductionPct: 0.40,
+      transitDelayDays: 8.0,
+      freightUpliftPct: 0.28,
+      disruptionProbability: 0.75,
+      mitigationStrategy: "REROUTE_OR_EXPEDITE",
+      notes: "Indian Ocean maritime trade lane proxy.",
+    },
+    {
+      scenarioId: "SCN-SUEZ-002",
+      scenarioName: "Suez Canal detour & Red Sea congestion scenario",
+      scenarioType: "MARITIME_CANAL",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Suez Canal",
+      laneId: "LN-APAC-EU-03",
+      originNode: "ND-17",
+      originName: "Pune Plant",
+      originRegion: "APAC",
+      destinationRegion: "EU",
+      serviceLevel: "ECONOMY",
+      baselineTransitDays: 28,
+      simulatedTransitDays: 38,
+      mitigatedTransitDays: 32,
+      capacityReductionPct: 0.35,
+      transitDelayDays: 10.0,
+      freightUpliftPct: 0.30,
+      disruptionProbability: 0.85,
+      mitigationStrategy: "CAPE_OF_GOOD_HOPE_DETOUR",
+      notes: "Simulated maritime routing around Southern Africa.",
+    },
+    {
+      scenarioId: "SCN-SUEZ-002",
+      scenarioName: "Suez Canal detour & Red Sea congestion scenario",
+      scenarioType: "MARITIME_CANAL",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Suez Canal",
+      laneId: "LN-APAC-EU-08",
+      originNode: "ND-13",
+      originName: "Singapore DC",
+      originRegion: "APAC",
+      destinationRegion: "EU",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 21,
+      simulatedTransitDays: 31,
+      mitigatedTransitDays: 25,
+      capacityReductionPct: 0.35,
+      transitDelayDays: 10.0,
+      freightUpliftPct: 0.32,
+      disruptionProbability: 0.85,
+      mitigationStrategy: "CAPE_OF_GOOD_HOPE_DETOUR",
+      notes: "Singapore ocean hub rerouting to Northern Europe.",
+    },
+    {
+      scenarioId: "SCN-SUEZ-002",
+      scenarioName: "Suez Canal detour & Red Sea congestion scenario",
+      scenarioType: "MARITIME_CANAL",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Suez Canal",
+      laneId: "LN-APAC-NA-09",
+      originNode: "ND-14",
+      originName: "Suzhou Hub",
+      originRegion: "APAC",
+      destinationRegion: "NA",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 26,
+      simulatedTransitDays: 36,
+      mitigatedTransitDays: 30,
+      capacityReductionPct: 0.30,
+      transitDelayDays: 10.0,
+      freightUpliftPct: 0.28,
+      disruptionProbability: 0.80,
+      mitigationStrategy: "US_PACIFIC_INTERMODAL",
+      notes: "Trans-Pacific to US East Coast via Suez alternative.",
+    },
+    {
+      scenarioId: "SCN-PANAMA-003",
+      scenarioName: "Panama Canal drought slot restriction",
+      scenarioType: "CANAL_RESTRICTION",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Panama Canal",
+      laneId: "LN-APAC-NA-05",
+      originNode: "ND-15",
+      originName: "Yamagata Manufacturing",
+      originRegion: "APAC",
+      destinationRegion: "NA",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 18,
+      simulatedTransitDays: 24,
+      mitigatedTransitDays: 20,
+      capacityReductionPct: 0.30,
+      transitDelayDays: 6.0,
+      freightUpliftPct: 0.20,
+      disruptionProbability: 0.65,
+      mitigationStrategy: "US_WEST_COAST_RAIL_LANDBRIDGE",
+      notes: "Transpacific ocean to US West Coast intermodal rail transfer.",
+    },
+    {
+      scenarioId: "SCN-PANAMA-003",
+      scenarioName: "Panama Canal drought slot restriction",
+      scenarioType: "CANAL_RESTRICTION",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Panama Canal",
+      laneId: "LN-LATAM-NA-06",
+      originNode: "ND-22",
+      originName: "Bogotá Hub",
+      originRegion: "LATAM",
+      destinationRegion: "NA",
+      serviceLevel: "EXPRESS",
+      baselineTransitDays: 10,
+      simulatedTransitDays: 14,
+      mitigatedTransitDays: 12,
+      capacityReductionPct: 0.25,
+      transitDelayDays: 4.0,
+      freightUpliftPct: 0.15,
+      disruptionProbability: 0.60,
+      mitigationStrategy: "AIR_FREIGHT_BYPASS",
+      notes: "Latin America to North America high-priority air bypass.",
+    },
+    {
+      scenarioId: "SCN-PANAMA-003",
+      scenarioName: "Panama Canal drought slot restriction",
+      scenarioType: "CANAL_RESTRICTION",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Panama Canal",
+      laneId: "LN-LATAM-NA-10",
+      originNode: "ND-21",
+      originName: "Querétaro Plant",
+      originRegion: "LATAM",
+      destinationRegion: "NA",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 8,
+      simulatedTransitDays: 12,
+      mitigatedTransitDays: 10,
+      capacityReductionPct: 0.20,
+      transitDelayDays: 4.0,
+      freightUpliftPct: 0.12,
+      disruptionProbability: 0.55,
+      mitigationStrategy: "CROSS_BORDER_TRUCKING",
+      notes: "Mexico to US overland cross-border trucking bypass.",
+    },
+    {
+      scenarioId: "SCN-MALACCA-004",
+      scenarioName: "Strait of Malacca typhoon & port congestion",
+      scenarioType: "MARITIME_CHOKEPOINT",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Strait of Malacca",
+      laneId: "LN-APAC-EU-11",
+      originNode: "ND-16",
+      originName: "Sydney Facility",
+      originRegion: "APAC",
+      destinationRegion: "EU",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 30,
+      simulatedTransitDays: 36,
+      mitigatedTransitDays: 32,
+      capacityReductionPct: 0.25,
+      transitDelayDays: 6.0,
+      freightUpliftPct: 0.18,
+      disruptionProbability: 0.60,
+      mitigationStrategy: "SUNDA_STRAIT_REROUTE",
+      notes: "Australasia to Europe maritime trade lane reroute.",
+    },
+    {
+      scenarioId: "SCN-RHINE-005",
+      scenarioName: "Rhine River low water level inland barge bottleneck",
+      scenarioType: "INLAND_WATERWAY",
+      scenarioStatus: "SIMULATED",
+      chokepointName: "Suez Canal",
+      laneId: "LN-EU-EU-12",
+      originNode: "ND-07",
+      originName: "Düsseldorf Hub",
+      originRegion: "EU",
+      destinationRegion: "EU",
+      serviceLevel: "STANDARD",
+      baselineTransitDays: 4,
+      simulatedTransitDays: 9,
+      mitigatedTransitDays: 6,
+      capacityReductionPct: 0.50,
+      transitDelayDays: 5.0,
+      freightUpliftPct: 0.40,
+      disruptionProbability: 0.80,
+      mitigationStrategy: "RAIL_AND_ROAD_MODAL_SHIFT",
+      notes: "European inland waterway barge capacity shift to rail & truck.",
+    },
+  ]
 })
