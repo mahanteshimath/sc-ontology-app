@@ -34,6 +34,7 @@ WITH c AS (
   UNION ALL SELECT 'RAW.GEO_REGION_HUB',         COUNT(*), 4       FROM SUPPLY_CHAIN.RAW.GEO_REGION_HUB
   UNION ALL SELECT 'RAW.GEO_CHOKEPOINT',         COUNT(*), 5       FROM SUPPLY_CHAIN.RAW.GEO_CHOKEPOINT
   UNION ALL SELECT 'RAW.GEO_LANE',               COUNT(*), 96      FROM SUPPLY_CHAIN.RAW.GEO_LANE
+  UNION ALL SELECT 'GOVERNANCE.NETWORK_RISK_SCENARIO', COUNT(*), 1 FROM SUPPLY_CHAIN.GOVERNANCE.NETWORK_RISK_SCENARIO
   UNION ALL SELECT 'CANONICAL.FCT_SUPPLIER_DELIVERY_LINE',  COUNT(*), 420000  FROM SUPPLY_CHAIN.CANONICAL.FCT_SUPPLIER_DELIVERY_LINE
   UNION ALL SELECT 'CANONICAL.FCT_ORDER_LINE_FULFILLMENT',  COUNT(*), 1500000 FROM SUPPLY_CHAIN.CANONICAL.FCT_ORDER_LINE_FULFILLMENT
   UNION ALL SELECT 'CANONICAL.FCT_LANDED_COST_SHIPMENT',    COUNT(*), 1480499 FROM SUPPLY_CHAIN.CANONICAL.FCT_LANDED_COST_SHIPMENT
@@ -42,6 +43,16 @@ WITH c AS (
 )
 SELECT object_name, n AS found, expected, IFF(n = expected, 'PASS', 'FAIL') AS verdict
 FROM c ORDER BY object_name;
+
+-- Scenario lane coverage is derived from the synthetic lane population. Require
+-- at least one impact rather than freezing a generated count into this contract.
+SELECT
+  'simulated network-risk lane impacts' AS check_name,
+  COUNT(*) AS found,
+  1 AS expected_minimum,
+  IFF(COUNT(*) >= 1, 'PASS', 'FAIL') AS verdict
+FROM SUPPLY_CHAIN.GOVERNANCE.SCENARIO_LANE_IMPACT
+WHERE scenario_id = 'SCN-HORMUZ-001';
 
 -- ---------------------------------------------------------------------------
 -- 2. Inventory snapshot cardinality. EXACTLY 24 MONTH-END DATES.

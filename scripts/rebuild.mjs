@@ -81,6 +81,7 @@ const FILES = [
   { file: "09_agent_eval.sql",         phase: "increment", note: "60-question evaluation set — needs the registry, so it follows 00f" },
   { file: "10_agent.sql",              phase: "increment", note: "the Cortex Agent — needs every semantic view incl. SC_OUTLOOK from 07b" },
   { file: "10b_geospatial_reference.sql", phase: "increment", note: "geocoded nodes, regional lane geometry, and chokepoint reference data" },
+  { file: "10c_network_risk_scenarios.sql", phase: "increment", note: "simulated network-risk scenarios and lane-level impact assumptions" },
   { file: "90_verify_base.sql",        phase: "verify", note: "splice anchors, registry shape, THE DRIFT GATE" },
   { file: "91_verify_personas.sql",    phase: "verify", note: "EU row scope is genuinely filtering" },
   { file: "92_verify_counts.sql",      phase: "verify", note: "row counts, snapshot cardinality, data shape" },

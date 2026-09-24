@@ -42,9 +42,10 @@ Useful flags: `--dry-run`, `--only 00c`, `--from 01`, `--verify`.
 | 8 | `07b_prediction_objects.sql` | `PREDICT_TARGET_BREACH`, `V_METRIC_OUTLOOK`, `SC_OUTLOOK` — objects `08` calls but never creates |
 | 9 | `08_prediction_layer.sql` | ML forecast, anomaly detection (~95s) |
 | 10 | `10b_geospatial_reference.sql` | geocoded nodes, lane geometry and chokepoint reference data |
-| 11 | `90_verify_base.sql` | splice-anchor assertions, registry shape, the drift gate |
-| 12 | `91_verify_personas.sql` | proves the EU row scope is live |
-| 13 | `92_verify_counts.sql` | row counts, snapshot cardinality, future-dated share |
+| 11 | `10c_network_risk_scenarios.sql` | simulated network-risk scenario and lane-level impact assumptions |
+| 12 | `90_verify_base.sql` | splice-anchor assertions, registry shape, the drift gate |
+| 13 | `91_verify_personas.sql` | proves the EU row scope is live |
+| 14 | `92_verify_counts.sql` | row counts, snapshot cardinality, future-dated share |
 
 ### Why 07b is named that way
 
