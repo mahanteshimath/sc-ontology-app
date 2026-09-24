@@ -1,11 +1,12 @@
 import { Suspense } from "react"
-import { PageShell, Provenance, Section, SectionSkeleton } from "@/components/ui-kit"
+import Link from "next/link"
+import { RefreshCw, ShieldCheck } from "lucide-react"
+import { PageShell, Section, SectionSkeleton } from "@/components/ui-kit"
 import { PeriodControl } from "@/components/period-control"
 import { getPersonas, getMetricRegistry } from "@/lib/sc"
 import { resolvePeriod, type ResolvedPeriod } from "@/lib/period"
 import { currentSession } from "@/lib/session"
 import { AskChat } from "@/components/ask-chat"
-import { AGENT_FQN } from "@/lib/constants"
 
 export const dynamic = "force-dynamic"
 
@@ -49,6 +50,26 @@ async function AskBody({ period }: { period: ResolvedPeriod }) {
   )
 }
 
+async function AskWorkspace({ period }: { period: ResolvedPeriod }) {
+  try {
+    return await AskBody({ period })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The governed analytics service is unavailable."
+    return (
+      <section className="u-card overflow-hidden">
+        <div className="border-b border-border bg-secondary/35 px-5 py-4">
+          <div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-md bg-[color-mix(in_oklab,var(--status-bad)_12%,transparent)] text-[var(--status-bad)]"><ShieldCheck className="h-4 w-4" aria-hidden /></span><div><h2 className="u-subhead">Analyst workspace unavailable</h2><p className="u-meta">No question has been sent.</p></div></div>
+        </div>
+        <div className="space-y-4 px-5 py-5">
+          <p className="u-body text-muted-foreground">The workspace could not load its governed metric catalogue. Check the Snowflake connection, then retry.</p>
+          <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 u-mono text-muted-foreground">{message}</div>
+          <Link href="/ask" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"><RefreshCw className="h-4 w-4" aria-hidden />Retry workspace</Link>
+        </div>
+      </section>
+    )
+  }
+}
+
 export default async function AskPage({
   searchParams,
 }: {
@@ -61,68 +82,12 @@ export default async function AskPage({
   return (
     <PageShell
       title="Ask the Ontology"
-      description="Ask a cross-domain question in plain language, then follow up on the answer — “and by region?” keeps the metric and changes the breakdown. The resolver may only choose from metrics registered in the governed catalogue and never writes its own SQL, so the same question always resolves to the same definition, and every turn shows which metric, which semantic view and which Snowflake role produced it."
+      description="Ask a question or follow up by breakdown. Answers resolve only to registered metrics."
       actions={<PeriodControl asOf={period.asOf} description={period.description} />}
     >
-      <Suspense fallback={<SectionSkeleton title="Conversation" rows={1} />}>
-        <Section title="Conversation">{() => AskBody({ period })}</Section>
+      <Suspense fallback={<SectionSkeleton title="Analyst workspace" rows={1} />}>
+        <Section title="Analyst workspace">{() => AskWorkspace({ period })}</Section>
       </Suspense>
-
-      <section className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-          <h2 className="text-sm font-semibold">How a question becomes a governed answer</h2>
-          <ol className="text-xs text-muted-foreground space-y-1.5 leading-relaxed list-decimal list-inside">
-            <li>The registry supplies the complete list of legal metrics and dimensions.</li>
-            <li>
-              A Cortex model maps the question onto that list and returns metric ids only — it is never asked to write
-              SQL. On a follow-up it also sees the last few turns, so a reference like &ldquo;and by region?&rdquo;
-              resolves; those remembered ids are re-validated against the registry every turn.
-            </li>
-            <li>Every returned id is validated against the registry; anything unrecognised is discarded.</li>
-            <li>
-              The SQL is assembled from the registry as a <code className="font-mono">SEMANTIC_VIEW(…)</code> query, so the
-              metric arithmetic comes from the semantic view, not from the model.
-            </li>
-            <li>
-              The chart is chosen from the result shape by code, not by the model, and metrics with different units are
-              drawn on separate axes.
-            </li>
-            <li>
-              A second call writes the summary prose. Every number in it is checked against the rows that were actually
-              returned; prose containing a figure the result cannot account for is discarded and replaced with a
-              deterministic one.
-            </li>
-          </ol>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-          <h2 className="text-sm font-semibold">Also available as a Cortex Agent</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            The same governed semantic views are exposed to Snowflake Intelligence as a Cortex Agent with eight Cortex
-            Analyst tools and 38 verified queries. Its instructions forbid inventing a metric, require a prediction to be
-            labelled as one and quoted with its backtested accuracy, and forbid aggregating a snapshot balance across
-            dates.
-          </p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            This page does not route through it. An agent resolves permissions from the user&apos;s default role rather
-            than the session role, so a row-scoped persona would silently receive all-region numbers — which is the
-            distinction this project exists to demonstrate.
-          </p>
-          <Provenance label="Agent">
-            {`${AGENT_FQN}
-
-Tools:
-  Ontology_360_Analyst    -> SC_ONTOLOGY_360   (cross-domain)
-  Supplier_Analyst        -> SC_SUPPLIER
-  Fulfillment_Analyst     -> SC_FULFILLMENT
-  Inventory_Analyst       -> SC_INVENTORY
-  Landed_Cost_Analyst     -> SC_LANDED_COST
-  Demand_Analyst          -> SC_DEMAND
-  Manufacturing_Analyst   -> SC_MANUFACTURING
-  Metric_Outlook          -> SC_OUTLOOK        (predictions)
-  data_to_chart           -> built-in`}
-          </Provenance>
-        </div>
-      </section>
     </PageShell>
   )
 }

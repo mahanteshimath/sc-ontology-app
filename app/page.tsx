@@ -557,13 +557,7 @@ export default async function OverviewPage({
   return (
     <PageShell
       title="Supply Chain Ontology and Governed Conversational Analytics"
-      description={
-        <>
-          Supply chain data lives in ERP, logistics, supplier and IoT systems with inconsistent definitions, so the same
-          question returns different answers to different teams. This builds one industry ontology, expresses it as
-          governed Snowflake semantic views, and proves that every persona resolves a metric to the same number.
-        </>
-      }
+      description="One governed metric layer for procurement, logistics, planning, and conversational analysis."
       actions={<PeriodControl asOf={period.asOf} description={period.description} />}
     >
       {/*
@@ -592,22 +586,22 @@ export default async function OverviewPage({
           {
             href: "/ontology",
             title: "Ontology",
-            body: "Entities, relationships and hierarchies, read live from the deployed semantic views.",
+            body: "Live entities, relationships and hierarchies.",
           },
           {
             href: "/metrics",
             title: "Metric Registry",
-            body: "Canonical definition, numerator, denominator, grain, target and owner for every governed metric.",
+            body: "Definitions, targets, owners and grain.",
           },
           {
             href: "/consistency",
             title: "Consistency",
-            body: "The same metric executed as each persona role, plus the recorded divergence we fixed.",
+            body: "One metric, checked across each persona.",
           },
           {
             href: "/ask",
             title: "Ask",
-            body: "Natural language questions resolved to a registered metric, with provenance on every answer.",
+            body: "Governed natural-language answers with provenance.",
           },
         ].map((c) => (
           <Link

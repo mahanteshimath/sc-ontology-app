@@ -48,16 +48,16 @@ export function PeriodControl({ asOf, description }: { asOf: string; description
   }
 
   return (
-    <div className={cn("flex flex-col items-end gap-1", pending && "opacity-60")}>
+    <div className={cn("rounded-lg border border-border bg-secondary/45 px-3 py-2.5 shadow-sm flex flex-col items-end gap-1.5", pending && "opacity-60")}>
       <div className="flex items-center gap-2 flex-wrap justify-end">
-        <label className="text-[11px] uppercase tracking-wider text-muted-foreground" htmlFor="period">
+        <label className="u-label" htmlFor="period">
           Period
         </label>
         <select
           id="period"
           value={current}
           onChange={(e) => selectPreset(e.target.value)}
-          className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+          className="h-8 rounded-md border border-border bg-card px-2 text-xs shadow-sm"
         >
           {PERIOD_OPTIONS.map((p) => (
             <option key={p.id} value={p.id} title={p.hint}>
@@ -77,9 +77,9 @@ export function PeriodControl({ asOf, description }: { asOf: string; description
               value={from}
               max={to || asOf}
               onChange={(e) => update({ period: null, from: e.target.value || null })}
-              className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+              className="h-8 rounded-md border border-border bg-card px-2 text-xs shadow-sm"
             />
-            <span className="text-[11px] text-muted-foreground">to</span>
+            <span className="u-meta">to</span>
             <input
               type="date"
               aria-label="Range end"
@@ -87,12 +87,12 @@ export function PeriodControl({ asOf, description }: { asOf: string; description
               min={from || undefined}
               max={asOf}
               onChange={(e) => update({ period: null, to: e.target.value || null })}
-              className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+              className="h-8 rounded-md border border-border bg-card px-2 text-xs shadow-sm"
             />
           </>
         )}
 
-        <label className="text-[11px] uppercase tracking-wider text-muted-foreground" htmlFor="asOf">
+        <label className="u-label" htmlFor="asOf">
           As of
         </label>
         <input
@@ -100,10 +100,10 @@ export function PeriodControl({ asOf, description }: { asOf: string; description
           type="date"
           value={asOf}
           onChange={(e) => update({ asOf: e.target.value || null })}
-          className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+          className="h-8 rounded-md border border-border bg-card px-2 text-xs shadow-sm"
         />
       </div>
-      <span className="text-[11px] text-muted-foreground font-mono">{description}</span>
+      <span className="u-mono text-muted-foreground">{description}</span>
     </div>
   )
 }

@@ -6,15 +6,24 @@ import { APP_TITLE, TEAM_NAME } from "@/lib/constants"
 import { BrandMark } from "@/components/brand-mark"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
+import {
+  BarChart3,
+  BotMessageSquare,
+  Boxes,
+  ClipboardCheck,
+  Database,
+  GitCompareArrows,
+  Network,
+} from "lucide-react"
 
 const NAV = [
-  { href: "/", label: "Overview" },
-  { href: "/ontology", label: "Ontology" },
-  { href: "/metrics", label: "Metric Registry" },
-  { href: "/consistency", label: "Consistency" },
-  { href: "/outlook", label: "Outlook" },
-  { href: "/ask", label: "Ask" },
-  { href: "/operations", label: "Operations" },
+  { href: "/", label: "Overview", icon: BarChart3 },
+  { href: "/operations", label: "Operations", icon: Boxes },
+  { href: "/ask", label: "Ask", icon: BotMessageSquare },
+  { href: "/outlook", label: "Outlook", icon: ClipboardCheck },
+  { href: "/ontology", label: "Ontology", icon: Network },
+  { href: "/metrics", label: "Metric Registry", icon: Database },
+  { href: "/consistency", label: "Consistency", icon: GitCompareArrows },
 ]
 
 export function AppHeader({
@@ -48,9 +57,9 @@ export function AppHeader({
    * own full-width row below `md` with a masked edge so a cut-off link reads as scrollable.
    */
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6">
-        <div className="flex items-center gap-3 py-2.5">
+        <div className="flex items-center gap-3 py-3">
           <Link href="/" className="flex items-center gap-2.5 min-w-0 rounded-md">
             {/* Inlined, not <Image>: see BrandMark for why currentColor needs to be in-document. */}
             <BrandMark className="shrink-0 text-[var(--brand-mark)]" />
@@ -64,7 +73,7 @@ export function AppHeader({
           </Link>
 
           {/* On md+ the nav shares the brand's row; below that it moves to its own row. */}
-          <nav aria-label="Primary" className="hidden md:flex items-center gap-1 u-scroll-x">
+          <nav aria-label="Primary" className="hidden md:flex items-center gap-0.5 u-scroll-x">
             {NAV.map((item) => (
               <NavLink key={item.href} item={item} pathname={pathname} />
             ))}
@@ -82,7 +91,7 @@ export function AppHeader({
                 </div>
                 <button
                   onClick={signOut}
-                  className="u-meta whitespace-nowrap px-2 py-1.5 rounded-md hover:text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+                  className="u-meta whitespace-nowrap rounded-md border border-transparent px-2.5 py-1.5 hover:border-border hover:text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
                 >
                   Sign out
                 </button>
@@ -97,7 +106,7 @@ export function AppHeader({
           off-screen with no affordance a user would notice, which hid a third of the app; six short
           labels fit two rows at 390px, so every destination is simply visible.
         */}
-        <nav aria-label="Primary" className="md:hidden flex flex-wrap items-center gap-1 pb-2">
+        <nav aria-label="Primary" className="md:hidden flex flex-wrap items-center gap-1 pb-2.5">
           {NAV.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
@@ -108,19 +117,27 @@ export function AppHeader({
 }
 
 /** One nav destination. `aria-current` so the active page is announced, not only coloured. */
-function NavLink({ item, pathname }: { item: { href: string; label: string }; pathname: string }) {
+function NavLink({
+  item,
+  pathname,
+}: {
+  item: { href: string; label: string; icon: typeof BarChart3 }
+  pathname: string
+}) {
   const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
+  const Icon = item.icon
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "px-3 py-1.5 rounded-md text-[length:var(--fs-body)] whitespace-nowrap transition-colors",
+        "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[length:var(--fs-meta)] whitespace-nowrap transition-colors",
         active
-          ? "bg-secondary text-secondary-foreground font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+          ? "bg-[color-mix(in_oklab,var(--brand-primary)_12%,var(--secondary))] text-foreground font-semibold"
+          : "text-muted-foreground hover:text-foreground hover:bg-secondary/70",
       )}
     >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
       {item.label}
     </Link>
   )

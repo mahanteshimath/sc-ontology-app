@@ -31,6 +31,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation } from "@tanstack/react-query"
+import { ArrowUp, BotMessageSquare, RefreshCw, RotateCcw, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatusPill, Tag } from "@/components/ui-kit"
 import { DrilldownButton } from "@/components/drilldown"
@@ -109,13 +110,11 @@ interface Turn {
   narrating: boolean
 }
 
-const SAMPLES = [
-  "What is our supplier on-time delivery?",
-  "How does supplier on-time delivery compare with the on-time delivery we give customers?",
-  "Show fill rate, days of inventory and landed cost per unit by product family",
-  "Are carriers billing us more than we accrued for freight?",
-  "Which product families will miss their on-time delivery target next month?",
-  "What is our average customer satisfaction score?",
+const STARTERS = [
+  { label: "Supplier reliability", question: "What is our supplier on-time delivery?" },
+  { label: "Service comparison", question: "How does supplier on-time delivery compare with the on-time delivery we give customers?" },
+  { label: "Product-family view", question: "Show fill rate, days of inventory and landed cost per unit by product family" },
+  { label: "Target risk", question: "Which product families will miss their on-time delivery target next month?" },
 ]
 
 /**
@@ -255,16 +254,40 @@ export function AskChat({
   const lastAnswered = [...turns].reverse().find((t) => t.answer?.answerable)
 
   return (
-    <div className="space-y-4">
-      {/* Controls. Persona and period apply to the NEXT question; each turn records its own. */}
-      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-        <div className="flex items-end gap-3 flex-wrap">
+    <div className="space-y-5">
+      {/* Context applies to the next turn; each completed turn retains its own context. */}
+      <section className="u-card overflow-hidden">
+        <div className="flex items-start justify-between gap-4 border-b border-border bg-secondary/35 px-4 py-3 sm:px-5">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-md bg-[color-mix(in_oklab,var(--brand-primary)_15%,transparent)] text-[var(--link)]">
+              <BotMessageSquare className="h-4 w-4" aria-hidden />
+            </span>
+            <div>
+              <div className="u-subhead">Analyst session</div>
+              <div className="u-meta">{turns.length === 0 ? "Start with a governed question" : `${turns.length} turn${turns.length === 1 ? "" : "s"} in this session`}</div>
+            </div>
+          </div>
+          {turns.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTurns([])}
+              disabled={mutation.isPending}
+              title="Clear conversation"
+              className="grid h-8 w-8 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              <span className="sr-only">Clear conversation</span>
+            </button>
+          )}
+        </div>
+        <div className="flex items-end gap-3 flex-wrap px-4 py-4 sm:px-5">
           <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Asking as</span>
+            <span className="u-label">Query role</span>
             <select
               value={persona}
               onChange={(e) => setPersona(e.target.value)}
-              className="h-9 rounded-md border border-border bg-background px-2 text-sm min-w-[200px]"
+              disabled={personas.length <= 1 || mutation.isPending}
+              className="h-9 min-w-[210px] rounded-md border border-border bg-background px-2.5 text-sm shadow-sm"
             >
               {personas.map((p) => (
                 <option key={p.roleName} value={p.roleName}>
@@ -273,57 +296,53 @@ export function AskChat({
               ))}
             </select>
           </label>
-          <div className="text-xs text-muted-foreground pb-2">
-            {metricCount} governed metrics · the query runs as{" "}
-            <span className="font-mono">{persona}</span> with secondary roles disabled, so its row scope (
-            {selected?.rowScope ?? "unknown"}) applies while the metric definition stays identical
+          <div className="u-meta max-w-xl pb-1.5">
+            <span className="font-medium text-foreground">{metricCount} governed metrics</span> · {selected?.focus ?? "Governed analytics"} · {selected?.rowScope ?? "row scope unknown"}
           </div>
         </div>
-        <div className="text-[11px] text-muted-foreground font-mono">
-          Period: {period.label} · {period.description}
-        </div>
+        <div className="border-t border-border px-4 py-2.5 sm:px-5"><span className="u-mono text-muted-foreground">Period · {period.label} · {period.description}</span></div>
 
         {turns.length === 0 && (
-          <>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {SAMPLES.map((s) => (
+          <div className="border-t border-border px-4 py-4 sm:px-5">
+            <div className="mb-2 flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-[var(--link)]" aria-hidden /><span className="u-label">Start with a governed question</span></div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {STARTERS.map((starter) => (
                 <button
-                  key={s}
-                  onClick={() => ask(s)}
-                  className="text-[11px] rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  key={starter.label}
+                  onClick={() => ask(starter.question)}
+                  className="rounded-md border border-border bg-background px-3 py-2 text-left transition-colors hover:border-[color-mix(in_oklab,var(--brand-primary)_35%,var(--border))] hover:bg-secondary/60"
                 >
-                  {s.length > 58 ? `${s.slice(0, 56)}…` : s}
+                  <span className="block text-xs font-medium text-foreground">{starter.label}</span>
+                  <span className="mt-0.5 block truncate u-meta">{starter.question}</span>
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              The last sample is deliberately off-ontology — a governed layer should refuse it rather than
-              invent a number. Ask a follow-up in plain language once you have an answer: &ldquo;and by
-              region?&rdquo; keeps the metric and changes the breakdown.
-            </p>
-          </>
+          </div>
         )}
-      </div>
+      </section>
 
       {/* Transcript */}
       {turns.map((turn) => (
-        <div key={turn.id} className="space-y-3">
+        <article key={turn.id} className="space-y-3">
           {/* The question, with the persona and period THAT TURN ran under. */}
           <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-lg rounded-br-sm border border-border bg-secondary/60 px-3.5 py-2.5 space-y-1">
-              <p className="text-sm">{turn.question}</p>
-              <p className="text-[10px] text-muted-foreground font-mono">
+            <div className="max-w-[88%] rounded-xl rounded-br-sm border border-border bg-secondary/70 px-4 py-3 space-y-1 shadow-sm sm:max-w-[78%]">
+              <p className="text-sm leading-relaxed">{turn.question}</p>
+              <p className="u-mono text-muted-foreground">
                 as {turn.askedAsLabel} · {turn.periodLabel}
               </p>
             </div>
           </div>
 
           {turn.error && (
-            <div className="rounded-md border u-chip-bad p-3 u-body">{turn.error}</div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border u-chip-bad p-3">
+              <span className="u-body">{turn.error}</span>
+              <button type="button" onClick={() => ask(turn.question)} disabled={mutation.isPending} className="inline-flex items-center gap-1.5 rounded-md border border-current/30 px-2.5 py-1 text-xs font-medium hover:bg-current/10 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" aria-hidden />Retry</button>
+            </div>
           )}
 
           {!turn.answer && !turn.error && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div aria-live="polite" className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
               Resolving against the governed registry…
             </div>
@@ -331,14 +350,12 @@ export function AskChat({
 
           {/* Refusal */}
           {turn.answer && !turn.answer.answerable && (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
-              <div className="text-sm font-semibold u-warn">Not in the governed catalogue</div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{turn.answer.reason}</p>
+            <div className="rounded-xl border border-amber-500/35 bg-amber-500/[0.06] p-4 space-y-3">
+              <div className="text-sm font-semibold u-warn">No governed match</div>
+              <p className="u-body text-muted-foreground">{turn.answer.reason}</p>
               {turn.answer.suggestions && turn.answer.suggestions.length > 0 && (
                 <div className="pt-1">
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Governed metrics you can ask about
-                  </div>
+                  <div className="u-label mb-1.5">Try instead</div>
                   <div className="flex flex-wrap gap-1.5">
                     {turn.answer.suggestions.map((s) => (
                       <button key={s} onClick={() => ask(`What is our ${s}?`)}>
@@ -353,21 +370,24 @@ export function AskChat({
 
           {/* Answer */}
           {turn.answer?.answerable && <Answer turn={turn} answer={turn.answer} period={period} />}
-        </div>
+        </article>
       ))}
 
       {/* Follow-ups, shown once there is something to follow up on. */}
       {lastAnswered && !mutation.isPending && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="rounded-lg border border-border bg-secondary/30 p-3">
+          <div className="u-label mb-2">Continue the analysis</div>
+          <div className="flex flex-wrap gap-1.5">
           {FOLLOW_UPS.map((f) => (
             <button
               key={f}
               onClick={() => ask(f)}
-              className="text-[11px] rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              className="rounded-full border border-border bg-card px-3 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               {f}
             </button>
           ))}
+          </div>
         </div>
       )}
 
@@ -379,27 +399,31 @@ export function AskChat({
           e.preventDefault()
           ask(question)
         }}
-        className="flex gap-2 sticky bottom-0 bg-background/95 backdrop-blur py-3 -mx-1 px-1 border-t border-border"
+        className="sticky bottom-3 z-20 flex items-end gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-[var(--shadow-raised)] backdrop-blur"
       >
-        <input
+        <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault()
+              ask(question)
+            }
+          }}
           placeholder={
             turns.length === 0
               ? "Ask a cross-domain supply chain question…"
               : "Ask a follow-up — “and by region?” keeps the metric"
           }
-          className="flex-1 h-10 rounded-md border border-border bg-background px-3 text-sm"
+          rows={1}
+          className="min-h-10 max-h-28 flex-1 resize-y rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm leading-6 outline-none placeholder:text-muted-foreground focus:border-[color-mix(in_oklab,var(--brand-primary)_45%,transparent)] focus:bg-background"
         />
-        <Button type="submit" disabled={mutation.isPending || !question.trim()}>
-          {mutation.isPending ? "Resolving…" : "Ask"}
+        <Button type="submit" size="icon" title="Send question" disabled={mutation.isPending || !question.trim()}>
+          <ArrowUp className="h-4 w-4" aria-hidden />
+          <span className="sr-only">{mutation.isPending ? "Resolving" : "Send question"}</span>
         </Button>
-        {turns.length > 0 && (
-          <Button type="button" variant="outline" onClick={() => setTurns([])} disabled={mutation.isPending}>
-            Clear
-          </Button>
-        )}
       </form>
+      <p className="-mt-3 text-center u-meta">Enter to send · Shift + Enter for a new line</p>
     </div>
   )
 }
@@ -425,8 +449,12 @@ function Answer({
   const chartRows = answer.chartRows?.length ? answer.chartRows : rows
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 flex-wrap text-[11px]">
+    <section className="u-card space-y-4 p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+        <div><div className="u-label text-[var(--link)]">Governed answer</div><p className="mt-0.5 u-meta">{answer.reason}</p></div>
+        <span className="u-mono text-muted-foreground">{answer.rowCount ?? rows.length} row{(answer.rowCount ?? rows.length) === 1 ? "" : "s"}</span>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
         <Tag title="The Snowflake role the query actually ran under">executed as {answer.executedAs}</Tag>
         {answer.period && <Tag title={answer.period.description}>{answer.period.label}</Tag>}
         {answer.snapshotDate && (
@@ -444,11 +472,11 @@ function Answer({
 
       {/* The narration. Shown under the provenance chips and above the figures it describes. */}
       {turn.narrating && (
-        <p className="text-sm text-muted-foreground italic">Summarising the governed result…</p>
+        <p className="u-meta italic">Summarising governed result…</p>
       )}
       {turn.narration?.narration && (
         <div className="space-y-1.5">
-          <p className="text-sm leading-relaxed">{turn.narration.narration}</p>
+          <p className="u-body leading-relaxed">{turn.narration.narration}</p>
           {turn.narration.narrationSource === "template" && (
             <p className="text-[11px] text-muted-foreground">
               {turn.narration.note ??
@@ -486,7 +514,8 @@ function Answer({
               direction: m.direction,
             })
             return (
-              <div key={m.metricId} className="rounded-lg border border-border bg-card p-4 space-y-1.5">
+              <div key={m.metricId} className="relative overflow-hidden rounded-lg border border-border bg-background p-4 space-y-1.5">
+                <div className="absolute inset-x-0 top-0 h-0.5 bg-[color-mix(in_oklab,var(--brand-primary)_45%,transparent)]" />
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-xs font-medium">{m.businessName}</span>
                   <StatusPill status={m.driftStatus} label={m.driftStatus ? `drift ${m.driftStatus}` : undefined} />
@@ -655,6 +684,6 @@ function Answer({
           </div>
         </div>
       </details>
-    </div>
+    </section>
   )
 }

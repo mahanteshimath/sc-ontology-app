@@ -44,23 +44,23 @@ async function OutlookBody() {
           label="Will breach target"
           value={String(willBreach.length)}
           tone={willBreach.length > 0 ? "bad" : "good"}
-          sub="Target sits so far above current performance that it is unreachable without a process change"
+          sub="Target is outside current process capability"
         />
         <StatTile
           label="At risk"
           value={String(atRisk.length)}
           tone={atRisk.length > 0 ? "warn" : "good"}
-          sub="Within reach, but current variation could take it either way"
+          sub="Current variation could miss target"
         />
         <StatTile
           label="Method accuracy"
           value={accuracy === null ? "not scored" : pct(accuracy)}
-          sub="Backtested on 6 held-out months with the same canonical FORECAST_ACCURACY definition used on the ERP demand plan"
+          sub="Backtested on 6 held-out months"
         />
         <StatTile
           label="Volume forecast"
           value={forecast.length ? `${forecast.length} months` : "—"}
-          sub="Order-line volume, the one series here with genuine forecastable signal"
+          sub="Order-line volume forecast horizon"
         />
       </section>
 
@@ -69,28 +69,20 @@ async function OutlookBody() {
         the single most important fact about this data set is that its ratio metrics do not move.
       */}
       <section className="u-card p-5 space-y-3">
-        <SectionHeading note="read this before trusting anything below">
-          What this data can and cannot predict
+        <SectionHeading note="method limits">
+          Prediction scope
         </SectionHeading>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <div className="u-label">Not forecastable</div>
             <p className="u-body text-muted-foreground">
-              The service ratios are stationary. Twenty-two months of product-family on-time delivery move by
-              only 0.2 to 0.4 percentage points of standard deviation, while the spread <em>between</em> families
-              is 4.9 points. Forecasting the level would return a flat line at the historical mean — and the
-              backtest proves it: predicting the mean scores{" "}
-              <span className="u-mono">{accuracy === null ? "n/a" : pct(accuracy)}</span> accuracy. An
-              impressive number that demonstrates nothing.
+              Service ratios are stable. A level forecast would mostly repeat the historical mean.
             </p>
           </div>
           <div className="space-y-2">
             <div className="u-label">Genuinely predictable</div>
             <p className="u-body text-muted-foreground">
-              Because each family holds its own level so tightly, whether a <em>target</em> is reachable is a
-              confident call. That is the prediction below. Order-line volume is separately forecastable, since
-              it carries a level plus a days-in-month effect. The incumbent ERP demand plan already runs at
-              98.83% accuracy, so beating it was never a realistic goal and is not claimed.
+              Target reachability and order-line volume carry useful signal; level forecasts do not.
             </p>
           </div>
         </div>
@@ -130,13 +122,7 @@ async function OutlookBody() {
             </div>
           ))}
         </div>
-        <p className="u-meta u-prose">
-          The on-time delivery target of 95% sits 16 to 34 standard deviations above every family&rsquo;s
-          realized performance. That is not a stretch target; on current process capability it is out of reach,
-          and the honest reading is that either the process or the target has to change. Fill rate is the
-          opposite case: the target is close enough that the method discriminates, putting Films at risk while
-          the rest are on track.
-        </p>
+        <p className="u-meta u-prose">Verdicts compare the target with current process capability, not a model-generated promise.</p>
 
         <TargetSimulator />
       </section>
@@ -167,18 +153,10 @@ async function OutlookBody() {
         <SectionHeading>How a prediction stays governed</SectionHeading>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="u-card p-5 space-y-2">
-            <h3 className="u-subhead">A prediction is not a measurement</h3>
+            <h3 className="u-subhead">Prediction guardrails</h3>
             <ul className="u-body text-muted-foreground space-y-1.5 list-disc list-inside">
-              <li>Predictions live in their own registry and never enter a realized aggregate.</li>
-              <li>
-                They are excluded from the drift test on purpose: compared against the canonical fact a
-                forecast would fail by design, which would say nothing about its quality.
-              </li>
-              <li>
-                Each is scored with the <span className="u-mono">FORECAST_ACCURACY</span> definition already used
-                on the ERP plan, rather than a second definition invented for the occasion.
-              </li>
-              <li>Every row records its method, model version and the basis of the number in plain language.</li>
+              <li>Predictions stay outside realized metrics and drift tests.</li>
+              <li>Each prediction includes its method and backtest.</li>
             </ul>
           </div>
           <div className="u-card p-5 space-y-2">
@@ -222,7 +200,7 @@ export default async function OutlookPage() {
   return (
     <PageShell
       title="Outlook"
-      description="Governed predictions, each shown with the accuracy it actually achieved on held-out months. A forecast that cannot show its track record is an opinion, so the track record is on the same screen as the number."
+      description="Governed predictions with their measured backtest results."
     >
       <Suspense fallback={<SectionSkeleton title="Outlook" rows={4} />}>
         <Section title="Outlook">{() => OutlookBody()}</Section>

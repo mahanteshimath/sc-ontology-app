@@ -208,7 +208,7 @@ export default async function ConsistencyPage() {
   return (
     <PageShell
       title="Cross-Persona Consistency"
-      description="The claim this project stands on: planning, procurement and logistics ask the same question and get the same number. This page executes a governed metric as each real Snowflake role and shows the results side by side, alongside the divergence that existed before remediation."
+      description="Compare governed metrics across real Snowflake roles and row scopes."
     >
       <Suspense fallback={<SectionSkeleton title="Cross-persona consistency" rows={4} />}>
         <Section title="Cross-persona consistency">{() => ConsistencyBody()}</Section>

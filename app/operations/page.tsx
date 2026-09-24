@@ -275,7 +275,7 @@ export default async function OperationsPage({
   return (
     <PageShell
       title="Operations"
-      description="Cross-domain operational views, each one a governed query against the ontology. Every figure here is the same metric the conversational layer resolves to — there is no separate reporting logic that could drift away from it."
+      description="Cross-domain operating views built from the same governed metrics used in Ask."
       actions={<PeriodControl asOf={period.asOf} description={period.description} />}
     >
       {PANELS.map((panel) => (

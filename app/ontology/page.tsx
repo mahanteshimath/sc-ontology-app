@@ -184,7 +184,7 @@ export default async function OntologyPage() {
   return (
     <PageShell
       title="Supply Chain Ontology"
-      description="Core entities, relationships, hierarchies and canonical metrics. Everything on this page is read live from INFORMATION_SCHEMA on the deployed semantic view, so the diagram cannot drift from what the conversational layer actually queries."
+      description="Live semantic-view entities, relationships, hierarchies and metrics."
     >
       <Suspense fallback={<SectionSkeleton title="Ontology" rows={4} />}>
         <Section title="Ontology">{() => OntologyBody()}</Section>
