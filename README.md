@@ -292,10 +292,11 @@ statement boundaries. Use the runner, not `snow sql`, for `00f`, `01` and `07`.
 | 16 | `08b_persist_forecast.sql` | persists and backtests the volume forecast (~88 s) |
 | 17 | `09_agent_eval.sql` | the 60-question evaluation set, with 3 self-assertions |
 | 18 | `10_agent.sql` | `SC_ONTOLOGIST_AGENT` and its 9 tools |
-| 19 | `90_verify_base.sql` | splice anchors, registry shape, verified-query counts, agent exists, **the drift gate** |
-| 20 | `91_verify_personas.sql` | proves the EU row scope actually filters |
-| 21 | `92_verify_counts.sql` | row counts, snapshot cardinality, data shape |
-| 22 | `93_verify_verified_queries.sql` | **executes** all 38 verified queries |
+| 19 | `10b_geospatial_reference.sql` | geocoded network nodes, region-hub lane geometry and chokepoint reference data |
+| 20 | `90_verify_base.sql` | splice anchors, registry shape, verified-query counts, agent exists, **the drift gate** |
+| 21 | `91_verify_personas.sql` | proves the EU row scope actually filters |
+| 22 | `92_verify_counts.sql` | row counts, snapshot cardinality, data shape |
+| 23 | `93_verify_verified_queries.sql` | **executes** all 38 verified queries |
 
 `sql/00_README.md` carries the full rationale. Two ordering facts matter:
 
