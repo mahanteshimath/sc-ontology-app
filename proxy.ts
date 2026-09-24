@@ -21,6 +21,9 @@ export async function proxy(req: NextRequest) {
   // SPCS mounts the service token; its presence means the platform is fronting the app.
   if (process.env.SNOWFLAKE_SERVICE_AUTH === "spcs") return NextResponse.next()
 
+  // The product overview is public; all data-bearing routes remain protected.
+  if (req.nextUrl.pathname === "/") return NextResponse.next()
+
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value)
   if (session) return NextResponse.next()
 
