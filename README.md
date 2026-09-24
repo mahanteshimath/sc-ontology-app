@@ -328,7 +328,7 @@ Three distribution choices are load-bearing rather than cosmetic, and each is do
 of use in `sql/00c_raw_transactions.sql`:
 
 - **~2.8% of receipt and delivery rows are future-dated** (not the 8.4% a uniform spread over the
-  range would give), so the as-of rule has something real to exclude without making recent months
+  range would give), so the as-of rule has something real to exclude without making recent month
   read as catastrophic.
 - **Days-of-inventory cover is a squared draw**, not uniform. A uniform 5–59 gave the right mean of
   32 but capped below 60, so the ">60 days" exception rule matched 0 of 137,088 rows and that
