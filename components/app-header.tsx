@@ -75,7 +75,7 @@ export function AppHeader({
           </Link>
 
           {/* On xl+ the nav shares the brand's row; below that it moves to its own row. */}
-          <nav aria-label="Primary" className="hidden xl:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden py-1">
+          <nav data-tour="nav" aria-label="Primary" className="hidden xl:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden py-1">
             {NAV.map((item) => (
               <NavLink key={item.href} item={item} pathname={pathname} />
             ))}
@@ -85,6 +85,7 @@ export function AppHeader({
             {user && (
               <>
                 <div
+                  data-tour="user-role"
                   className="hidden sm:flex flex-col items-end leading-tight"
                   title={`Governed queries for this session execute as ${user.personaRole}`}
                 >
@@ -127,9 +128,12 @@ function NavLink({
 }) {
   const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
   const Icon = item.icon
+  const dataTour = item.href === "/network-risk" ? "network-risk-link" : item.href === "/ask" ? "ask-link" : undefined
+
   return (
     <Link
       href={item.href}
+      data-tour={dataTour}
       aria-current={active ? "page" : undefined}
       className={cn(
         "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[length:var(--fs-meta)] whitespace-nowrap transition-colors",

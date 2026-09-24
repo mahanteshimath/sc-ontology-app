@@ -47,6 +47,7 @@ export function ProvenanceModal({
     <>
       {/* Interactive Trigger Button */}
       <button
+        data-tour="sql-provenance"
         onClick={() => setIsOpen(true)}
         className="group w-full flex items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/50 transition-all shadow-sm text-left"
         type="button"
