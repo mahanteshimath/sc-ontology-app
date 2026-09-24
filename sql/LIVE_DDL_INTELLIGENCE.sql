@@ -1,0 +1,32 @@
+-- ============================================================================
+-- LIVE_DDL_INTELLIGENCE.sql — SNOWFLAKE_INTELLIGENCE database, pulled 2026-09-24T07:44:29.027Z
+-- Holds the Cortex Agent's home schema. The AGENT object itself is NOT included
+-- here (GET_DDL does not support object type AGENT) — see LIVE_AGENT.sql.
+-- ============================================================================
+
+create or replace database SNOWFLAKE_INTELLIGENCE COMMENT='Home for Snowflake Intelligence agents.';
+
+create or replace schema SNOWFLAKE_INTELLIGENCE.AGENTS COMMENT='Cortex Agents.';
+
+create or replace TABLE SNOWFLAKE_INTELLIGENCE.AGENTS.EVAL_DATASET_SC_ONTOLOGIST_AGENT_20260923_074152 (
+	QUESTION_ID NUMBER(38,0) autoincrement start 1 increment 1 noorder,
+	INPUT_QUERY VARCHAR(16777216) NOT NULL,
+	GROUND_TRUTH VARIANT NOT NULL,
+	CATEGORY VARCHAR(16777216),
+	TRACK VARCHAR(16777216) NOT NULL,
+	AUTHOR VARCHAR(16777216) DEFAULT CURRENT_USER(),
+	CREATED_AT TIMESTAMP_NTZ(9) DEFAULT CURRENT_TIMESTAMP(),
+	NOTES VARCHAR(16777216),
+	unique (INPUT_QUERY)
+);
+create or replace TABLE SNOWFLAKE_INTELLIGENCE.AGENTS.EVAL_DATASET_SC_ONTOLOGIST_V3 (
+	INPUT_QUERY VARCHAR(16777216),
+	EXPECTED_OUTPUT VARIANT,
+	TRACK VARCHAR(16777216)
+);
+CREATE OR REPLACE FILE FORMAT SNOWFLAKE_INTELLIGENCE.AGENTS.YAML_FILE_FORMAT
+	RECORD_DELIMITER = 'NONE'
+	FIELD_DELIMITER = 'NONE'
+;
+create or replace schema SNOWFLAKE_INTELLIGENCE.PUBLIC;
+
