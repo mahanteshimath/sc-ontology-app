@@ -61,7 +61,7 @@ export default async function AskPage({
   return (
     <PageShell
       title="Ask the Ontology"
-      description="Ask a cross-domain question in plain language, then follow up on the answer — “and by region?” keeps the metric and changes the breakdown. The resolver may only choose from metrics registered in the governed catalogue and never writes its own SQL, so the same question always resolves to the same definition, and every turn shows which metric, which semantic view and which Snowflake role produced it."
+      description="Ask a question or follow up by breakdown. Answers resolve only to registered metrics."
       actions={<PeriodControl asOf={period.asOf} description={period.description} />}
     >
       <Suspense fallback={<SectionSkeleton title="Conversation" rows={1} />}>
@@ -69,57 +69,16 @@ export default async function AskPage({
       </Suspense>
 
       <section className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-          <h2 className="text-sm font-semibold">How a question becomes a governed answer</h2>
-          <ol className="text-xs text-muted-foreground space-y-1.5 leading-relaxed list-decimal list-inside">
-            <li>The registry supplies the complete list of legal metrics and dimensions.</li>
-            <li>
-              A Cortex model maps the question onto that list and returns metric ids only — it is never asked to write
-              SQL. On a follow-up it also sees the last few turns, so a reference like &ldquo;and by region?&rdquo;
-              resolves; those remembered ids are re-validated against the registry every turn.
-            </li>
-            <li>Every returned id is validated against the registry; anything unrecognised is discarded.</li>
-            <li>
-              The SQL is assembled from the registry as a <code className="font-mono">SEMANTIC_VIEW(…)</code> query, so the
-              metric arithmetic comes from the semantic view, not from the model.
-            </li>
-            <li>
-              The chart is chosen from the result shape by code, not by the model, and metrics with different units are
-              drawn on separate axes.
-            </li>
-            <li>
-              A second call writes the summary prose. Every number in it is checked against the rows that were actually
-              returned; prose containing a figure the result cannot account for is discarded and replaced with a
-              deterministic one.
-            </li>
-          </ol>
+        <div className="u-card p-4 space-y-2">
+          <h2 className="u-subhead">Governed answer path</h2>
+          <p className="u-meta">Question → registered metric → validated semantic query → chart and provenance.</p>
         </div>
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-          <h2 className="text-sm font-semibold">Also available as a Cortex Agent</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            The same governed semantic views are exposed to Snowflake Intelligence as a Cortex Agent with eight Cortex
-            Analyst tools and 38 verified queries. Its instructions forbid inventing a metric, require a prediction to be
-            labelled as one and quoted with its backtested accuracy, and forbid aggregating a snapshot balance across
-            dates.
-          </p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            This page does not route through it. An agent resolves permissions from the user&apos;s default role rather
-            than the session role, so a row-scoped persona would silently receive all-region numbers — which is the
-            distinction this project exists to demonstrate.
-          </p>
+        <div className="u-card p-4 space-y-2">
+          <h2 className="u-subhead">Cortex Agent</h2>
+          <p className="u-meta">The same views power the Agent. This screen stays role-scoped through the application resolver.</p>
           <Provenance label="Agent">
             {`${AGENT_FQN}
-
-Tools:
-  Ontology_360_Analyst    -> SC_ONTOLOGY_360   (cross-domain)
-  Supplier_Analyst        -> SC_SUPPLIER
-  Fulfillment_Analyst     -> SC_FULFILLMENT
-  Inventory_Analyst       -> SC_INVENTORY
-  Landed_Cost_Analyst     -> SC_LANDED_COST
-  Demand_Analyst          -> SC_DEMAND
-  Manufacturing_Analyst   -> SC_MANUFACTURING
-  Metric_Outlook          -> SC_OUTLOOK        (predictions)
-  data_to_chart           -> built-in`}
+8 Analyst tools · 38 verified queries`}
           </Provenance>
         </div>
       </section>

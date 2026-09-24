@@ -21,13 +21,18 @@ export function PageShell({
   children: React.ReactNode
 }) {
   return (
-    <main className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-10">
-      <header className="flex items-start justify-between gap-6 flex-wrap">
-        <div className="space-y-2 min-w-0">
-          <h1 className="text-[length:var(--fs-page)] font-semibold tracking-tight leading-tight">{title}</h1>
-          {description && <p className="u-body u-prose text-muted-foreground">{description}</p>}
+    <main className="w-full max-w-[1400px] mx-auto px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-10 space-y-10">
+      <header className="relative overflow-hidden rounded-xl border border-border bg-card px-5 py-5 shadow-[var(--shadow-card)] sm:px-7 sm:py-6">
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-[var(--brand-primary)]" />
+        <div className="pointer-events-none absolute right-0 top-0 h-28 w-72 bg-[linear-gradient(135deg,transparent_10%,color-mix(in_oklab,var(--brand-primary)_9%,transparent))]" />
+        <div className="relative flex items-start justify-between gap-6 flex-wrap">
+          <div className="space-y-2 min-w-0">
+            <div className="u-label text-[var(--link)]">Governed analytics workspace</div>
+            <h1 className="text-[length:var(--fs-page)] font-semibold tracking-tight leading-tight">{title}</h1>
+            {description && <p className="u-body u-prose text-muted-foreground">{description}</p>}
+          </div>
+          {actions && <div className="shrink-0 pt-0.5">{actions}</div>}
         </div>
-        {actions && <div className="shrink-0">{actions}</div>}
       </header>
       {children}
     </main>
@@ -80,8 +85,9 @@ export function StatTile({
           ? "var(--status-warn)"
           : undefined
   return (
-    <div className="u-card p-4 flex flex-col gap-1.5">
-      <div className="u-label">{label}</div>
+    <div className="u-card u-card-interactive relative overflow-hidden p-4 flex min-h-[136px] flex-col gap-1.5">
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-[color-mix(in_oklab,var(--brand-primary)_45%,transparent)]" />
+      <div className="u-label pt-0.5">{label}</div>
       <div className="u-value" style={toneVar ? { color: toneVar } : undefined}>
         {value}
       </div>
@@ -93,7 +99,7 @@ export function StatTile({
 /** Monospace provenance block: shows the exact SQL or definition behind a number. */
 export function Provenance({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-border bg-muted/50 p-3">
+    <div className="rounded-lg border border-border bg-muted/50 p-4">
       <div className="u-label mb-2">{label}</div>
       <pre className="u-mono leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
         {children}
@@ -175,7 +181,7 @@ export function ErrorNote({ message }: { message: string }) {
   return (
     <div
       role="alert"
-      className="rounded-md border p-3 u-body"
+      className="rounded-lg border p-4 u-body"
       style={{
         borderColor: "color-mix(in oklab, var(--status-bad) 35%, transparent)",
         background: "color-mix(in oklab, var(--status-bad) 9%, transparent)",

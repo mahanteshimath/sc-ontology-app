@@ -229,6 +229,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--brand-primary) 4%, transparent), transparent 18rem);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -412,6 +413,7 @@
   .u-card-interactive:hover {
     box-shadow: var(--shadow-raised);
     border-color: color-mix(in oklab, var(--brand-primary) 30%, var(--border));
+    transform: translateY(-1px);
   }
 
   /* Fades the edges of a horizontally scrolling strip so a cut-off item reads as scrollable. */

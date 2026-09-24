@@ -368,7 +368,7 @@ export default async function MetricsPage() {
   return (
     <PageShell
       title="Governed Metric Registry"
-      description="Every metric a team can ask about, with its canonical definition, numerator, denominator, grain, target and accountable owner. A metric that is not in this registry is not answerable by the conversational layer — that is what makes the answers governed rather than merely generated."
+      description="Definitions, grain, targets and owners for every metric the application can answer."
     >
       <Suspense fallback={<SectionSkeleton title="Drift test history" rows={1} />}>
         <Section title="Drift test history">{() => DriftHistorySection()}</Section>
