@@ -101,9 +101,6 @@ function LandingPage() {
                   Enter the control tower <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
               </Button>
-              <a href="#architecture" className="inline-flex h-12 items-center justify-center rounded-lg border border-white/15 px-6 text-sm font-medium text-slate-200 transition-colors hover:border-cyan-200/40 hover:bg-white/[0.05]">
-                See how it works
-              </a>
             </div>
             <div className="mt-12 grid max-w-xl grid-cols-3 gap-5 border-t border-white/10 pt-5">
               <div><div className="text-2xl font-semibold text-white">14</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Governed metrics</div></div>
