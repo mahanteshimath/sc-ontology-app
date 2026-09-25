@@ -304,6 +304,66 @@ export const getEntityAttributes = cachedMetadata(async function getEntityAttrib
   }))
 })
 
+export interface HierarchyLevel {
+  hierarchyId: string
+  hierarchyName: string
+  entity: string
+  levelNo: number
+  levelCount: number
+  levelDimension: string
+  dimensionRef: string
+  description: string | null
+  /** FALSE when the declared level is not a dimension of the deployed semantic view. */
+  resolves: boolean
+  /** BASE for the finest grain, PASS/FAIL/ERROR for a measured rollup. */
+  rollupStatus: string | null
+  distinctChildren: number | null
+  distinctParents: number | null
+  violationCount: number | null
+  validationDetail: string | null
+  validatedAt: string | null
+}
+
+/**
+ * Declared drill paths, with the evidence that each one is real.
+ *
+ * Unlike entities and relationships, a hierarchy cannot be read back out of a semantic view —
+ * Snowflake has no hierarchy construct — so this is the one part of the ontology catalogue that
+ * starts from a declaration. `resolves` and `rollupStatus` are what stop that being a free pass:
+ * the level is joined to INFORMATION_SCHEMA and the rollup is measured against the source
+ * dimension by GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY.
+ */
+export const getOntologyHierarchies = cachedMetadata(async function getOntologyHierarchies(
+  semanticView: string = "SC_ONTOLOGY_360",
+): Promise<HierarchyLevel[]> {
+  const rows = await querySnowflake(
+    `SELECT hierarchy_id, hierarchy_name, entity, level_no, level_count, level_dimension,
+            dimension_ref, description, resolves, rollup_status,
+            distinct_children, distinct_parents, violation_count, validation_detail, validated_at
+       FROM SUPPLY_CHAIN.GOVERNANCE.V_ONTOLOGY_HIERARCHY
+      WHERE semantic_view = ?
+      ORDER BY hierarchy_id, level_no`,
+    { binds: [semanticView] },
+  )
+  return rows.map((r) => ({
+    hierarchyId: r.HIERARCHY_ID as string,
+    hierarchyName: r.HIERARCHY_NAME as string,
+    entity: r.ENTITY as string,
+    levelNo: num(r.LEVEL_NO) ?? 0,
+    levelCount: num(r.LEVEL_COUNT) ?? 0,
+    levelDimension: r.LEVEL_DIMENSION as string,
+    dimensionRef: r.DIMENSION_REF as string,
+    description: r.DESCRIPTION ?? null,
+    resolves: Boolean(r.RESOLVES),
+    rollupStatus: r.ROLLUP_STATUS ?? null,
+    distinctChildren: num(r.DISTINCT_CHILDREN),
+    distinctParents: num(r.DISTINCT_PARENTS),
+    violationCount: num(r.VIOLATION_COUNT),
+    validationDetail: r.VALIDATION_DETAIL ?? null,
+    validatedAt: toIso(r.VALIDATED_AT),
+  }))
+})
+
 // ---------------------------------------------------------------------------
 // Database scale — read live so a rebuild is reflected without a redeploy
 // ---------------------------------------------------------------------------
@@ -462,6 +522,185 @@ export async function getNegativeControl() {
     detail: r.DETAIL,
     purpose: r.PURPOSE,
   }
+}
+
+export interface DivergenceImpact {
+  suppliers: number
+  target: number | null
+  receiptLines: number
+  atTargetGoverned: number
+  atTargetLegacy: number
+  falsePasses: number
+  falseFails: number
+  misclassified: number
+  misclassifiedShare: number | null
+  compliantListInflation: number | null
+  meanOverstatement: number | null
+  maxOverstatement: number | null
+}
+
+/**
+ * What the recorded divergence costs, in decisions rather than decimal places.
+ *
+ * Not cached and not computed here: both definitions are replayed at supplier grain inside
+ * GOVERNANCE.V_DIVERGENCE_IMPACT against whatever target the registry currently holds, so the
+ * figures on the page cannot be a stale sentence about a target that has since changed.
+ */
+export async function getDivergenceImpact(): Promise<DivergenceImpact | null> {
+  const rows = await querySnowflake(`SELECT * FROM SUPPLY_CHAIN.GOVERNANCE.V_DIVERGENCE_IMPACT`)
+  if (rows.length === 0) return null
+  const r = rows[0]
+  return {
+    suppliers: num(r.SUPPLIERS) ?? 0,
+    target: num(r.TARGET),
+    receiptLines: num(r.RECEIPT_LINES) ?? 0,
+    atTargetGoverned: num(r.AT_TARGET_GOVERNED) ?? 0,
+    atTargetLegacy: num(r.AT_TARGET_LEGACY) ?? 0,
+    falsePasses: num(r.FALSE_PASSES) ?? 0,
+    falseFails: num(r.FALSE_FAILS) ?? 0,
+    misclassified: num(r.MISCLASSIFIED) ?? 0,
+    misclassifiedShare: num(r.MISCLASSIFIED_SHARE),
+    compliantListInflation: num(r.COMPLIANT_LIST_INFLATION),
+    meanOverstatement: num(r.MEAN_OVERSTATEMENT),
+    maxOverstatement: num(r.MAX_OVERSTATEMENT),
+  }
+}
+
+/** The suppliers the two definitions disagree about, worst overstatement first. */
+export async function getMisclassifiedSuppliers(limit = 12) {
+  const rows = await querySnowflake(
+    `SELECT supplier_name, supplier_region, receipt_lines, governed_otd, legacy_otd,
+            overstatement, target, verdict_class
+       FROM SUPPLY_CHAIN.GOVERNANCE.V_SUPPLIER_OTD_VERDICT
+      WHERE misclassified
+      ORDER BY overstatement DESC
+      LIMIT ?`,
+    { binds: [limit] },
+  )
+  return rows.map((r) => ({
+    supplierName: r.SUPPLIER_NAME as string,
+    supplierRegion: r.SUPPLIER_REGION as string,
+    receiptLines: num(r.RECEIPT_LINES) ?? 0,
+    governedOtd: num(r.GOVERNED_OTD),
+    legacyOtd: num(r.LEGACY_OTD),
+    overstatement: num(r.OVERSTATEMENT),
+    target: num(r.TARGET),
+    verdictClass: r.VERDICT_CLASS as string,
+  }))
+}
+
+export interface EvalRun {
+  runId: string
+  runAt: string | null
+  targetBase: string | null
+  resolverModel: string | null
+  questions: number
+  passed: number
+  failed: number
+  errored: number
+  accuracy: number | null
+  refusalsExpected: number | null
+  refusalsCorrect: number | null
+  ambiguityCorrect: number | null
+  trapsCorrect: number | null
+  meanLatencyMs: number | null
+  p95LatencyMs: number | null
+}
+
+/**
+ * The most recent scored run of the 60-question evaluation set, or null if none has run.
+ *
+ * Returning null rather than a zeroed row is deliberate: "no run yet" and "a run that scored zero"
+ * are opposite facts, and a page that renders 0% for the former is lying about a test it never
+ * performed. The caller decides how to say "not yet measured".
+ */
+export async function getLatestEvalRun(): Promise<EvalRun | null> {
+  const rows = await querySnowflake(`SELECT * FROM SUPPLY_CHAIN.GOVERNANCE.V_AGENT_EVAL_LATEST`)
+  if (rows.length === 0) return null
+  const r = rows[0]
+  return {
+    runId: r.RUN_ID as string,
+    runAt: toIso(r.RUN_AT),
+    targetBase: r.TARGET_BASE ?? null,
+    resolverModel: r.RESOLVER_MODEL ?? null,
+    questions: num(r.QUESTIONS) ?? 0,
+    passed: num(r.PASSED) ?? 0,
+    failed: num(r.FAILED) ?? 0,
+    errored: num(r.ERRORED) ?? 0,
+    accuracy: num(r.ACCURACY),
+    refusalsExpected: num(r.REFUSALS_EXPECTED),
+    refusalsCorrect: num(r.REFUSALS_CORRECT),
+    ambiguityCorrect: num(r.AMBIGUITY_CORRECT),
+    trapsCorrect: num(r.TRAPS_CORRECT),
+    meanLatencyMs: num(r.MEAN_LATENCY_MS),
+    p95LatencyMs: num(r.P95_LATENCY_MS),
+  }
+}
+
+/** Where the conversational layer is weak, not merely how often it is right. */
+export async function getEvalByCategory() {
+  const rows = await querySnowflake(
+    `SELECT category, questions, passed, failed, accuracy, mean_latency_ms
+       FROM SUPPLY_CHAIN.GOVERNANCE.V_AGENT_EVAL_BY_CATEGORY
+      ORDER BY accuracy, category`,
+  )
+  return rows.map((r) => ({
+    category: r.CATEGORY as string,
+    questions: num(r.QUESTIONS) ?? 0,
+    passed: num(r.PASSED) ?? 0,
+    failed: num(r.FAILED) ?? 0,
+    accuracy: num(r.ACCURACY),
+    meanLatencyMs: num(r.MEAN_LATENCY_MS),
+  }))
+}
+
+/** The questions the latest run got wrong. Shown, not hidden: an accuracy figure without its failures is a scoreboard. */
+export async function getEvalFailures() {
+  const rows = await querySnowflake(
+    `SELECT question_id, category, persona_role, question,
+            expected_metric_ids, resolved_metric_ids, failure_mode
+       FROM SUPPLY_CHAIN.GOVERNANCE.V_AGENT_EVAL_FAILURE
+      ORDER BY question_id`,
+  )
+  return rows.map((r) => ({
+    questionId: r.QUESTION_ID as string,
+    category: r.CATEGORY as string,
+    personaRole: r.PERSONA_ROLE ?? null,
+    question: r.QUESTION as string,
+    expectedMetricIds: r.EXPECTED_METRIC_IDS ?? null,
+    resolvedMetricIds: r.RESOLVED_METRIC_IDS ?? null,
+    failureMode: r.FAILURE_MODE ?? null,
+  }))
+}
+
+/**
+ * The recorded agent/application comparison.
+ *
+ * Read rather than run: a full agent turn routinely exceeds the serverless budget, so putting it on
+ * the request path would make the page that argues the system is trustworthy the page most likely
+ * to time out. Drift is handled the same way — run out of band, record, display with its timestamp.
+ */
+export async function getAgentParity() {
+  const rows = await querySnowflake(
+    `SELECT question, metric_id, agent_value, agent_semantic_view, agent_verified_query,
+            app_value, app_persona, canonical_value, spread, status, detail, run_at
+       FROM SUPPLY_CHAIN.GOVERNANCE.V_AGENT_PARITY_LATEST
+      ORDER BY metric_id`,
+  )
+  return rows.map((r) => ({
+    question: r.QUESTION as string,
+    metricId: r.METRIC_ID as string,
+    agentValue: num(r.AGENT_VALUE),
+    agentSemanticView: r.AGENT_SEMANTIC_VIEW ?? null,
+    agentVerifiedQuery: r.AGENT_VERIFIED_QUERY === true,
+    appValue: num(r.APP_VALUE),
+    appPersona: r.APP_PERSONA ?? null,
+    canonicalValue: num(r.CANONICAL_VALUE),
+    spread: num(r.SPREAD),
+    status: r.STATUS as string,
+    detail: r.DETAIL ?? null,
+    runAt: toIso(r.RUN_AT),
+  }))
 }
 
 export async function runDriftTest(): Promise<DriftRow[]> {

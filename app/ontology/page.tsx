@@ -1,25 +1,22 @@
 import { Suspense } from "react"
 import { PageShell, StatTile, Tag, Provenance, Section, SectionSkeleton } from "@/components/ui-kit"
-import { getOntologyEntities, getOntologyRelationships, getEntityAttributes } from "@/lib/sc"
+import {
+  getOntologyEntities,
+  getOntologyRelationships,
+  getEntityAttributes,
+  getOntologyHierarchies,
+} from "@/lib/sc"
 import { parseSynonyms } from "@/lib/format"
 import { OntologyGraph } from "@/components/ontology-graph"
 
 export const dynamic = "force-dynamic"
 
-/** Hierarchies declared in the ontology, ordered from the lowest level upward. */
-const HIERARCHIES = [
-  { entity: "PART", name: "Product", levels: ["MATERIAL", "PRODUCT_FAMILY", "BUSINESS_SEGMENT"] },
-  { entity: "SUPPLIER", name: "Supplier", levels: ["SUPPLIER", "SUPPLIER_GROUP"] },
-  { entity: "NODE", name: "Location", levels: ["NODE", "NODE_REGION"] },
-  { entity: "CUSTOMER", name: "Customer", levels: ["CUSTOMER", "CUSTOMER_SEGMENT"] },
-  { entity: "CALENDAR", name: "Time", levels: ["CAL_DATE", "CAL_MONTH", "CAL_QUARTER", "CAL_YEAR"] },
-]
-
 async function OntologyBody() {
-  const [entities, relationships, attributes] = await Promise.all([
+  const [entities, relationships, attributes, hierarchyLevels] = await Promise.all([
     getOntologyEntities(),
     getOntologyRelationships(),
     getEntityAttributes(),
+    getOntologyHierarchies(),
   ])
 
   const dims = entities.filter((e) => e.entityRole === "DIMENSION")
@@ -30,9 +27,19 @@ async function OntologyBody() {
     attrsByEntity.get(a.entity)!.push(a)
   }
 
+  // Levels arrive ordered by hierarchy then level; group them without re-sorting.
+  const hierarchies = new Map<string, typeof hierarchyLevels>()
+  for (const l of hierarchyLevels) {
+    if (!hierarchies.has(l.hierarchyId)) hierarchies.set(l.hierarchyId, [])
+    hierarchies.get(l.hierarchyId)!.push(l)
+  }
+  const rollups = hierarchyLevels.filter((l) => l.rollupStatus !== "BASE")
+  const provenRollups = rollups.filter((l) => l.rollupStatus === "PASS" && l.resolves).length
+  const validatedAt = hierarchyLevels.find((l) => l.validatedAt)?.validatedAt ?? null
+
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatTile label="Entities" value={String(entities.length)} sub="Ontology classes modelled" />
         <StatTile label="Conformed dimensions" value={String(dims.length)} sub="Shared across every fact" />
         <StatTile label="Facts" value={String(facts.length)} sub="Business processes measured" />
@@ -40,6 +47,12 @@ async function OntologyBody() {
           label="Relationships"
           value={String(relationships.length)}
           sub="Declared joins, one path per fact to each dimension"
+        />
+        <StatTile
+          label="Hierarchies"
+          value={String(hierarchies.size)}
+          tone={provenRollups === rollups.length ? "good" : "bad"}
+          sub={`${provenRollups}/${rollups.length} rollups measured as true`}
         />
       </section>
 
@@ -54,26 +67,71 @@ async function OntologyBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Hierarchies</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {HIERARCHIES.map((h) => (
-            <div key={h.name} className="rounded-lg border border-border bg-card p-4">
-              <div className="text-sm font-medium">{h.name}</div>
-              <div className="text-[11px] text-muted-foreground font-mono mb-2">{h.entity}</div>
-              <ol className="space-y-1">
-                {h.levels.map((lvl, i) => (
-                  <li key={lvl} className="flex items-center gap-2 text-xs">
-                    <span className="text-muted-foreground tabular-nums w-4">{h.levels.length - i}</span>
-                    <span className="font-mono text-foreground/90">{lvl.toLowerCase()}</span>
-                  </li>
-                ))}
-              </ol>
-              <div className="text-[11px] text-muted-foreground mt-2">
-                rolls up {h.levels.length} levels
-              </div>
-            </div>
-          ))}
+        <div>
+          <h2 className="text-sm font-semibold">Hierarchies</h2>
+          <p className="text-xs text-muted-foreground mt-1 max-w-3xl leading-relaxed">
+            A semantic view has no hierarchy construct, so these are declared rather than derived — which is exactly
+            why each level is checked instead of trusted. Every level is joined to the deployed view, and every rollup
+            is measured against the conformed dimension it is sourced from: a level only qualifies if each child value
+            has exactly one parent. <strong>{provenRollups} of {rollups.length}</strong> rollups are proven.
+          </p>
         </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[...hierarchies.values()].map((levels) => {
+            const head = levels[0]
+            const broken = levels.some((l) => !l.resolves || (l.rollupStatus ?? "") === "FAIL")
+            return (
+              <div
+                key={head.hierarchyId}
+                className={`rounded-lg border p-4 ${
+                  broken ? "border-red-500/40 bg-red-500/5" : "border-border bg-card"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium">{head.hierarchyName}</div>
+                  <Tag title="Ontology entity the drill path belongs to">{head.entity}</Tag>
+                </div>
+                <div className="text-[11px] text-muted-foreground mb-2">
+                  {head.levelCount} levels, finest grain last
+                </div>
+                <ol className="space-y-1">
+                  {[...levels].reverse().map((l) => (
+                    <li key={l.levelNo} className="flex items-baseline gap-2 text-xs">
+                      <span className="text-muted-foreground tabular-nums w-4 shrink-0">{l.levelNo}</span>
+                      <span
+                        className={`font-mono ${l.resolves ? "text-foreground/90" : "text-red-500 line-through"}`}
+                        title={l.description ?? undefined}
+                      >
+                        {l.levelDimension.toLowerCase()}
+                      </span>
+                      {!l.resolves && <span className="text-[10px] text-red-500">not a dimension</span>}
+                      {l.rollupStatus === "FAIL" && (
+                        <span className="text-[10px] text-red-500">{l.violationCount} split parents</span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+                <div className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                  {levels.find((l) => l.rollupStatus !== "BASE")?.validationDetail ?? "single level"}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        {validatedAt && (
+          <Provenance label="How a rollup is proven">
+            {`-- Every parent/child pair is measured against the conformed dimension it is sourced
+-- from. A level qualifies only if each child value has exactly one parent value.
+-- Last run ${validatedAt.slice(0, 19).replace("T", " ")} UTC.
+
+CALL SUPPLY_CHAIN.GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY();
+
+SELECT hierarchy_id, level_no, dimension_ref, resolves, rollup_status,
+       violation_count, validation_detail
+  FROM SUPPLY_CHAIN.GOVERNANCE.V_ONTOLOGY_HIERARCHY
+ ORDER BY hierarchy_id, level_no;`}
+          </Provenance>
+        )}
       </section>
 
       <section className="space-y-3">

@@ -312,6 +312,87 @@ FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
 WHERE "name" = 'SC_ONTOLOGIST_AGENT';
 
 -- ---------------------------------------------------------------------------
+-- 8b. Ontology hierarchies resolve, and the rollups are real.
+--
+-- Two separate failures, checked separately because they have different causes.
+-- A level that does not RESOLVE names a dimension the semantic view does not
+-- declare -- which is exactly the state /ontology shipped in for some time,
+-- rendering SUPPLIER, NODE and CUSTOMER as though they were dimensions when the
+-- real names are SUPPLIER_NAME, NODE_NAME and CUSTOMER_NAME. Nothing failed; the
+-- page simply described a drill path that did not exist.
+--
+-- A level whose ROLLUP fails is worse, because it looks right: the dimension is
+-- real, but a child value maps to more than one parent, so drilling up
+-- double-counts. SUPPLIER_GROUP -> SUPPLIER_REGION and CUSTOMER_SEGMENT ->
+-- CUSTOMER_REGION both look like hierarchies and are not.
+--
+-- The validation is re-run here rather than trusting the result 12 stored, so a
+-- later change to a semantic view is caught by the verification phase.
+-- ---------------------------------------------------------------------------
+
+CALL SUPPLY_CHAIN.GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY();
+
+SELECT
+  'every hierarchy level resolves to a deployed dimension' AS check_name,
+  COUNT_IF(NOT resolves)                                   AS unresolved,
+  0                                                        AS expected,
+  IFF(COUNT_IF(NOT resolves) = 0, 'PASS', 'FAIL - a declared level is not a dimension of its view') AS verdict
+FROM SUPPLY_CHAIN.GOVERNANCE.V_ONTOLOGY_HIERARCHY;
+
+SELECT
+  'every declared rollup is a true functional dependency'  AS check_name,
+  COUNT_IF(rollup_status NOT IN ('PASS', 'BASE'))          AS bad_levels,
+  0                                                        AS expected,
+  IFF(COUNT_IF(rollup_status NOT IN ('PASS', 'BASE')) = 0, 'PASS', 'FAIL - a declared hierarchy level does not roll up') AS verdict
+FROM SUPPLY_CHAIN.GOVERNANCE.V_ONTOLOGY_HIERARCHY;
+
+-- ---------------------------------------------------------------------------
+-- 8c. The divergence still has a consequence, and it still runs one way.
+--
+-- README and /consistency both state that the legacy defect hands 12 suppliers a
+-- pass they did not earn and never wrongly escalates anyone. Both halves are
+-- claims about data, so both are asserted rather than written down and left.
+--
+-- If a future data change produces a false FAIL, the one-directional argument
+-- stops being true and the build should say so instead of leaving a stale
+-- sentence on the page.
+-- ---------------------------------------------------------------------------
+
+SELECT
+  'the defect still misclassifies at least one supplier' AS check_name,
+  misclassified,
+  1                                                      AS expected_at_least,
+  IFF(misclassified > 0, 'PASS', 'FAIL - the impact narrative no longer holds') AS verdict
+FROM SUPPLY_CHAIN.GOVERNANCE.V_DIVERGENCE_IMPACT;
+
+SELECT
+  'divergence impact is one-directional (no false fails)' AS check_name,
+  false_fails,
+  0                                                       AS expected,
+  IFF(false_fails = 0, 'PASS', 'FAIL - a supplier is now wrongly escalated; rewrite the claim') AS verdict
+FROM SUPPLY_CHAIN.GOVERNANCE.V_DIVERGENCE_IMPACT;
+
+-- ---------------------------------------------------------------------------
+-- 8d. The evaluation and parity stores exist.
+--
+-- These hold RUNS, not fixtures, so they are legitimately empty on a fresh
+-- rebuild -- `npm run eval` and `npm run parity` fill them. What must not be
+-- absent is the place to record a run: /consistency reads these views, and a
+-- missing object there is a page that cannot say whether the conversational
+-- layer was ever measured.
+-- ---------------------------------------------------------------------------
+
+SELECT
+  'evaluation and parity run stores exist' AS check_name,
+  COUNT(*)                                 AS found,
+  5                                        AS expected,
+  IFF(COUNT(*) = 5, 'PASS', 'FAIL - 14 or 15 has not run') AS verdict
+FROM SUPPLY_CHAIN.INFORMATION_SCHEMA.TABLES
+WHERE table_schema = 'GOVERNANCE'
+  AND table_name IN ('AGENT_EVAL_RUN', 'AGENT_EVAL_RESULT', 'V_AGENT_EVAL_LATEST',
+                     'AGENT_PARITY_RESULT', 'V_AGENT_PARITY_LATEST');
+
+-- ---------------------------------------------------------------------------
 -- 9. THE DRIFT GATE. Run last.
 --
 -- All 15 metrics must PASS with zero spread. This is the only check that proves

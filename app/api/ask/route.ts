@@ -287,8 +287,22 @@ export async function POST(req: Request) {
 
     // Only metrics the cross-domain view can serve are offered — and, when a persona is selected,
     // only if that persona is granted the view.
+    //
+    // THE CROSS-DOMAIN VIEW IS NOT A BYPASS OF DOMAIN SCOPE. Every governed metric is bound twice:
+    // once to its domain view and once to SC_ONTOLOGY_360. Offering a metric on the strength of the
+    // SC_ONTOLOGY_360 binding alone made the domain grants decorative — SC_PROCUREMENT, granted
+    // SC_SUPPLIER and nothing else, was answered on freight bill variance because that metric is
+    // also bound to the cross-domain view it can read. PERSONA_VIEW_ACCESS said one thing and the
+    // conversational layer did another.
+    //
+    // So the DOMAIN grant decides what a persona may ask about; the cross-domain view only decides
+    // where the question is executed, which is what lets three facts be joined in one answer. This
+    // was found by AGENT_EVAL_QUESTION Q53, not by review.
     const personaCanUseView = !persona || grantedViews.has(VIEW)
-    const available = personaCanUseView
+    const inScope = (m: (typeof registry)[number]) =>
+      !persona || m.bindings.some((b) => b.semanticView !== VIEW && grantedViews.has(b.semanticView))
+
+    const all = personaCanUseView
       ? registry
           .map((m) => {
             const binding = m.bindings.find((b) => b.semanticView === VIEW)
@@ -296,6 +310,17 @@ export async function POST(req: Request) {
           })
           .filter((x): x is { metric: (typeof registry)[number]; ref: string } => x !== null)
       : []
+
+    const available = all.filter((a) => inScope(a.metric))
+    /**
+     * Metrics that exist but this persona is not granted.
+     *
+     * Named to the resolver so an out-of-scope question is declined for the RIGHT reason. A layer
+     * that says "no such metric" when the metric plainly exists teaches the user that the catalogue
+     * is incomplete, and the next thing they do is go and build their own copy of it — which is the
+     * failure this project exists to prevent, arrived at from the other direction.
+     */
+    const outOfScope = all.filter((a) => !inScope(a.metric))
 
     if (available.length === 0) {
       const reason = persona
@@ -319,6 +344,14 @@ export async function POST(req: Request) {
       )
       .join("\n")
     const dimCatalogue = dimensions.map((d) => `- ${d.ref}${d.comment ? `: ${d.comment}` : ""}`).join("\n")
+
+    const deniedBlock =
+      outOfScope.length === 0
+        ? ""
+        : `\nEXISTS BUT ${persona?.personaLabel ?? "this persona"} IS NOT GRANTED IT:
+${outOfScope.map((a) => `- ${a.metric.metricId}: ${a.metric.businessName}`).join("\n")}
+If the question is about one of these, set answerable to false and say the metric exists but this persona is not granted the view that serves it. Do NOT say it is unknown or missing.
+`
 
     /**
      * Re-validate the replayed conversation before it reaches the prompt.
@@ -357,6 +390,26 @@ Use the conversation ONLY to interpret references in the new question:
 - If it refers to something the conversation never established, do not guess: set answerable to false.
 `
 
+    /**
+     * Four of these rules exist because a scored evaluation run found the resolver breaking them.
+     *
+     * The two that matter were REFUSALS OF ANSWERABLE QUESTIONS, and both were the model reasoning
+     * correctly from a false premise:
+     *
+     *   - it declined balance questions ("how many days of inventory are we holding?") for want of a
+     *     snapshot date, not knowing the application already pins one via getLatestSnapshotDate;
+     *   - it declined realized-service questions that mentioned future activity, not knowing the
+     *     as-of rule already excludes those rows.
+     *
+     * In both cases the model was protecting the user from an error the application had already
+     * prevented. That is a prompt defect, not a model defect, and it is exactly the class of thing
+     * that is invisible without a scored run: every one of those refusals reads as careful and
+     * well-reasoned in isolation.
+     *
+     * The third is the SUPERSET failure — "choose 1 to 4 metric ids" invited the model to add
+     * related metrics nobody asked for, so "which families are we delivering late?" came back as
+     * OTD plus OTIF plus perfect order. Three real numbers, and not the question.
+     */
     const prompt = `You map a business question onto a governed supply-chain metric catalogue.
 
 GOVERNED METRICS (the ONLY metrics you may use):
@@ -364,13 +417,16 @@ ${catalogue}
 
 AVAILABLE DIMENSIONS (the ONLY dimensions you may use, at most one):
 ${dimCatalogue}
-${conversationBlock}
+${deniedBlock}${conversationBlock}
 QUESTION: ${question}
 
 Rules:
-- Choose 1 to 4 metric ids that answer the question. Use the exact metric id strings above.
+- Choose the FEWEST metric ids that answer the question, from 1 to 4. Use the exact metric id strings above. Do NOT add related metrics the question did not ask for: "which product families are we delivering late?" is on-time delivery alone, not on-time delivery plus OTIF plus perfect order.
 - Optionally choose ONE dimension to break the answer down by, using the exact dimension reference above. Use null if the question asks for a single overall figure.
 - The reporting period is already applied by the application (${period.description}). Do NOT choose a calendar dimension just because the question mentions a time range; choose one only if the question genuinely asks for a breakdown over time.
+- SNAPSHOT METRICS ARE ALREADY PINNED FOR YOU. Balances such as days of inventory and inventory value are read at a single snapshot date, which the application selects automatically. Never refuse a balance question for want of a snapshot date, and never ask the user to name one. If the question asks for a balance SUMMED or TOTALLED over several months, still answer at one snapshot and say in the reason that summing month-end balances would count the same stock more than once.
+- Realized-service metrics already exclude future-dated rows. Never refuse such a question on the grounds that it appears to include future or promised activity; answer it and say in the reason that promised-but-not-yet-delivered rows are excluded.
+- If the question asks WHY a number is what it is, prefer answering the metric broken down by an explanatory dimension over refusing. The reason for a shortfall usually lives on a dimension of the fact, not in a separate metric.
 - Supplier On-Time Delivery is INBOUND (did suppliers meet dates promised to us). On-Time Delivery is OUTBOUND (did we meet dates promised to customers). If the question is genuinely ambiguous between them, set answerable to false and say so.
 - Freight Cost is accrued; Freight Invoiced is what carriers billed. They are different metrics.
 - If no governed metric answers the question, set answerable to false and explain what is missing.

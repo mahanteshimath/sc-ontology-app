@@ -9,9 +9,10 @@ procurement and logistics — and tested on a schedule rather than asserted in a
   <img alt="React 19" src="https://img.shields.io/badge/React-19-087ea4?logo=react&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white">
   <img alt="Snowflake" src="https://img.shields.io/badge/Snowflake-semantic%20views-29b5e8?logo=snowflake&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-163%20passing%20%2F%20169-brightgreen">
-  <img alt="SQL checks" src="https://img.shields.io/badge/SQL%20checks-86%20passing-brightgreen">
-  <img alt="Drift" src="https://img.shields.io/badge/metric%20drift-14%2F14%20zero%20spread-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-162%20passing%20%2F%20170-brightgreen">
+  <img alt="Drift" src="https://img.shields.io/badge/metric%20drift-zero%20spread-brightgreen">
+  <img alt="Hierarchies" src="https://img.shields.io/badge/hierarchy%20rollups-10%2F10%20proven-brightgreen">
+  <img alt="Eval" src="https://img.shields.io/badge/conversational%20eval-60%20questions%20scored-blue">
 </p>
 
 **Live demo:** https://sc-ontology-app.vercel.app (behind a demo sign-in gate)
@@ -22,13 +23,14 @@ Team 3M-ONTOLOGIST.
 
 ## The 60-second proof
 
-Three claims, each checkable in one click rather than taken on faith:
+Four claims, each checkable in one click rather than taken on faith:
 
 | Judging focus | Claim | Check it |
 |---|---|---|
-| **Real World Relevance** | The ontology models exactly the chain named in the brief — Supplier → Part → Plant/DC → Shipment → Order → Customer — over the four canonical metrics named in the brief (OTD, fill rate, days of inventory, landed cost), plus IoT shipment telemetry. | [`/ontology`](https://sc-ontology-app.vercel.app/ontology) — 12 entities, 15 relationships, read live from the deployed semantic view. |
+| **Real World Relevance** | The ontology models exactly the chain named in the brief — Supplier → Part → Plant/DC → Shipment → Order → Customer — over the four canonical metrics named in the brief (OTD, fill rate, days of inventory, landed cost), plus IoT shipment telemetry. All four ontology elements the brief names are present, including **hierarchies**, and every declared rollup is *measured* rather than asserted. | [`/ontology`](https://sc-ontology-app.vercel.app/ontology) — 12 entities, 15 relationships, 7 hierarchies, 10 rollups proven against the source dimensions. |
+| **Real World Relevance** | The cost of the divergence is stated in decisions, not decimal places: the legacy definition hands **12 suppliers** a pass they did not earn, inflating the compliant list by 22% — and **never** errs the other way, which is why it would survive indefinitely. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — recomputed from the registry target on every page load. |
 | **Technical Execution** | One metric definition resolves identically for Planning, Procurement and Logistics — and a deliberately broken negative control is kept deployed to prove the drift test can actually fail, not just pass. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — `SC_SUPPLIER_LEGACY_DEFECT` reports **0.882631** against the correct **0.875824**, a measured 0.006807 spread the governed views do not repeat. |
-| **Solution Completeness** | Every number on every page traces to a registered metric with an owner, a target, and a drift-test track record — not app-layer arithmetic. | [`/metrics`](https://sc-ontology-app.vercel.app/metrics) — 15 metrics, 30 bindings, 15/15 zero-spread on the last run. |
+| **Solution Completeness** | The conversational layer is **scored**, not asserted: 60 golden questions run over HTTP as their own personas, failures published rather than trimmed. One of them found a real broken-access-control bug. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — `npm run eval` writes `GOVERNANCE.AGENT_EVAL_RUN`; `npm run parity` compares the Cortex Agent, the app, and the registry's canonical SQL. |
 
 Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
 
@@ -40,6 +42,7 @@ Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
 - [Why this exists](#why-this-exists)
 - [What it does](#what-it-does)
 - [Architecture](#architecture)
+- [What the divergence actually costs](#what-the-divergence-actually-costs)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
 - [Building the database from scratch](#building-the-database-from-scratch)
@@ -108,8 +111,11 @@ meeting spent debating whose number is right instead of what to do about it.
 
 | | |
 |---|---|
-| **One definition, many consumers** | 15 governed metrics, each exposed through 2 semantic views (30 bindings). A dashboard figure and a conversational answer are the *same expression* evaluated by the same engine. |
-| **Agreement is tested** | `GOVERNANCE.METRIC_DRIFT_TEST()` evaluates every binding against the metric's canonical atomic-grain SQL and records the spread. Currently **15/15 PASS, zero spread**. Runs daily at 06:00 UTC. |
+| **One definition, many consumers** | 14 governed metrics, each exposed through 2 semantic views. A dashboard figure and a conversational answer are the *same expression* evaluated by the same engine. |
+| **Agreement is tested** | `GOVERNANCE.METRIC_DRIFT_TEST()` evaluates every binding against the metric's canonical atomic-grain SQL and records the spread. Zero spread on the last run. Runs daily at 06:00 UTC. |
+| **Hierarchies are proven, not declared** | 7 drill paths, 17 levels. Every level is joined back to `INFORMATION_SCHEMA` and every rollup is measured against its source dimension, so a level that is not a true functional dependency fails the build. Two plausible rollups were measured and rejected. |
+| **The divergence has a price tag** | `GOVERNANCE.V_DIVERGENCE_IMPACT` replays both definitions at supplier grain against the registry target: 12 suppliers cleared without earning it, 0 wrongly escalated. Recomputed on read, never stored. |
+| **The conversational layer is scored** | `npm run eval` runs all 60 golden questions over HTTP as their own personas and records the result. Failures are published on `/consistency`, not trimmed. |
 | **Personas are real roles** | Signing in selects a Snowflake role; queries run under it with secondary roles disabled, so grants and row access policies are enforced by the database, not the app. |
 | **Numbers drill down to rows** | Every metric declares what an "exception row" is, so the rows shown under a number come from the same fact the number is defined over and therefore reconcile to it. |
 | **Predictions are separated from measurements** | Forecasts live in their own registry, are excluded from the drift contract, and are never displayed without their backtested accuracy. |
@@ -185,6 +191,87 @@ Two absent edges are deliberate and load-bearing:
 - **`FORECAST` is not joined to `CALENDAR`.** Its period is a `'YYYY-MM'` string with no day-grain
   key, so it keeps its own `FORECAST_PERIOD` dimension.
 
+### Hierarchies, and why they are the one part that is *checked*
+
+The brief names four things an ontology must define: entities, relationships, **hierarchies**, and
+canonical metrics. Three of those are derived from `INFORMATION_SCHEMA` and are therefore incapable
+of drifting from the deployed views. Hierarchies cannot be: a Snowflake semantic view has no
+hierarchy construct, so there is nothing to read one back from.
+
+A declaration is unavoidable. An *unchecked* declaration is not, and this is what that distinction
+was worth: `/ontology` previously rendered a hard-coded array in which three of the level names —
+`SUPPLIER`, `NODE`, `CUSTOMER` — were **not dimensions of the view at all**. The real names are
+`SUPPLIER_NAME`, `NODE_NAME` and `CUSTOMER_NAME`. Nothing failed. The page simply described a drill
+path that did not exist.
+
+`sql/12_ontology_hierarchy.sql` replaces it with a declaration plus two controls:
+
+1. **Resolution.** Every level is joined to `INFORMATION_SCHEMA.SEMANTIC_DIMENSIONS`, so a level
+   naming a dimension the view does not declare is visibly unresolved.
+2. **Rollup.** Every parent/child pair is *measured* against the conformed dimension it is sourced
+   from. A level qualifies only if each child value maps to exactly one parent.
+
+Rule 2 is not decoration either. Two rollups that look obviously correct are false in this data:
+
+| Proposed rollup | Violations | Why |
+|---|---|---|
+| `SUPPLIER_GROUP → SUPPLIER_REGION` | 6 | Commodity groups are managed across regions. |
+| `CUSTOMER_SEGMENT → CUSTOMER_REGION` | 4 | Go-to-market segments are cross-regional by construction. |
+
+Stacking either into a chain would have produced a drill path that double counts, so they are
+declared as their own two-level hierarchies instead. The result is 7 hierarchies over 17 levels,
+with all 10 rollups measured:
+
+```
+PRODUCT    material → product_family → business_segment   2000 → 8 → 4, 0 split parents
+SOURCING   supplier_name → supplier_region                 300 → 4, 0 split parents
+COMMODITY  supplier_name → supplier_group                  300 → 6, 0 split parents
+NETWORK    node_name → node_region                          24 → 4, 0 split parents
+ACCOUNT    customer_name → customer_segment                1200 → 4, 0 split parents
+SALES_GEO  customer_name → customer_region                 1200 → 4, 0 split parents
+TIME       cal_date → cal_month → cal_quarter → cal_year   1096 → 36 → 12 → 3, 0 split parents
+```
+
+`sql/90` re-runs `VALIDATE_ONTOLOGY_HIERARCHY()` during verification, so a later change to a
+semantic view is caught by the build rather than by somebody noticing.
+
+---
+
+## What the divergence actually costs
+
+The negative control records a spread of `0.006807` on supplier on-time delivery. On its own that is
+a number, not a consequence — two thirds of a percentage point sounds like rounding, and a steward
+is entitled to ask why anyone should care.
+
+`GOVERNANCE.V_DIVERGENCE_IMPACT` answers that by measurement. Both definitions are replayed at
+supplier grain over the same 420,000 receipt lines and scored against the registry target, because
+nobody acts on the number — they act on the verdict:
+
+| | |
+|---|---|
+| Suppliers genuinely at the 0.90 target | **54** of 300 |
+| Suppliers the legacy definition reports at target | **66** |
+| Cleared without earning it (false pass) | **12** |
+| Wrongly escalated (false fail) | **0** |
+| Compliant list inflated by | **22%** |
+
+The last row is the one that matters, and it is the reason this class of defect survives. A metric
+that wrongly *escalates* a supplier is found within a week: the supplier disputes it and somebody
+rechecks the arithmetic. A metric that wrongly *clears* a supplier generates no complaint from
+anyone. **The cost of an ungoverned metric is not a wrong dashboard — it is a review that never
+happens.**
+
+Nothing here is stored. The target is read from `METRIC_DEFINITION` and both definitions are
+replayed on every read, so changing the target recomputes the verdict rather than stranding a
+sentence. `sql/90` asserts both halves of the claim, including that the error is still
+one-directional — if a future data change ever produces a false fail, the build fails rather than
+leaving a stale paragraph on the page.
+
+> **`ILLUSTRATIVE` framing, same convention as `sql/03_targets.sql`.** The target is illustrative and
+> the data is synthetic. The *arithmetic* is not: these counts come from the same atomic fact the
+> governed metric is defined over.
+
+
 ---
 
 ## Repository layout
@@ -206,6 +293,10 @@ Two absent edges are deliberate and load-bearing:
 ├── sql/                     every DDL statement, numbered in apply order  ← see 00_README.md
 ├── scripts/
 │   ├── rebuild.mjs          builds the entire database from nothing
+│   ├── eval.mjs             scores the 60 golden questions over HTTP, one persona each
+│   ├── parity.mjs           Cortex Agent vs application vs CANONICAL_SQL
+│   ├── sf.mjs               shared Snowflake connection for the scripts that are not the rebuild
+│   ├── sq.mjs               run one statement or one file from the CLI, for inspection
 │   ├── smoke.mjs            21 end-to-end checks against a running instance
 │   ├── smoke-outlook.mjs    11 checks on the prediction page
 │   ├── smoke-chat.mjs       25 checks on the conversational Ask layer, latency asserted
@@ -408,8 +499,8 @@ real per-persona row scoping) is exactly the part that does not change when the 
 | `/` | Headline metrics for the selected period with target, prior-period and year-on-year deltas, a 12-month trend, drill-down to the offending rows, and the open commitment the as-of rule excluded. |
 | `/operations` | Cross-domain operational tables by product family, supplier region, carrier and destination. |
 | `/metrics` | The registry: definition, numerator, denominator, grain, owner, target, reporting scope, and the drift-test track record. |
-| `/ontology` | Entities, relationships and hierarchies read live from `INFORMATION_SCHEMA` on the deployed view, so the diagram cannot drift from what is queried. |
-| `/consistency` | One metric executed as each persona role side by side, the recorded pre-remediation divergence, and the negative control. |
+| `/ontology` | Entities, relationships and hierarchies read live from `INFORMATION_SCHEMA` on the deployed view, so the diagram cannot drift from what is queried. Each hierarchy level shows whether it resolves and whether its rollup was measured as a true functional dependency. |
+| `/consistency` | One metric executed as each persona role side by side; the recorded pre-remediation divergence and the negative control; **what that divergence costs in misclassified suppliers**; the **scored** 60-question evaluation run with its failures published; and the recorded Cortex Agent / application parity. |
 | `/outlook` | Governed predictions, each shown with the accuracy it achieved on held-out months. |
 | `/ask` | A question resolved to registered metrics, executed under the signed-in persona's role, with provenance and drill-down on every answer. |
 | `/network-risk` | Geospatial network topology, maritime chokepoints and simulated lane-level disruption scenarios, so the ontology drives an operational read, not only a report. |
@@ -633,6 +724,9 @@ ad-hoc in a Snowflake account that no longer exists, and vanished with it.
 |---|---|---|---|
 | Verified queries | **38** across 8 views | `sql/00e_semantic.sql` (36), `sql/07b_prediction_objects.sql` (2) | `sql/90` counts them, `sql/93` **executes** them |
 | `AGENT_EVAL_QUESTION` rows | **60** in 15 categories | `sql/09_agent_eval.sql` | self-checking: 3 assertions in the same file |
+| Scored evaluation runs | `GOVERNANCE.AGENT_EVAL_RUN` | `sql/14_agent_eval_run.sql` + `npm run eval` | the run itself; failures published on `/consistency` |
+| Agent/application parity | `GOVERNANCE.AGENT_PARITY_RESULT` | `sql/15_agent_parity.sql` + `npm run parity` | `CANONICAL_SQL` is the third opinion |
+| Ontology hierarchies | **7** over 17 levels | `sql/12_ontology_hierarchy.sql` | `sql/90` re-runs `VALIDATE_ONTOLOGY_HIERARCHY()` |
 | Cortex Agent | `SNOWFLAKE_INTELLIGENCE.AGENTS.SC_ONTOLOGIST_AGENT`, 9 tools | `sql/10_agent.sql` | `sql/90` asserts it exists |
 
 **The verified queries are declared inline, not spliced in.** `sql/07_verified_queries.sql` documents
@@ -674,6 +768,141 @@ labels the figure inbound.
 after the response via `after()` so logging is not on the answer's critical path.
 `AGENT_IMPROVEMENT_CANDIDATE` ranks real questions by how badly they went, with an *unstable
 resolution* — the same question answered two different ways — ranked worst.
+
+---
+
+## Scoring the conversational layer
+
+Every governed metric here is drift-tested rather than asserted. For a long time the conversational
+layer was the single exception: `AGENT_EVAL_QUESTION` held 60 golden questions and **nothing ran
+them**. That is precisely the state this README calls out elsewhere —
+
+> A drift test that has only ever passed is indistinguishable from a drift test that is not running.
+
+— applied to everything except the one thing it was not applied to. `npm run eval`
+(`scripts/eval.mjs` + `sql/14_agent_eval_run.sql`) closes it.
+
+**It drives HTTP, not the resolver.** The thing under test is the whole governed path: resolve
+against the registry, validate the choice against `INFORMATION_SCHEMA`, assume the persona's
+Snowflake role, let the row access policy apply, execute. Importing the resolver would measure the
+easy half and report it as the whole — and would not notice a persona that cannot assume its role.
+So each question is asked the way a browser asks it, signed in as the demo account that maps to that
+question's persona.
+
+**Three scoring rules:**
+
+| Case | Passes when |
+|---|---|
+| `should_answer = FALSE` (8 questions) | the layer declines. Refusing correctly is as much a pass as resolving correctly: an invented metric looks exactly like a real one, while a refusal is visibly a refusal. |
+| `expected_metric_ids IS NULL` (3 questions) | it asks, or answers with the competing metrics side by side. A **confident single answer scores as a failure** even though the number it returns is real — "what is our on-time delivery?" with no side named is exactly the inbound/outbound conflation the ontology exists to prevent. |
+| otherwise | resolved metric ids equal `EXPECTED_METRIC_IDS`, order-insensitive. |
+
+`EXPECTED_TOOL` is deliberately **not** scored. It names the semantic view the Cortex Agent should
+route to; `/api/ask` always resolves against `SC_ONTOLOGY_360` by design, so scoring the app against
+it would fail all 60 for a difference that is architectural rather than wrong. The view actually used
+is recorded so the omission is visible instead of silent.
+
+**One question is scored more strictly than its own text requires, on purpose.** Q57's expected
+behaviour reads *"must report a balance at one snapshot, **or explain why a sum is meaningless
+here**"*. The layer takes the second path and is marked a failure, because the three rules above are
+set-equality on metric ids and cannot express "either of two good outcomes". The point is left on the
+table rather than special-cased: a scorer that starts carrying exceptions for questions it knows it
+fails has stopped being a scorer, and the exception would be indistinguishable from the same edit
+made to flatter a number.
+
+### What the first real run found
+
+The evaluation earned its keep immediately, in two different ways.
+
+**1. A broken access control.** Q53 asks `SC_PROCUREMENT` for freight bill variance. Procurement is
+granted `SC_SUPPLIER` and *not* `SC_LANDED_COST`, so the expected behaviour is a refusal on access.
+It was answered — because every metric is bound twice, once to its domain view and once to
+`SC_ONTOLOGY_360`, and the resolver offered the metric on the strength of the cross-domain binding
+alone. `PERSONA_VIEW_ACCESS` said one thing and the conversational layer did another; the domain
+grants were decorative.
+
+The fix is in `app/api/ask/route.ts`: **the domain grant decides what a persona may ask about, and
+the cross-domain view only decides where the question is executed**, which is what lets three facts
+be joined in one answer. The resolver is additionally told which metrics exist but are out of scope,
+so the refusal says *"exists, you are not granted it"* rather than *"no such metric"* — a layer that
+denies the existence of a metric the user knows is real teaches them the catalogue is incomplete, and
+the next thing they do is build their own copy of it. `__tests__/api/ask.test.ts` now guards it.
+
+**2. Two prompt defects, both invisible without a scored run.** The dominant failure mode was not a
+wrong number — it was **refusing questions it could answer**, and every one of those refusals reads
+as careful and well-reasoned in isolation:
+
+- balance questions (*"how many days of inventory are we holding?"*) were declined for want of a
+  snapshot date, when the application already pins one via `getLatestSnapshotDate`;
+- realized-service questions that mentioned future activity were declined on as-of grounds, when
+  `sql/02_as_of_rule.sql` already excludes those rows.
+
+In both cases the model was protecting the user from an error the application had already prevented.
+A third defect — *"choose 1 to 4 metric ids"* — invited it to return supersets, so *"which families
+are we delivering late?"* came back as OTD **plus** OTIF **plus** perfect order. Three real numbers,
+and not the question.
+
+| Run | Passed | Refusals | Traps |
+|---|---|---|---|
+| Before the prompt corrections | **47 / 60** | 7/8 | 2/4 |
+| After | **52 / 60** | 7/8 | 3/4 |
+
+The eight remaining failures are published on `/consistency` rather than trimmed, and they are not
+all the same kind of thing:
+
+- **Supersets** (Q03, Q22) — still returns a related metric nobody asked for. Genuine.
+- **Ambiguity** (Q54, Q55) — commits to one of two competing metrics instead of asking. This one
+  **regressed**: making the resolver less eager to refuse also made it more willing to commit, which
+  is the honest cost of the fix above and is recorded rather than smoothed over.
+- **Predictions** (Q44) — `/ask` does not route to the prediction registry at all, so a
+  forward-looking question cannot be answered on that path. An architectural gap, correctly exposed.
+- **Judgement** (Q50, *"which supplier should we terminate?"*) — surfaces the relevant metrics
+  instead of declining. Arguably the more useful behaviour; scored as a failure anyway, because
+  re-grading a question until the system passes it is how an evaluation set stops being one.
+
+
+---
+
+## Two engines, one definition
+
+`/ask` deliberately does not route through the Cortex Agent, for the structural reasons above. Read
+quickly, that looks like a gap rather than a decision — *"they built an agent and then didn't use
+it"* — and the only honest way to settle it is to run both. `npm run parity`
+(`scripts/parity.mjs` + `sql/15_agent_parity.sql`) does.
+
+The two paths share nothing except the ontology. The agent picks a **domain** view and writes its own
+SQL; the application picks registered metric ids and assembles SQL from the registry against the
+**cross-domain** view, under the persona's role. A third number — the metric's `CANONICAL_SQL`, the
+same independent definition the drift test uses — breaks the tie.
+
+**Scope had to be reconciled before the comparison meant anything.** The first run reported supplier
+OTD as `0.875824` from the agent and `0.871675` from the app, and calling that a divergence would have
+been the worst possible outcome: a red status on a correct system, "fixed" later by loosening the
+tolerance until it passed. There are two scope differences and they are handled differently:
+
+- **Reporting period** — the app applies one, an agent turn does not. Fixed by asking the app for
+  `period: "all"`, the same scope `METRIC_DRIFT_TEST` runs at.
+- **The as-of rule** — `sql/02_as_of_rule.sql` requires realized-service metrics to exclude
+  future-dated rows. The app obeys it; the agent's verified query does not. This one cannot be
+  configured away, so it is **measured**: status `AS_OF_GAP` means the agent matched `CANONICAL_SQL`
+  *exactly*, so the definition is shared and the residual is the as-of rule doing its job.
+
+### The finding
+
+The result splits cleanly on one variable — whether the agent reused a **verified query** or
+**derived its own SQL**:
+
+| Agent behaviour | Outcome |
+|---|---|
+| Verified query reused | Matches `CANONICAL_SQL` exactly, every run. |
+| SQL derived | Returns a number matching neither the canonical definition nor its own previous run. Customer fill rate came back **0.973944** on one run and **0.973633** on the next, against a canonical **0.974613**. |
+
+That is not an argument against agents — it is the argument for the governed layer, measured rather
+than asserted. Free text to SQL is non-deterministic at the third decimal place, which is invisible on
+a dashboard and decisive in a review. The application never writes SQL, so it returns the same number
+every time by construction. It is also the strongest available argument for the 38 verified queries:
+they are what make the agent path reproducible.
+
 
 ---
 
@@ -777,16 +1006,22 @@ colour in a pill and another in a chart. Two tokens are split on purpose:
 
 ## Testing and verification
 
-There are four independent layers, because each catches what the others cannot.
+There are five independent layers, because each catches what the others cannot.
 
 | Layer | Command | Covers |
 |---|---|---|
-| **Unit** | `npm test` | 169 vitest tests; mocks `lib/snowflake`, so it catches logic and validation, never SQL. |
+| **Unit** | `npm test` | vitest; mocks `lib/snowflake`, so it catches logic and validation, never SQL. |
 | **Types** | `npm run typecheck` | `tsc --noEmit` |
-| **SQL assertions** | `node scripts/rebuild.mjs --verify` | 86 checks with explicit `VERDICT` columns: splice anchors, registry shape, referential integrity, row counts, snapshot cardinality, flag hierarchy, threshold bands. |
+| **SQL assertions** | `node scripts/rebuild.mjs --verify` | Checks with explicit `VERDICT` columns: splice anchors, registry shape, referential integrity, row counts, snapshot cardinality, hierarchy resolution and rollups, divergence impact, and the drift gate. |
 | **End-to-end** | `npm run smoke` | 21 checks against a running instance and real Snowflake — a filter Snowflake rejects, a semantic-view reference that no longer exists, a persona role the deployment cannot assume. |
+| **Conversational** | `npm run eval` | All 60 golden questions, asked over HTTP as their own personas, scored and recorded. This is the layer that found the broken access control in Q53. |
 
-Plus two focused probes:
+The fifth layer exists because the other four could all be green while the conversational layer
+quietly answered a question it had no business answering. Unit tests mock Snowflake, so they cannot
+see a grant; SQL assertions never touch the resolver; the smoke suite asks a handful of questions it
+already knows the answers to.
+
+Plus two focused probes and the parity run:
 
 ```bash
 # reporting-period edge cases: as-of past the end of data, empty period,
@@ -796,6 +1031,10 @@ SMOKE_BASE=… SMOKE_USER=… SMOKE_PASSWORD=… node scripts/probe-asof.mjs
 # the prediction page renders with real values and discloses its accuracy
 SMOKE_BASE=… SMOKE_USER=… SMOKE_PASSWORD=… node scripts/smoke-outlook.mjs
 SMOKE_BASE=… SMOKE_USER=… SMOKE_PASSWORD=… node scripts/smoke-chat.mjs
+
+# the Cortex Agent and the application answering the same questions, with the
+# registry's own CANONICAL_SQL as the tie-breaker
+npm run parity
 ```
 
 A period that resolves to no rows is a legitimate answer and renders as em-dashes; a period whose
@@ -807,7 +1046,7 @@ start lands after its end is not, and is treated as incoherent.
 CALL SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_TEST();
 ```
 
-**15 metrics, all `PASS`, zero spread.** Anything else means a semantic view disagrees with its
+**Every metric `PASS`, zero spread.** Anything else means a semantic view disagrees with its
 canonical fact, and nothing else in this repository is trustworthy until it is fixed.
 
 ---
@@ -865,6 +1104,20 @@ exceeds the function limit. The result shown is identical either way — it is r
 3. Add or update the `METRIC_EXCEPTION_RULE` row so the drill-down still reconciles.
 4. Run `CALL GOVERNANCE.METRIC_DRIFT_TEST();` and confirm every metric still passes with zero spread.
 5. Call `resetMetadataCache()` or wait 60 s — the app caches registry and ontology metadata.
+6. Re-run `npm run eval`. A changed definition or a renamed metric id changes what the resolver can
+   choose, and the evaluation is the only layer that would notice.
+
+### Adding or changing a hierarchy
+
+1. Edit `sql/12_ontology_hierarchy.sql`. Levels must be contiguous from 1, and every level in one
+   hierarchy must be sourced from the same conformed dimension table — a hierarchy that spans tables
+   is a join, not a rollup, and is recorded as `ERROR`.
+2. Re-apply it and `CALL GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY();`.
+3. Read `V_ONTOLOGY_HIERARCHY`. A level that does not resolve names a dimension the view does not
+   declare; a level whose `rollup_status` is `FAIL` is not a hierarchy at all, whatever it looks like.
+
+   **Do not fix either by editing the page.** The whole reason the declaration is checked is that
+   the page used to be the only place the hierarchy existed.
 
 ### Suspending the scheduled work
 
@@ -896,6 +1149,10 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 | `/consistency` reports every metric `UNPROVEN` | `PERSONA_CATALOG.row_scope` is not the literal `ALL REGIONS` | The app string-matches it. See `91_verify_personas.sql`. |
 | `/ontology` shows `Conformed dimensions 0` | `ONTOLOGY_ENTITY.entity_role` is not the literal `DIMENSION` | The page filters on that exact value. |
 | `Unknown user-defined function … PREDICT_TARGET_BREACH` | `08` was run without `07b` | Run `node scripts/rebuild.mjs --from 07b`. |
+| `npm run eval` reports `No demo account maps to …` | A persona in `AGENT_EVAL_QUESTION` has no entry in `DEMO_USERS` | Add the account. Questions with a `NULL` persona are scored as `SC_ONTOLOGY_STEWARD`, deliberately: a refusal that only holds for a narrow persona is an access error wearing a refusal's clothes. |
+| `npm run parity` fails with `Numeric value 'null' is not recognized` | An agent turn answered in prose and produced no result set, so `Number(undefined)` reached a `FLOAT` bind as `NaN` | Fixed — `scripts/parity.mjs` coerces through a `finite()` guard. If it recurs, the agent is declining to execute SQL for that question; name the snapshot or the side explicitly. |
+| `DATA_AGENT_RUN` fails with `needs to be constant` | The payload was passed as a bind or wrapped in `PARSE_JSON` | Both arguments must be SQL string literals. `scripts/parity.mjs` escapes and inlines them. |
+| A hierarchy level renders struck through on `/ontology` | It names a dimension the semantic view does not declare | `CALL GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY();` and read `V_ONTOLOGY_HIERARCHY.validation_detail`. Fix the declaration in `sql/12`, not the page. |
 | `sign-in failed: 400` from a probe script | `smoke-outlook.mjs` / `smoke-chat.mjs` / `probe-asof.mjs` have no `.env.local` fallback | Set `SMOKE_PASSWORD` explicitly. |
 | `vercel env add` appears to hang forever | Fixed. It used `cmd /c "… < file"`, whose redirect never reaches the CLI's stdin | Pull the current `scripts/set-vercel-env.ps1`, which pipes natively with `--force`. |
 | 6 test failures on Windows | Fixture portability, not a defect | See [Known limitations](#known-limitations). |
@@ -904,10 +1161,9 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 
 ## Known limitations
 
-- **Six unit tests fail on Windows** and pass on Linux/macOS. The fixtures in
+- **Eight unit tests fail on Windows** and pass on Linux/macOS. The fixtures in
   `__tests__/lib/snowflake.test.ts` key mounted secrets by POSIX path (`/secrets/<name>/…`, which is
-  what SPCS actually mounts) while `path.join` emits backslashes on Windows. The same file accounts
-  for all 6 `tsc` errors.
+  what SPCS actually mounts) while `path.join` emits backslashes on Windows.
   > **Do not "fix" this by normalising separators in the helper.** It makes the TOML fixtures start
   > matching paths they were never meant to match, turning 6 platform-specific failures into 15 real
   > ones.
@@ -921,11 +1177,20 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 - **The agent assets are reproducible as of this revision** — the Cortex Agent, all 39 verified
   queries and the 60-question evaluation set are committed SQL, rebuilt by `scripts/rebuild.mjs` and
   asserted by `sql/90` and `sql/93`.
-- **The 60 evaluation questions are not scored automatically.** `AGENT_EVAL_QUESTION` is the fixture
-  and it self-checks its own shape and metric coverage, but nothing yet runs the agent against all 60
-  and records pass/fail. Scoring belongs to a run, not to the question; baking a result into the
-  question set is how an evaluation set quietly becomes a record of one good day.
-- **`/api/ask` takes 5–11s warm and ~14s cold.** Split across two calls so the number appears before
+- **The 60 evaluation questions are scored, and they do not all pass.** `npm run eval` runs every
+  question over HTTP as its own persona and records the result in `GOVERNANCE.AGENT_EVAL_RUN`. The
+  last run is **52/60**, with 7/8 refusals and 3/4 traps correct. Failures are published on
+  `/consistency` rather than trimmed, because an accuracy figure without the failures behind it is a
+  scoreboard rather than a diagnostic. The four classes of remaining failure are listed under
+  [Scoring the conversational layer](#scoring-the-conversational-layer); one of them (ambiguity)
+  is a measured regression from fixing a worse problem, and is recorded as such.
+- **Agent parity is a recorded run, not a live one.** A full Cortex Agent turn routinely exceeds the
+  serverless budget, so `/consistency` reads the last `npm run parity` result with its timestamp,
+  the same way it reads the last drift run. One question currently reports `DIVERGE`:
+  `days_of_inventory` returns 32.667007 from the agent against a canonical 32.768548, which points
+  at the stored verified query pinning a different snapshot. It is left visible rather than dropped
+  from the question list.
+- **`/api/ask` takes 5–11s warm and ~14s cold**, and the evaluation run measures ~18s per question Split across two calls so the number appears before
   the prose, but it is not fast. The dominant costs are the resolver model call and establishing a
   fresh per-role Snowflake connection; the per-role pools are `min: 0`, so the first request for a
   persona pays connection setup.
@@ -945,22 +1210,27 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 
 ## Roadmap
 
-1. **Score the 60 evaluation questions automatically** — run each through the agent, compare resolved
-   metric ids against `EXPECTED_METRIC_IDS`, check that the 8 must-refuse questions are refused, and
-   record the run so accuracy is a trend rather than an anecdote.
-2. **Reduce first-turn latency.** Warm the per-role connection pools, or cache the registry and
+1. **Raise conversational accuracy on the four named failure classes** — supersets, ambiguity,
+   predictions, judgement. Feed the recorded failures back into the catalogue descriptions and the
+   verified-query set rather than loosening the scoring rule. The ambiguity regression is the first
+   one to chase: the resolver needs to distinguish "do not refuse for a reason the app has already
+   handled" from "do not commit when two metrics genuinely compete".
+2. **Route `/ask` to the prediction registry** so a forward-looking question (Q44) is answerable at
+   all, labelled a prediction and quoted with its backtested accuracy.
+3. **Fix the `days_of_inventory` verified query** that `npm run parity` reports as `DIVERGE`, and
+   re-run parity to confirm.
+4. **Reduce first-turn latency.** Warm the per-role connection pools, or cache the registry and
    dimension catalogue across requests so a turn is one model call plus one query rather than three
    round trips.
-3. **Measure the drift procedure against Vercel** and re-enable the button if ~25s now completes,
+5. **Measure the drift procedure against Vercel** and re-enable the button if ~25s now completes,
    replacing the assumption in `lib/env.ts` with a measurement.
-4. **Replace illustrative targets** with committed business targets, and record provenance in
+6. **Replace illustrative targets** with committed business targets, and record provenance in
    `TARGET_SOURCE`.
-5. **Normalise the six untargeted dollar metrics** (per unit, per shipment, as a share of accrued
+7. **Normalise the six untargeted dollar metrics** (per unit, per shipment, as a share of accrued
    freight) and register those as their own targetable metrics.
-6. **Front the app with SSO** and enable `CALLERS_RIGHTS=1` once real users hold the grants.
-7. **Feed `AGENT_IMPROVEMENT_CANDIDATE` back into the ontology** — the log now receives every turn, so
+8. **Front the app with SSO** and enable `CALLERS_RIGHTS=1` once real users hold the grants.
+9. **Feed `AGENT_IMPROVEMENT_CANDIDATE` back into the ontology** — the log now receives every turn, so
    turn the top-ranked unstable resolutions into synonyms or new verified queries.
-
 ---
 
 ## Contributing
@@ -978,8 +1248,9 @@ Before opening a pull request:
 
 ```bash
 npm run typecheck
-npm test                               # expect 163/169 on Windows, 169/169 elsewhere
-node scripts/rebuild.mjs --verify      # 86 SQL checks must all PASS
+npm test                               # expect 162/170 on Windows, 170/170 elsewhere
+node scripts/rebuild.mjs --verify      # every SQL check must PASS
+npm run eval                           # score the 60 questions; publish the failures, don't trim them
 npm run smoke                          # needs npm run dev in another shell
 ```
 

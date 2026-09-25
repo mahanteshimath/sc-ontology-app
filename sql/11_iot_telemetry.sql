@@ -145,6 +145,30 @@ GRANT SELECT ON TABLE SUPPLY_CHAIN.CANONICAL.FCT_SHIPMENT_TELEMETRY TO ROLE SC_O
 -- 3. Splice SHIPMENT_TELEMETRY into the already-live SC_ONTOLOGY_360, using the
 --    exact technique documented in 01_calendar_dimension.sql. Anchors are
 --    LANDED_COST strings, unaffected by the CALENDAR splice.
+--
+-- GET_DDL DOES NOT PRESERVE THE WHITESPACE YOU WROTE, AND THAT COST US THE VIEW.
+--
+-- The table anchor here used to read
+--     'primary key (SNAPSHOT_DATE, MATERIAL_ID, NODE_ID)'
+-- copied from 00e_semantic.sql, where it is written with spaces after the
+-- commas. GET_DDL emits it WITHOUT them:
+--     'primary key (SNAPSHOT_DATE,MATERIAL_ID,NODE_ID)'
+--
+-- So that REPLACE matched nothing and silently changed nothing, while the four
+-- anchors below it matched fine. The result was a view whose RELATIONSHIPS
+-- referenced SHIPMENT_TELEMETRY and whose TABLES never declared it:
+--     Invalid table name 'SHIPMENT_TELEMETRY' in the RELATIONSHIPS definition
+-- and because that surfaces only at EXECUTE IMMEDIATE, the failure looked like a
+-- problem with the relationship rather than with the anchor three lines above it.
+--
+-- The whitespace is now corrected AND each anchor asserts itself first, which is
+-- the rule 07_verified_queries.sql already states and this file did not follow:
+--
+--   ASSERT THE ANCHOR OCCURS EXACTLY ONCE BEFORE RELYING ON IT.
+--   A REPLACE that matches nothing succeeds and changes nothing.
+--
+-- Aborting with the anchor named is strictly better than leaving an
+-- uncompilable view behind, because the message points at the cause.
 -- ---------------------------------------------------------------------------
 
 USE SCHEMA SEMANTIC;
@@ -166,33 +190,41 @@ DECLARE
   tel_dims STRING := $$SHIPMENT_TELEMETRY.CARRIER as shipment_telemetry.carrier with synonyms=('carrier','freight carrier') comment='Carrier that moved the shipment.', SHIPMENT_TELEMETRY.LANE as shipment_telemetry.lane_id with synonyms=('lane','route') comment='Transport lane the sensor reading was recorded on.', SHIPMENT_TELEMETRY.PEAK_TEMP as shipment_telemetry.peak_temp_c with synonyms=('peak temperature','temperature reading') comment='Peak in-transit temperature, degrees Celsius.', $$;
 
   tel_metric STRING := $$SHIPMENT_TELEMETRY.TEMP_EXCURSION_RATE as AVG(shipment_telemetry.excursion) with synonyms=('temperature excursion rate','cold chain breach rate','iot excursion rate','sensor excursion rate') comment='Share of shipments with an in-transit temperature breach, measured from IoT sensor telemetry. Shipment-weighted, never an average of per-carrier rates.', $$;
+
+  -- Anchors, in the exact form GET_DDL emits them. Kept in variables so each can
+  -- be counted before it is used and named in the abort message if it is missing.
+  a_table STRING := 'INVENTORY as SUPPLY_CHAIN.CANONICAL.FCT_INVENTORY_SNAPSHOT primary key (SNAPSHOT_DATE,MATERIAL_ID,NODE_ID)';
+  a_rel   STRING := 'INVENTORY_TO_PART as INVENTORY(MATERIAL_ID)';
+  a_fact  STRING := 'INVENTORY.ON_HAND as inventory.on_hand_qty';
+  a_dim   STRING := 'INVENTORY.SNAPSHOT_DATE as inventory.snapshot_date';
+  a_met   STRING := 'INVENTORY.DAYS_OF_INVENTORY as SUM(inventory.on_hand)';
 BEGIN
   ddl := GET_DDL('SEMANTIC_VIEW', 'SUPPLY_CHAIN.SEMANTIC.SC_ONTOLOGY_360');
+
+  -- Already spliced? Say so rather than appending a duplicate entity.
+  IF (POSITION('SHIPMENT_TELEMETRY as' IN ddl) > 0) THEN
+    RETURN 'SC_ONTOLOGY_360 already carries SHIPMENT_TELEMETRY; nothing to do';
+  END IF;
+
+  -- Every anchor, or none. A partial splice is what produced an uncompilable view.
+  IF (POSITION(:a_table IN ddl) = 0) THEN RETURN 'ABORT: table anchor not found: '        || :a_table; END IF;
+  IF (POSITION(:a_rel   IN ddl) = 0) THEN RETURN 'ABORT: relationship anchor not found: ' || :a_rel;   END IF;
+  IF (POSITION(:a_fact  IN ddl) = 0) THEN RETURN 'ABORT: fact anchor not found: '         || :a_fact;  END IF;
+  IF (POSITION(:a_dim   IN ddl) = 0) THEN RETURN 'ABORT: dimension anchor not found: '    || :a_dim;   END IF;
+  IF (POSITION(:a_met   IN ddl) = 0) THEN RETURN 'ABORT: metric anchor not found: '       || :a_met;   END IF;
 
   -- CREATE OR REPLACE drops grants; CREATE OR ALTER preserves them.
   ddl := REPLACE(ddl, 'create or replace semantic view SC_ONTOLOGY_360',
                       'create or alter semantic view SUPPLY_CHAIN.SEMANTIC.SC_ONTOLOGY_360');
 
-  -- Every anchor below is a short "X as Y" structural token with no trailing
-  -- comment/synonym text — the same shape 01_calendar_dimension.sql uses — and
-  -- each is the START of the next entry after LANDED_COST's own, so the new
-  -- content is prepended in front of it rather than spliced into the middle of
-  -- an existing multi-clause entry.
-  ddl := REPLACE(ddl,
-    'INVENTORY as SUPPLY_CHAIN.CANONICAL.FCT_INVENTORY_SNAPSHOT primary key (SNAPSHOT_DATE, MATERIAL_ID, NODE_ID)',
-    tel_table || 'INVENTORY as SUPPLY_CHAIN.CANONICAL.FCT_INVENTORY_SNAPSHOT primary key (SNAPSHOT_DATE, MATERIAL_ID, NODE_ID)');
-  ddl := REPLACE(ddl,
-    'INVENTORY_TO_PART as INVENTORY(MATERIAL_ID)',
-    tel_rel || 'INVENTORY_TO_PART as INVENTORY(MATERIAL_ID)');
-  ddl := REPLACE(ddl,
-    'INVENTORY.ON_HAND as inventory.on_hand_qty',
-    tel_facts || 'INVENTORY.ON_HAND as inventory.on_hand_qty');
-  ddl := REPLACE(ddl,
-    'INVENTORY.SNAPSHOT_DATE as inventory.snapshot_date',
-    tel_dims || 'INVENTORY.SNAPSHOT_DATE as inventory.snapshot_date');
-  ddl := REPLACE(ddl,
-    'INVENTORY.DAYS_OF_INVENTORY as SUM(inventory.on_hand)',
-    tel_metric || 'INVENTORY.DAYS_OF_INVENTORY as SUM(inventory.on_hand)');
+  -- Each anchor is a short structural token that STARTS the next entry after
+  -- LANDED_COST's own, so new content is prepended in front of it rather than
+  -- spliced into the middle of an existing multi-clause entry.
+  ddl := REPLACE(ddl, :a_table, tel_table  || :a_table);
+  ddl := REPLACE(ddl, :a_rel,   tel_rel    || :a_rel);
+  ddl := REPLACE(ddl, :a_fact,  tel_facts  || :a_fact);
+  ddl := REPLACE(ddl, :a_dim,   tel_dims   || :a_dim);
+  ddl := REPLACE(ddl, :a_met,   tel_metric || :a_met);
 
   EXECUTE IMMEDIATE ddl;
   RETURN 'SC_ONTOLOGY_360 extended with the SHIPMENT_TELEMETRY entity';

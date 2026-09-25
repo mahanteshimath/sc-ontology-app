@@ -63,7 +63,13 @@ const METRIC = {
   warnThreshold: 0.92,
   failThreshold: 0.9,
   direction: "higher",
-  bindings: [{ semanticView: "SC_ONTOLOGY_360", metricReference: "order_fulfillment.otd_pct" }],
+  // Every governed metric is bound twice: once to its domain view, once to the cross-domain view.
+  // The fixture carried only the cross-domain binding, which no metric in the deployed registry
+  // actually looks like — and which quietly exempted it from the domain-grant rule below.
+  bindings: [
+    { semanticView: "SC_ONTOLOGY_360", metricReference: "order_fulfillment.otd_pct" },
+    { semanticView: "SC_FULFILLMENT", metricReference: "order_fulfillment.otd_pct" },
+  ],
 }
 
 const PERSONAS = [
@@ -80,7 +86,7 @@ function request(body: unknown) {
 }
 
 /** The resolver's reply, as the route would receive it from AI_COMPLETE. */
-function resolverReturns(json: unknown) {
+function resolverReturns(json: unknown, grants?: { ROLE_NAME: string; SEMANTIC_VIEW: string }[]) {
   querySnowflake.mockImplementation((sql: string) => {
     if (String(sql).includes("AI_COMPLETE")) {
       return Promise.resolve([{ RESOLUTION: JSON.stringify(json) }])
@@ -89,10 +95,14 @@ function resolverReturns(json: unknown) {
       return Promise.resolve([{ REF: "part.product_family", COMMENT: null }])
     }
     if (String(sql).includes("PERSONA_VIEW_ACCESS")) {
-      return Promise.resolve([
-        { ROLE_NAME: "SC_LOGISTICS", SEMANTIC_VIEW: "SC_ONTOLOGY_360" },
-        { ROLE_NAME: "SC_LOGISTICS_EU", SEMANTIC_VIEW: "SC_ONTOLOGY_360" },
-      ])
+      return Promise.resolve(
+        grants ?? [
+          { ROLE_NAME: "SC_LOGISTICS", SEMANTIC_VIEW: "SC_ONTOLOGY_360" },
+          { ROLE_NAME: "SC_LOGISTICS", SEMANTIC_VIEW: "SC_FULFILLMENT" },
+          { ROLE_NAME: "SC_LOGISTICS_EU", SEMANTIC_VIEW: "SC_ONTOLOGY_360" },
+          { ROLE_NAME: "SC_LOGISTICS_EU", SEMANTIC_VIEW: "SC_FULFILLMENT" },
+        ],
+      )
     }
     return Promise.resolve([])
   })
@@ -148,6 +158,29 @@ describe("POST /api/ask", () => {
     expect(body.answerable).toBe(false)
     expect(body.suggestions).toContain("On-Time Delivery")
     expect(querySemanticView).not.toHaveBeenCalled()
+  })
+
+  /**
+   * The cross-domain view must not be a bypass of domain scope.
+   *
+   * Found by AGENT_EVAL_QUESTION Q53, not by review: SC_PROCUREMENT holds SC_SUPPLIER and not
+   * SC_LANDED_COST, and was answered on freight bill variance anyway because that metric is also
+   * bound to SC_ONTOLOGY_360, which it can read. PERSONA_VIEW_ACCESS said one thing and the
+   * conversational layer did another.
+   */
+  it("refuses a metric the persona holds no domain grant for, even via the cross-domain view", async () => {
+    resolverReturns(
+      { answerable: true, metricIds: ["otd_pct"], dimension: null, reason: "ok" },
+      // Granted the cross-domain view only. The domain view that serves this metric is withheld.
+      [{ ROLE_NAME: "SC_LOGISTICS", SEMANTIC_VIEW: "SC_ONTOLOGY_360" }],
+    )
+    const { POST } = await import("../../app/api/ask/route")
+    const body = await (
+      await POST(request({ question: "What is our on-time delivery?", persona: "SC_LOGISTICS" }))
+    ).json()
+
+    expect(body.answerable).toBe(false)
+    expect(runRowsAsRole).not.toHaveBeenCalled()
   })
 
   it("discards a dimension the view does not expose but still answers the metric", async () => {
