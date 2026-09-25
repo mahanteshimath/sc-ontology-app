@@ -22,12 +22,15 @@ async function AskBody({ period }: { period: ResolvedPeriod }) {
    * picker over all personas would invite the user to select one they are not, and either the query
    * would fail or — worse — succeed and imply an access level they do not have. Where no session
    * exists (inside SPCS, where the platform authenticates instead), the full list is offered so the
-   * cross-persona comparison is still demonstrable.
+   * cross-persona comparison is still demonstrable — minus SC_ONTOLOGY_STEWARD, which is the
+   * all-access administrative role rather than an analyst persona to compare.
+   *
+   * A signed-in STEWARD session is scoped to itself first, so a demo account that names STEWARD
+   * (the app owner's own login) still gets a populated picker instead of an empty one.
    */
-  const analystPersonas = personas.filter((p) => p.roleName !== "SC_ONTOLOGY_STEWARD")
   const offered = session
-    ? analystPersonas.filter((p) => p.roleName === session.personaRole)
-    : analystPersonas
+    ? personas.filter((p) => p.roleName === session.personaRole)
+    : personas.filter((p) => p.roleName !== "SC_ONTOLOGY_STEWARD")
 
   return (
     <AskChat
