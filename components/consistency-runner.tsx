@@ -103,8 +103,9 @@ export function ConsistencyRunner({ metrics }: { metrics: MetricOption[] }) {
             onChange={(e) => setMetricId(e.target.value)}
             className="h-9 rounded-md border border-border bg-background px-2 text-sm min-w-[280px]"
           >
+            {/* Set explicitly: native option popups ignore the select's dark-theme classes. */}
             {metrics.map((m) => (
-              <option key={m.metricId} value={m.metricId}>
+              <option key={m.metricId} value={m.metricId} className="bg-background text-foreground">
                 {m.businessName}
               </option>
             ))}

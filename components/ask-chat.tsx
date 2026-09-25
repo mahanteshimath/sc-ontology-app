@@ -289,8 +289,9 @@ export function AskChat({
               disabled={personas.length <= 1 || mutation.isPending}
               className="h-9 min-w-[210px] rounded-md border border-border bg-background px-2.5 text-sm shadow-sm"
             >
+              {/* Set explicitly: native option popups ignore the select's dark-theme classes. */}
               {personas.map((p) => (
-                <option key={p.roleName} value={p.roleName}>
+                <option key={p.roleName} value={p.roleName} className="bg-background text-foreground">
                   {p.personaLabel}
                 </option>
               ))}

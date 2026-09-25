@@ -319,11 +319,13 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
                 onChange={(e) => setRegionFilter(e.target.value)}
                 className="bg-transparent text-xs font-medium focus:outline-none"
               >
-                <option value="ALL">All Regions</option>
-                <option value="NA">North America (NA)</option>
-                <option value="EU">Europe (EU)</option>
-                <option value="APAC">Asia-Pacific (APAC)</option>
-                <option value="LATAM">Latin America (LATAM)</option>
+                {/* Native <option> popups ignore the parent's dark-theme classes and default to the
+                    browser's own light chrome, so colors must be set on each option directly. */}
+                <option value="ALL" className="bg-background text-foreground">All Regions</option>
+                <option value="NA" className="bg-background text-foreground">North America (NA)</option>
+                <option value="EU" className="bg-background text-foreground">Europe (EU)</option>
+                <option value="APAC" className="bg-background text-foreground">Asia-Pacific (APAC)</option>
+                <option value="LATAM" className="bg-background text-foreground">Latin America (LATAM)</option>
               </select>
             </div>
           </div>

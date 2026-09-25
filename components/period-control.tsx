@@ -59,12 +59,13 @@ export function PeriodControl({ asOf, description }: { asOf: string; description
           onChange={(e) => selectPreset(e.target.value)}
           className="h-8 rounded-md border border-border bg-card px-2 text-xs shadow-sm"
         >
+          {/* Set explicitly: native option popups ignore the select's dark-theme classes. */}
           {PERIOD_OPTIONS.map((p) => (
-            <option key={p.id} value={p.id} title={p.hint}>
+            <option key={p.id} value={p.id} title={p.hint} className="bg-card text-foreground">
               {p.label}
             </option>
           ))}
-          <option value="custom" title="Pick an explicit start and end date">
+          <option value="custom" title="Pick an explicit start and end date" className="bg-card text-foreground">
             Custom range
           </option>
         </select>
