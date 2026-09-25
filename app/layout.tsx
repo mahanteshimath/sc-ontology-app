@@ -35,7 +35,9 @@ export default async function RootLayout({
               user={session ? { username: session.username, personaRole: session.personaRole } : null}
             />
             {children}
-            <OnboardingTour />
+            <OnboardingTour
+              user={session ? { username: session.username, personaRole: session.personaRole } : null}
+            />
           </QueryProvider>
         </ThemeProvider>
       </body>

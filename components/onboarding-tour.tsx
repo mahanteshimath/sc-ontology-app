@@ -65,7 +65,11 @@ const TOUR_STEPS: TourStep[] = [
 
 const LOCAL_STORAGE_KEY = "sc_ontology_tour_completed_v1"
 
-export function OnboardingTour() {
+export function OnboardingTour({
+  user,
+}: {
+  user: { username: string; personaRole: string } | null
+}) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -75,16 +79,19 @@ export function OnboardingTour() {
 
   // Check initial tour state on mount
   useEffect(() => {
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined" || !user || pathname === "/login") return
     const isCompleted = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (!isCompleted && pathname !== "/login") {
+    if (!isCompleted) {
       // Delay welcome modal slightly for smooth page load transition
       const timer = setTimeout(() => {
         setTourState("WELCOME")
       }, 600)
       return () => clearTimeout(timer)
     }
-  }, [pathname])
+  }, [user, pathname])
+
+  // Do not render tour or restart button if user is not authenticated or on login screen
+  if (!user || pathname === "/login") return null
 
   const activeStep = TOUR_STEPS[currentStepIndex]
 
