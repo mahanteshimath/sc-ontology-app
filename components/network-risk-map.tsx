@@ -309,25 +309,7 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* View Mode */}
-            <div className="flex rounded-lg border border-border bg-secondary/40 p-1 gap-1">
-              <button
-                onClick={() => setViewMode("DISRUPTED")}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                  viewMode === "DISRUPTED" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
-                }`}
-              >
-                Disrupted Corridors
-              </button>
-              <button
-                onClick={() => setViewMode("ALL_LANES")}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                  viewMode === "ALL_LANES" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
-                }`}
-              >
-                All 96 Lanes
-              </button>
-            </div>
+
 
             {/* Region Filter */}
             <div className="flex items-center gap-1.5 bg-background border border-border rounded-lg px-2.5 py-1">
@@ -347,26 +329,7 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
           </div>
         </div>
 
-        {/* Active Scenario Selector */}
-        <div className="pt-2 border-t border-border">
-          <div className="space-y-1.5 max-w-lg">
-            <label className="text-xs uppercase font-semibold text-muted-foreground">Select Simulation Scenario</label>
-            <select
-              value={selectedScenarioId}
-              onChange={(e) => setSelectedScenarioId(e.target.value)}
-              className="w-full h-10 rounded-lg border border-border bg-background px-3 text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-            >
-              {Array.from(new Set(scenarios.map((s) => s.scenarioId))).map((id) => {
-                const sc = scenarios.find((s) => s.scenarioId === id)
-                return (
-                  <option key={id} value={id}>
-                    {id}: {sc?.scenarioName ?? id}
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-        </div>
+
 
         {/* KPI Summaries */}
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 pt-2">
