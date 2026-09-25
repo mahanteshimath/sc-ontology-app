@@ -77,22 +77,6 @@ export function OnboardingTour({
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
 
-  // Check initial tour state on mount
-  useEffect(() => {
-    if (typeof window === "undefined" || !user || pathname === "/login") return
-    const isCompleted = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (!isCompleted) {
-      // Delay welcome modal slightly for smooth page load transition
-      const timer = setTimeout(() => {
-        setTourState("WELCOME")
-      }, 600)
-      return () => clearTimeout(timer)
-    }
-  }, [user, pathname])
-
-  // Do not render tour or restart button if user is not authenticated or on login screen
-  if (!user || pathname === "/login") return null
-
   const activeStep = TOUR_STEPS[currentStepIndex]
 
   // Update target bounding rect when step changes or window resizes
@@ -108,6 +92,19 @@ export function OnboardingTour({
       setTargetRect(null)
     }
   }, [tourState, activeStep])
+
+  // Check initial tour state on mount
+  useEffect(() => {
+    if (typeof window === "undefined" || !user || pathname === "/login") return
+    const isCompleted = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (!isCompleted) {
+      // Delay welcome modal slightly for smooth page load transition
+      const timer = setTimeout(() => {
+        setTourState("WELCOME")
+      }, 600)
+      return () => clearTimeout(timer)
+    }
+  }, [user, pathname])
 
   useEffect(() => {
     if (tourState === "ACTIVE") {
@@ -134,6 +131,9 @@ export function OnboardingTour({
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [tourState, currentStepIndex])
+
+  // Do not render tour or restart button if user is not authenticated or on login screen
+  if (!user || pathname === "/login") return null
 
   const handleStartTour = () => {
     setTourState("ACTIVE")
