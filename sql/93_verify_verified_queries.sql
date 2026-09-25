@@ -44,7 +44,7 @@ CREATE OR REPLACE TABLE VERIFIED_QUERY_CHECK (
 DECLARE
   views   ARRAY := ARRAY_CONSTRUCT(
             'SC_ONTOLOGY_360', 'SC_SUPPLIER', 'SC_FULFILLMENT', 'SC_INVENTORY',
-            'SC_LANDED_COST', 'SC_DEMAND', 'SC_MANUFACTURING', 'SC_OUTLOOK');
+            'SC_LANDED_COST', 'SC_DEMAND', 'SC_MANUFACTURING', 'SC_OUTLOOK', 'SC_TELEMETRY');
   v_name  STRING;
   v_ddl   STRING;
   v_q     STRING;
@@ -122,8 +122,8 @@ SELECT
   'ALL VERIFIED QUERIES EXECUTE' AS check_name,
   COUNT(*)                       AS total,
   COUNT_IF(status = 'FAIL')      AS failed,
-  38                             AS expected_total,
-  IFF(COUNT(*) = 38 AND COUNT_IF(status = 'FAIL') = 0, 'PASS',
+  39                             AS expected_total,
+  IFF(COUNT(*) = 39 AND COUNT_IF(status = 'FAIL') = 0, 'PASS',
       'FAIL - a stored verified query is broken, or the extraction found the wrong number') AS verdict
 FROM VERIFIED_QUERY_CHECK;
 

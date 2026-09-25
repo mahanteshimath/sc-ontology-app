@@ -12,6 +12,7 @@ import {
   BotMessageSquare,
   ShieldCheck,
   Database,
+  GitCompareArrows,
   CheckCircle2,
   HelpCircle,
 } from "lucide-react"
@@ -45,6 +46,20 @@ const TOUR_STEPS: TourStep[] = [
     title: "Ask AI Conversational Assistant",
     description: "Ask natural language questions about supply chain metrics and get answers powered by canonical Snowflake SQL execution.",
     icon: BotMessageSquare,
+    position: "bottom",
+  },
+  {
+    target: '[data-tour="consistency-link"]',
+    title: "Proof, Not Assertion",
+    description: "The same metric, executed as Planning, Procurement and Logistics, resolves to one governed answer here — alongside a negative control that proves the drift test can actually fail.",
+    icon: GitCompareArrows,
+    position: "bottom",
+  },
+  {
+    target: '[data-tour="metrics-link"]',
+    title: "The Metric Registry",
+    description: "Every governed metric's definition, owner, target and drift-test track record — the single source of truth every page and every Ask answer reads from.",
+    icon: Database,
     position: "bottom",
   },
   {

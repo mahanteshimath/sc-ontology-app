@@ -128,7 +128,12 @@ function NavLink({
 }) {
   const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
   const Icon = item.icon
-  const dataTour = item.href === "/network-risk" ? "network-risk-link" : item.href === "/ask" ? "ask-link" : undefined
+  const dataTour =
+    item.href === "/network-risk" ? "network-risk-link"
+    : item.href === "/ask" ? "ask-link"
+    : item.href === "/consistency" ? "consistency-link"
+    : item.href === "/metrics" ? "metrics-link"
+    : undefined
 
   return (
     <Link

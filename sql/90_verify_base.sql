@@ -73,7 +73,7 @@ SELECT
   COUNT_IF(entity_role = 'DIMENSION')                              AS dimensions,
   COUNT_IF(entity_role = 'FACT')                                   AS facts,
   IFF(COUNT_IF(entity_role = 'DIMENSION') = 5
-      AND COUNT_IF(entity_role = 'FACT') = 6, 'PASS',
+      AND COUNT_IF(entity_role = 'FACT') = 7, 'PASS',
       'FAIL - /ontology will misreport its own entity counts') AS verdict
 FROM SUPPLY_CHAIN.GOVERNANCE.ONTOLOGY_ENTITY
 WHERE semantic_view = 'SC_ONTOLOGY_360';
@@ -103,8 +103,8 @@ ORDER BY check_name;
 -- doing real work -- so these checks are what prove 02 and 03 actually ran.
 -- ---------------------------------------------------------------------------
 
-SELECT 'metric count' AS check_name, COUNT(*) AS found, 14 AS expected,
-       IFF(COUNT(*) = 14, 'PASS', 'FAIL') AS verdict
+SELECT 'metric count' AS check_name, COUNT(*) AS found, 15 AS expected,
+       IFF(COUNT(*) = 15, 'PASS', 'FAIL') AS verdict
 FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DEFINITION;
 
 SELECT 'every metric has an as_of_scope (02 ran)' AS check_name,
@@ -118,11 +118,11 @@ SELECT 'inventory metrics scoped SNAPSHOT' AS check_name,
 FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DEFINITION
 WHERE grain = 'material_node_snapshot';
 
--- Eight metrics carry a target; the six absolute-dollar metrics deliberately do
+-- Nine metrics carry a target; the six absolute-dollar metrics deliberately do
 -- not, because a fixed dollar threshold would report higher volume as a failure.
 SELECT 'metrics with a target (03 ran)' AS check_name,
-       COUNT_IF(target_value IS NOT NULL) AS found, 8 AS expected,
-       IFF(COUNT_IF(target_value IS NOT NULL) = 8, 'PASS', 'FAIL - 03_targets.sql has not run') AS verdict
+       COUNT_IF(target_value IS NOT NULL) AS found, 9 AS expected,
+       IFF(COUNT_IF(target_value IS NOT NULL) = 9, 'PASS', 'FAIL - 03_targets.sql has not run') AS verdict
 FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DEFINITION;
 
 SELECT 'every target is labelled ILLUSTRATIVE or NO TARGET' AS check_name,
@@ -211,7 +211,8 @@ FROM (
 -- configuration error.
 --
 -- WHAT THIS CHECKS AND WHAT IT DOES NOT. It asserts that every named view exists
--- and that the row count matches the 19 GRANT statements at the end of 00e. It
+-- and that the row count matches the 19 GRANT statements at the end of 00e plus
+-- the 3 added by sql/11_iot_telemetry.sql (22 total). It
 -- does NOT read the grants themselves: there is no INFORMATION_SCHEMA table
 -- function for object privileges (an earlier version of this file called a
 -- non-existent OBJECT_PRIVILEGES and failed), and SNOWFLAKE.ACCOUNT_USAGE.
@@ -232,8 +233,8 @@ WHERE NOT EXISTS (
 );
 
 SELECT 'persona view access row count matches the grants in 00e' AS check_name,
-       COUNT(*) AS found, 19 AS expected,
-       IFF(COUNT(*) = 19, 'PASS', 'FAIL - PERSONA_VIEW_ACCESS and the GRANTs in 00e have diverged') AS verdict
+       COUNT(*) AS found, 22 AS expected,
+       IFF(COUNT(*) = 22, 'PASS', 'FAIL - PERSONA_VIEW_ACCESS and the GRANTs in 00e/11 have diverged') AS verdict
 FROM SUPPLY_CHAIN.GOVERNANCE.PERSONA_VIEW_ACCESS;
 
 -- The negative control must be reachable by no persona. It is bound in
@@ -272,6 +273,7 @@ WITH c AS (
   UNION ALL SELECT 'SC_DEMAND',        3, REGEXP_COUNT(GET_DDL('SEMANTIC_VIEW','SUPPLY_CHAIN.SEMANTIC.SC_DEMAND'),        'QUESTION\\s+''', 1, 'i')
   UNION ALL SELECT 'SC_MANUFACTURING', 2, REGEXP_COUNT(GET_DDL('SEMANTIC_VIEW','SUPPLY_CHAIN.SEMANTIC.SC_MANUFACTURING'), 'QUESTION\\s+''', 1, 'i')
   UNION ALL SELECT 'SC_OUTLOOK',       2, REGEXP_COUNT(GET_DDL('SEMANTIC_VIEW','SUPPLY_CHAIN.SEMANTIC.SC_OUTLOOK'),       'QUESTION\\s+''', 1, 'i')
+  UNION ALL SELECT 'SC_TELEMETRY',     1, REGEXP_COUNT(GET_DDL('SEMANTIC_VIEW','SUPPLY_CHAIN.SEMANTIC.SC_TELEMETRY'),     'QUESTION\\s+''', 1, 'i')
 )
 SELECT 'verified queries on ' || view_name AS check_name, found, expected,
        IFF(found = expected, 'PASS', 'FAIL') AS verdict
@@ -312,7 +314,7 @@ WHERE "name" = 'SC_ONTOLOGIST_AGENT';
 -- ---------------------------------------------------------------------------
 -- 9. THE DRIFT GATE. Run last.
 --
--- All 14 metrics must PASS with zero spread. This is the only check that proves
+-- All 15 metrics must PASS with zero spread. This is the only check that proves
 -- the semantic views and the canonical facts agree, and therefore the only one
 -- that proves a number in the UI means what the registry says it means.
 --
@@ -333,7 +335,7 @@ SELECT
   COUNT_IF(status = 'PASS')       AS passed,
   COUNT_IF(status <> 'PASS')      AS not_passed,
   MAX(relative_spread)            AS worst_relative_spread,
-  IFF(COUNT(*) = 14 AND COUNT_IF(status <> 'PASS') = 0, 'PASS', 'FAIL') AS verdict
+  IFF(COUNT(*) = 15 AND COUNT_IF(status <> 'PASS') = 0, 'PASS', 'FAIL') AS verdict
 FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_RESULT r
 JOIN latest l ON l.run_id = r.run_id;
 

@@ -8,7 +8,8 @@
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "prewarm": "node scripts/prewarm.mjs"
   },
   "dependencies": {
     "@radix-ui/react-separator": "^1.1.15",

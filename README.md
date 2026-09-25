@@ -20,8 +20,23 @@ Team 3M-ONTOLOGIST.
 
 ---
 
+## The 60-second proof
+
+Three claims, each checkable in one click rather than taken on faith:
+
+| Judging focus | Claim | Check it |
+|---|---|---|
+| **Real World Relevance** | The ontology models exactly the chain named in the brief — Supplier → Part → Plant/DC → Shipment → Order → Customer — over the four canonical metrics named in the brief (OTD, fill rate, days of inventory, landed cost), plus IoT shipment telemetry. | [`/ontology`](https://sc-ontology-app.vercel.app/ontology) — 12 entities, 15 relationships, read live from the deployed semantic view. |
+| **Technical Execution** | One metric definition resolves identically for Planning, Procurement and Logistics — and a deliberately broken negative control is kept deployed to prove the drift test can actually fail, not just pass. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — `SC_SUPPLIER_LEGACY_DEFECT` reports **0.882631** against the correct **0.875824**, a measured 0.006807 spread the governed views do not repeat. |
+| **Solution Completeness** | Every number on every page traces to a registered metric with an owner, a target, and a drift-test track record — not app-layer arithmetic. | [`/metrics`](https://sc-ontology-app.vercel.app/metrics) — 15 metrics, 30 bindings, 15/15 zero-spread on the last run. |
+
+Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
+
+---
+
 ## Table of contents
 
+- [The 60-second proof](#the-60-second-proof)
 - [Why this exists](#why-this-exists)
 - [What it does](#what-it-does)
 - [Architecture](#architecture)
@@ -81,14 +96,20 @@ be *capable of failing* rather than merely passing, and the evidence is recorded
 
 > A drift test that has only ever passed is indistinguishable from a drift test that is not running.
 
+The stakes are ordinary, not exotic. **`ILLUSTRATIVE`** framing (same convention as the seeded
+targets in `sql/03_targets.sql`): a 0.0068 spread on a metric near a 0.88 target is large enough to
+flip which supplier gets escalated in an S&OP review, or which regional team is asked to explain a
+miss it did not actually have. The cost of an ungoverned metric is not a wrong dashboard — it is a
+meeting spent debating whose number is right instead of what to do about it.
+
 ---
 
 ## What it does
 
 | | |
 |---|---|
-| **One definition, many consumers** | 14 governed metrics, each exposed through 2 semantic views (28 bindings). A dashboard figure and a conversational answer are the *same expression* evaluated by the same engine. |
-| **Agreement is tested** | `GOVERNANCE.METRIC_DRIFT_TEST()` evaluates every binding against the metric's canonical atomic-grain SQL and records the spread. Currently **14/14 PASS, zero spread**. Runs daily at 06:00 UTC. |
+| **One definition, many consumers** | 15 governed metrics, each exposed through 2 semantic views (30 bindings). A dashboard figure and a conversational answer are the *same expression* evaluated by the same engine. |
+| **Agreement is tested** | `GOVERNANCE.METRIC_DRIFT_TEST()` evaluates every binding against the metric's canonical atomic-grain SQL and records the spread. Currently **15/15 PASS, zero spread**. Runs daily at 06:00 UTC. |
 | **Personas are real roles** | Signing in selects a Snowflake role; queries run under it with secondary roles disabled, so grants and row access policies are enforced by the database, not the app. |
 | **Numbers drill down to rows** | Every metric declares what an "exception row" is, so the rows shown under a number come from the same fact the number is defined over and therefore reconcile to it. |
 | **Predictions are separated from measurements** | Forecasts live in their own registry, are excluded from the drift contract, and are never displayed without their backtested accuracy. |
@@ -152,9 +173,9 @@ from the atomic fact.
 
 ### Ontology shape
 
-`SC_ONTOLOGY_360` models **11 entities** — 5 conformed dimensions (`CALENDAR`, `PART`, `SUPPLIER`,
-`CUSTOMER`, `NODE`) and 6 facts (`PURCHASE_ORDER`, `ORDER_FULFILLMENT`, `LANDED_COST`, `INVENTORY`,
-`PRODUCTION_ORDER`, `FORECAST`) — joined by **14 relationships**.
+`SC_ONTOLOGY_360` models **12 entities** — 5 conformed dimensions (`CALENDAR`, `PART`, `SUPPLIER`,
+`CUSTOMER`, `NODE`) and 7 facts (`PURCHASE_ORDER`, `ORDER_FULFILLMENT`, `LANDED_COST`, `INVENTORY`,
+`PRODUCTION_ORDER`, `FORECAST`, `SHIPMENT_TELEMETRY`) — joined by **15 relationships**.
 
 Two absent edges are deliberate and load-bearing:
 
@@ -294,10 +315,11 @@ statement boundaries. Use the runner, not `snow sql`, for `00f`, `01` and `07`.
 | 18 | `10_agent.sql` | `SC_ONTOLOGIST_AGENT` and its 9 tools |
 | 19 | `10b_geospatial_reference.sql` | geocoded network nodes, region-hub lane geometry and chokepoint reference data |
 | 20 | `10c_network_risk_scenarios.sql` | simulated network-risk scenario and lane-level impact assumptions |
-| 21 | `90_verify_base.sql` | splice anchors, registry shape, verified-query counts, agent exists, **the drift gate** |
-| 22 | `91_verify_personas.sql` | proves the EU row scope actually filters |
-| 23 | `92_verify_counts.sql` | row counts, snapshot cardinality, data shape |
-| 24 | `93_verify_verified_queries.sql` | **executes** all 38 verified queries |
+| 21 | `11_iot_telemetry.sql` | `FCT_SHIPMENT_TELEMETRY`, `SC_TELEMETRY`, the `temp_excursion_rate` metric — closes the IoT gap named in the brief |
+| 22 | `90_verify_base.sql` | splice anchors, registry shape, verified-query counts, agent exists, **the drift gate** |
+| 23 | `91_verify_personas.sql` | proves the EU row scope actually filters |
+| 24 | `92_verify_counts.sql` | row counts, snapshot cardinality, data shape |
+| 25 | `93_verify_verified_queries.sql` | **executes** all 39 verified queries |
 
 `sql/00_README.md` carries the full rationale. Two ordering facts matter:
 
@@ -339,6 +361,17 @@ of use in `sql/00c_raw_transactions.sql`:
   (~14k EU lines, standard error ~0.3pp) a 0.2pp design produced a 0.01pp observed gap whose sign was
   not stable — an assertion that can pass or fail on sampling noise proves nothing about row scoping.
 
+### Why this generalizes beyond synthetic data
+
+The data is synthetic; the governance layer that sits on top of it is not data-shaped, it's
+schema-shaped. `GOVERNANCE.METRIC_DEFINITION` / `METRIC_BINDING` / `METRIC_DRIFT_TEST()` reference
+semantic-view columns and an independent `CANONICAL_SQL`, not any property of the synthetic rows
+themselves. Pointing `CANONICAL.FCT_*` at real ERP, WMS or IoT extracts instead of `RAW.*` requires
+new source-to-canonical conformance mappings — the same kind of mapping `sql/00d_canonical.sql`
+already performs for six synthetic sources — not a redesign of the registry, the drift contract, or
+the row-access model. The hard part this project solves (one governed definition, tested agreement,
+real per-persona row scoping) is exactly the part that does not change when the source data does.
+
 ---
 
 ## Configuration
@@ -379,6 +412,7 @@ of use in `sql/00c_raw_transactions.sql`:
 | `/consistency` | One metric executed as each persona role side by side, the recorded pre-remediation divergence, and the negative control. |
 | `/outlook` | Governed predictions, each shown with the accuracy it achieved on held-out months. |
 | `/ask` | A question resolved to registered metrics, executed under the signed-in persona's role, with provenance and drill-down on every answer. |
+| `/network-risk` | Geospatial network topology, maritime chokepoints and simulated lane-level disruption scenarios, so the ontology drives an operational read, not only a report. |
 
 The period control writes to the URL, so a period-scoped view is a shareable link and every page
 stays a Server Component. It offers six presets, an explicit **Custom range**, and an **as-of date**
@@ -411,7 +445,7 @@ Four rules, enforced rather than documented:
 
 | Object | Purpose |
 |---|---|
-| `SEMANTIC.SC_ONTOLOGY_360` | The ontology as one semantic view: 11 entities, 14 relationships, cross-domain metrics. The only view the app queries directly. |
+| `SEMANTIC.SC_ONTOLOGY_360` | The ontology as one semantic view: 12 entities, 15 relationships, cross-domain metrics. The only view the app queries directly. |
 | `SEMANTIC.SC_*` | Domain-scoped subsets. Metric expressions are *identical* to their `SC_ONTOLOGY_360` twins; the drift test asserts that on every run. |
 | `SEMANTIC.SC_SUPPLIER_LEGACY_DEFECT` | The deliberately defective negative control. **Never fix it.** |
 | `GOVERNANCE.METRIC_DEFINITION` | Canonical definition, numerator, denominator, grain, owner, target, thresholds, as-of scope, and the independent `CANONICAL_SQL`. |
@@ -773,7 +807,7 @@ start lands after its end is not, and is treated as incoherent.
 CALL SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_TEST();
 ```
 
-**14 metrics, all `PASS`, zero spread.** Anything else means a semantic view disagrees with its
+**15 metrics, all `PASS`, zero spread.** Anything else means a semantic view disagrees with its
 canonical fact, and nothing else in this repository is trustworthy until it is fixed.
 
 ---
@@ -879,11 +913,12 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
   > ones.
 - **The data is synthetic.** Figures are plausible and internally consistent but describe no real 3M
   operation. Targets are `ILLUSTRATIVE`.
-- **`SC_ONTOLOGY_360` has 14 relationships, not the 16 an earlier revision claimed.** Ten are
-  reconstructible from what the application and increments reference, plus four calendar edges. The
-  remaining two are unrecoverable, and inventing edges to reach a count risks creating a second join
-  path and breaking a metric.
-- **The agent assets are reproducible as of this revision** — the Cortex Agent, all 38 verified
+- **`SC_ONTOLOGY_360` has 15 relationships, not the 16 an earlier revision claimed.** Ten are
+  reconstructible from what the application and increments reference, plus four calendar edges and
+  one added by `sql/11_iot_telemetry.sql` (`TELEMETRY_TO_FULFILLMENT`). The remaining one is
+  unrecoverable, and inventing an edge to reach a round count risks creating a second join path and
+  breaking a metric.
+- **The agent assets are reproducible as of this revision** — the Cortex Agent, all 39 verified
   queries and the 60-question evaluation set are committed SQL, rebuilt by `scripts/rebuild.mjs` and
   asserted by `sql/90` and `sql/93`.
 - **The 60 evaluation questions are not scored automatically.** `AGENT_EVAL_QUESTION` is the fixture
