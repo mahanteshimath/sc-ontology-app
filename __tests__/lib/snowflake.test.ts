@@ -313,7 +313,8 @@ describe("readTomlDefaultConnection", () => {
   it("SNOWFLAKE_HOME changes the config file lookup directory", () => {
     process.env.SNOWFLAKE_HOME = "/custom-snowflake-dir"
     setupFiles({
-      ["/custom-snowflake-dir/connections.toml"]: `
+      // path.join, not a literal: the lookup is an OS path, so on Windows it is \custom-snowflake-dir\...
+      [path.join("/custom-snowflake-dir", "connections.toml")]: `
         [myconn]
         account = "custom-home-acct"
         user = "custom-home-user"
@@ -752,7 +753,9 @@ describe("querySnowflake: warns in local dev when callersRights requested", () =
   afterEach(() => {
     vi.doUnmock("fs")
     warnSpy.mockRestore()
-    (process.env as Record<string, string>).NODE_ENV = originalNodeEnv
+    // Leading semicolon, as in beforeEach: without it ASI parses the next line as a call on
+    // mockRestore()'s return value, the teardown throws, and NODE_ENV is never restored.
+    ;(process.env as Record<string, string>).NODE_ENV = originalNodeEnv
     delete process.env.SNOWFLAKE_USER
     delete process.env.SNOWFLAKE_PASSWORD
   })

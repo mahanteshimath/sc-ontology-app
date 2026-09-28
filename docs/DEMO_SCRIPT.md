@@ -109,14 +109,34 @@ Then scroll to **What it got wrong** and do not skip it:
 
 Point at the table:
 
-> "The result splits on exactly one variable. Where the agent reused a **verified query**, it
-> matched the canonical definition exactly. Where it **derived its own SQL**, it returned a number
-> matching neither the registry nor its own previous run — fill rate came back 0.973944 on one run
-> and 0.973633 on the next.
+> "On the last run all four reconcile: the agent equals the canonical definition exactly on every
+> metric, and the app differs only by the as-of rule, which excludes future-dated rows. One of those
+> four used to say DIVERGE — and it was our comparator that was wrong, scoring a latest-snapshot
+> inventory answer against an all-snapshot ratio. The ontology forbids summing a balance across
+> time, and our own test was doing it.
 >
-> Free text to SQL is non-deterministic at the third decimal place. That is invisible on a
-> dashboard and decisive in a review. The application never writes SQL — it resolves registered
-> metric ids and assembles the query from the registry — so it cannot do this."
+> The earlier runs showed the real lesson. Where the agent **derived its own SQL** instead of
+> reusing a verified query, fill rate came back 0.973944 on one run and 0.973633 on the next. Free
+> text to SQL is non-deterministic at the third decimal place. The application never writes SQL,
+> so it cannot do this — and the verified queries are what make the agent path reproducible."
+
+## 4b. `/impact` — the unstructured source, and the money (45s)
+
+> "Everything so far is tables. The most consequential supplier data isn't: it's the contract.
+> Three hundred agreements, free text, three different wordings. AI_EXTRACT reads the on-time
+> commitment, how it's measured, and the penalty — and we score every one of 2,700 extracted
+> fields against ground truth rather than trusting them. All 2,700 are correct.
+>
+> Now hold the contracts against the governed metric. Sixty-seven suppliers are below what they
+> signed: $815,000 of claimable penalties. Eighteen of them look *compliant* on the legacy
+> dashboard — $179,000 nobody would ever think to claim. That's the 0.0068 spread from the first
+> screen, as a line item.
+>
+> And 79 contracts define on-time as a monthly average — the legacy definition, written into the
+> agreement. The ontology can't fix that. It can flag it for procurement to renegotiate."
+
+Point at the scorecard above it: every figure has its source object, and the one assumption
+(manual reconciliation time) is labelled as one.
 
 ## 5. `/ask` — the conversational layer, live (45s)
 
@@ -132,8 +152,9 @@ Ask as two personas (`logistics`, then `logistics-eu`):
 ## 6. Close (20s)
 
 > "Fourteen metrics, twenty-eight bindings, zero spread on the last drift run. Seven hierarchies
-> with every rollup measured. Sixty conversational questions scored, failures published. A
-> negative control kept deployed on purpose so the test can be seen failing, not just passing.
+> with every rollup measured. Sixty conversational questions scored, failures published. Three
+> hundred contracts read by AI_EXTRACT, every field scored. A negative control kept deployed on
+> purpose so the test can be seen failing, not just passing.
 >
 > One definition. Every team. The same answer — and a way to prove it tomorrow, not just today."
 

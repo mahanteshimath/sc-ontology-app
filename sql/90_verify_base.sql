@@ -212,7 +212,8 @@ FROM (
 --
 -- WHAT THIS CHECKS AND WHAT IT DOES NOT. It asserts that every named view exists
 -- and that the row count matches the 19 GRANT statements at the end of 00e plus
--- the 3 added by sql/11_iot_telemetry.sql (22 total). It
+-- the 3 added by sql/11_iot_telemetry.sql and the 2 added by
+-- sql/16_supplier_contracts.sql (24 total). It
 -- does NOT read the grants themselves: there is no INFORMATION_SCHEMA table
 -- function for object privileges (an earlier version of this file called a
 -- non-existent OBJECT_PRIVILEGES and failed), and SNOWFLAKE.ACCOUNT_USAGE.
@@ -233,8 +234,8 @@ WHERE NOT EXISTS (
 );
 
 SELECT 'persona view access row count matches the grants in 00e' AS check_name,
-       COUNT(*) AS found, 22 AS expected,
-       IFF(COUNT(*) = 22, 'PASS', 'FAIL - PERSONA_VIEW_ACCESS and the GRANTs in 00e/11 have diverged') AS verdict
+       COUNT(*) AS found, 24 AS expected,
+       IFF(COUNT(*) = 24, 'PASS', 'FAIL - PERSONA_VIEW_ACCESS and the GRANTs in 00e/11/16 have diverged') AS verdict
 FROM SUPPLY_CHAIN.GOVERNANCE.PERSONA_VIEW_ACCESS;
 
 -- The negative control must be reachable by no persona. It is bound in

@@ -846,7 +846,9 @@ function secretEnvVarName(name: string, field: string): string {
 
 /** Read a mounted secret file (SPCS) if present and non-empty; otherwise null. */
 function readMountedSecretFile(name: string, file: string): string | null {
-  const filePath = path.join(SPCS_SECRETS_DIR, name, file)
+  // path.posix: the SPCS mount is always a Linux path. path.join produced \secrets\... on a
+  // Windows dev machine, so the mount could never be found there and the tests failed locally.
+  const filePath = path.posix.join(SPCS_SECRETS_DIR, name, file)
   try {
     const contents = fs.readFileSync(filePath, "utf8")
     if (typeof contents === "string" && contents.trim() !== "") {
@@ -882,7 +884,7 @@ function readSecretField(name: string, file: string, env: string): string {
 
   throw new Error(
     `Secret "${name}" field "${file}" is not available. Expected the mounted file ` +
-      `${path.join(SPCS_SECRETS_DIR, name, file)} (SPCS) or the env var ${envVar} (local dev). ` +
+      `${path.posix.join(SPCS_SECRETS_DIR, name, file)} (SPCS) or the env var ${envVar} (local dev). ` +
       `Declare the secret under the top-level "secrets:" block in app.yml (see README → Secrets).`,
   )
 }

@@ -1403,3 +1403,103 @@ export const getNetworkRiskScenarios = cachedMetadata(async (): Promise<NetworkR
     },
   ]
 })
+
+// --- Impact scorecard and supplier contracts -------------------------------------------------
+
+export interface ImpactRow {
+  ord: number
+  pillar: string
+  measure: string
+  value: string
+  basis: "MEASURED" | "ASSUMPTION"
+  sourceObject: string
+}
+
+/**
+ * Every claim the project makes about its own value, one row each, with the object it came from
+ * and whether it was measured or assumed. Assembled in GOVERNANCE.V_IMPACT_SCORECARD, not here:
+ * the page renders the view, so a stale figure cannot be typed into a component.
+ */
+export async function getImpactScorecard(): Promise<ImpactRow[]> {
+  const rows = await querySnowflake(
+    `SELECT ord, pillar, measure, value, basis, source_object FROM SUPPLY_CHAIN.GOVERNANCE.V_IMPACT_SCORECARD ORDER BY ord`,
+  )
+  return rows.map((r) => ({
+    ord: num(r.ORD) ?? 0,
+    pillar: r.PILLAR as string,
+    measure: r.MEASURE as string,
+    value: r.VALUE as string,
+    basis: r.BASIS as ImpactRow["basis"],
+    sourceObject: r.SOURCE_OBJECT as string,
+  }))
+}
+
+export interface ContractImpact {
+  contracts: number
+  breachesGoverned: number
+  breachesLegacy: number
+  hiddenBreaches: number
+  penaltyExposureUsd: number | null
+  penaltyMissedByLegacyUsd: number | null
+  definitionConflicts: number
+  needsReview: number
+  extractionAccuracy: number | null
+}
+
+export async function getContractImpact(): Promise<ContractImpact | null> {
+  const rows = await querySnowflake(`SELECT * FROM SUPPLY_CHAIN.GOVERNANCE.V_CONTRACT_IMPACT`)
+  if (rows.length === 0) return null
+  const r = rows[0]
+  return {
+    contracts: num(r.CONTRACTS) ?? 0,
+    breachesGoverned: num(r.BREACHES_GOVERNED) ?? 0,
+    breachesLegacy: num(r.BREACHES_LEGACY) ?? 0,
+    hiddenBreaches: num(r.HIDDEN_BREACHES) ?? 0,
+    penaltyExposureUsd: num(r.PENALTY_EXPOSURE_USD),
+    penaltyMissedByLegacyUsd: num(r.PENALTY_MISSED_BY_LEGACY_USD),
+    definitionConflicts: num(r.DEFINITION_CONFLICTS) ?? 0,
+    needsReview: num(r.NEEDS_REVIEW) ?? 0,
+    extractionAccuracy: num(r.EXTRACTION_ACCURACY),
+  }
+}
+
+export async function getContractExtractionAccuracy() {
+  const rows = await querySnowflake(
+    `SELECT field, documents, correct, accuracy FROM SUPPLY_CHAIN.GOVERNANCE.V_CONTRACT_EXTRACTION_ACCURACY ORDER BY field`,
+  )
+  return rows.map((r) => ({
+    field: r.FIELD as string,
+    documents: num(r.DOCUMENTS) ?? 0,
+    correct: num(r.CORRECT) ?? 0,
+    accuracy: num(r.ACCURACY),
+  }))
+}
+
+/** Hidden breaches first (the finding), then the largest claimable penalties. */
+export async function getContractBreaches(limit = 15) {
+  const rows = await querySnowflake(
+    `SELECT c.supplier_name, c.supplier_region, c.contract_number, c.otd_commitment, c.otd_basis,
+            c.governed_otd, c.legacy_otd, c.penalty_pct, c.penalty_cap_usd,
+            c.penalty_exposure_usd, c.compliance_status, d.contract_text
+       FROM SUPPLY_CHAIN.GOVERNANCE.V_SUPPLIER_CONTRACT_COMPLIANCE c
+       JOIN SUPPLY_CHAIN.RAW.SUPPLIER_CONTRACT_DOC d USING (supplier_id)
+      WHERE c.breach_governed
+      ORDER BY IFF(c.compliance_status = 'HIDDEN_BREACH', 0, 1), c.penalty_exposure_usd DESC
+      LIMIT ?`,
+    { binds: [limit] },
+  )
+  return rows.map((r) => ({
+    supplierName: r.SUPPLIER_NAME as string,
+    supplierRegion: r.SUPPLIER_REGION as string,
+    contractNumber: r.CONTRACT_NUMBER as string,
+    otdCommitment: num(r.OTD_COMMITMENT),
+    otdBasis: r.OTD_BASIS as string,
+    governedOtd: num(r.GOVERNED_OTD),
+    legacyOtd: num(r.LEGACY_OTD),
+    penaltyPct: num(r.PENALTY_PCT),
+    penaltyCapUsd: num(r.PENALTY_CAP_USD),
+    penaltyExposureUsd: num(r.PENALTY_EXPOSURE_USD),
+    status: r.COMPLIANCE_STATUS as string,
+    contractText: r.CONTRACT_TEXT as string,
+  }))
+}

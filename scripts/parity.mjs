@@ -233,6 +233,21 @@ const canonicalSql = new Map(
   ).map((r) => [r.METRIC_ID, r.CANONICAL_SQL]),
 )
 
+// Snapshot metrics are balances, and a balance has no value "over all time".
+// CANONICAL_SQL for days_of_inventory is the drift test's whole-table ratio --
+// the right thing for METRIC_DRIFT_TEST, which compares bindings over identical
+// rows, and the wrong reference for a question that names one snapshot. Scored
+// against it, a correct latest-snapshot answer (32.667007 at 2026-09-30) was
+// recorded as DIVERGE against 32.768548, a figure no persona is ever shown.
+// The comparison is therefore made at the snapshot the question asks about,
+// with the same definition, so AS_OF_GAP and MATCH keep their meaning.
+const SNAPSHOT_CANONICAL = {
+  days_of_inventory: `SELECT SUM(on_hand_qty) / NULLIF(SUM(avg_daily_demand), 0) AS VAL
+                        FROM SUPPLY_CHAIN.CANONICAL.FCT_INVENTORY_SNAPSHOT
+                       WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM SUPPLY_CHAIN.CANONICAL.FCT_INVENTORY_SNAPSHOT)`,
+}
+for (const [id, sql] of Object.entries(SNAPSHOT_CANONICAL)) if (canonicalSql.has(id)) canonicalSql.set(id, sql)
+
 let diverged = 0
 for (const q of QUESTIONS) {
   let agent = {}

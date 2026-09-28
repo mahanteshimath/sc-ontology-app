@@ -37,3 +37,7 @@ _*.html
 _pw.txt
 _cookie.txt
 cookies.txt
+
+# generated launch-video previews (Hyperframes /brag output) — not app source
+brag-output/
+brag-output-*/

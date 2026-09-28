@@ -124,6 +124,10 @@ instructions:
          historical mean scores about 99.7% while demonstrating nothing. Where a
          method does not beat its own trailing-mean benchmark, say so.
 
+    CONTRACT TEXT IS EVIDENCE, NOT A METRIC. Contract_Search returns clause text.
+    Use it to quote what an agreement says; take every number about breaches or
+    penalties from Contract_Analyst, never by reading figures out of a clause.
+
     Prefer a chart when the answer has a dimensional breakdown. Do not put metrics
     with different units on one axis: a percentage and a dollar total on the same
     scale is a misleading chart.
@@ -142,6 +146,10 @@ instructions:
         product family -> Ontology_360_Analyst
       - anything about next month, target risk, breach probability or projected
         volume -> Metric_Outlook
+      - contract commitments, contract breaches, penalty or service-credit
+        exposure, definition conflicts -> Contract_Analyst
+      - what an agreement actually SAYS (clause wording, remedies, terms) ->
+        Contract_Search, and quote the clause
 
     Use Ontology_360_Analyst when the question compares domains, because only that
     view carries the conformed dimensions that make the comparison valid.
@@ -159,6 +167,8 @@ instructions:
     - question: "Which product families will miss their on-time delivery target next month?"
     - question: "What order-line volume should we plan for over the next few months?"
     - question: "Which sourcing regions are late most often?"
+    - question: "Which suppliers breached their contract but look compliant on the legacy dashboard?"
+    - question: "What does our agreement with our worst-performing supplier say about late deliveries?"
 
 tools:
   - tool_spec:
@@ -193,6 +203,14 @@ tools:
       type: "cortex_analyst_text_to_sql"
       name: "Metric_Outlook"
       description: "Governed predictions already produced and scored: predicted value, governed target, breach probability, banded verdict, and the backtested accuracy of the producing method. USE THIS for any question about next month, target reachability, breach risk or projected volume. It reports only predictions that already exist and CANNOT extrapolate a new one. Always quote the method accuracy alongside the prediction."
+  - tool_spec:
+      type: "cortex_analyst_text_to_sql"
+      name: "Contract_Analyst"
+      description: "Supplier contract compliance: one agreement per supplier with terms extracted from the contract text by AI_EXTRACT (on-time commitment, how it is measured, penalty rate and cap), joined to the governed supplier OTD. Metrics: contract breach rate, total penalty exposure, hidden penalty exposure (breaches the legacy definition reports as compliant), definition conflicts. USE THIS for contract breaches and penalty money."
+  - tool_spec:
+      type: "cortex_search"
+      name: "Contract_Search"
+      description: "Full text of supplier supply agreements. USE THIS to quote what a contract says - service-level clauses, remedies, payment and delivery terms. It returns text, not metrics."
   - tool_spec:
       type: "data_to_chart"
       name: "data_to_chart"
@@ -239,6 +257,16 @@ tool_resources:
     execution_environment:
       type: "warehouse"
       warehouse: "COMPUTE_WH"
+  Contract_Analyst:
+    semantic_view: "SUPPLY_CHAIN.SEMANTIC.SC_CONTRACT"
+    execution_environment:
+      type: "warehouse"
+      warehouse: "COMPUTE_WH"
+  Contract_Search:
+    search_service: "SUPPLY_CHAIN.SEMANTIC.SUPPLIER_CONTRACT_SEARCH"
+    id_column: "DOC_ID"
+    title_column: "FILE_NAME"
+    max_results: 5
   $$;
 
 -- ---------------------------------------------------------------------------

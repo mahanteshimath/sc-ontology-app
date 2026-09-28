@@ -15,6 +15,7 @@ import {
   GitCompareArrows,
   Globe,
   Network,
+  Trophy,
 } from "lucide-react"
 
 const NAV = [
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/ontology", label: "Ontology", icon: Network },
   { href: "/metrics", label: "Metric Registry", icon: Database },
   { href: "/consistency", label: "Consistency", icon: GitCompareArrows },
+  { href: "/impact", label: "Impact", icon: Trophy },
 ]
 
 export function AppHeader({

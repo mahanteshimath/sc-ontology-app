@@ -9,10 +9,12 @@ procurement and logistics — and tested on a schedule rather than asserted in a
   <img alt="React 19" src="https://img.shields.io/badge/React-19-087ea4?logo=react&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white">
   <img alt="Snowflake" src="https://img.shields.io/badge/Snowflake-semantic%20views-29b5e8?logo=snowflake&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-162%20passing%20%2F%20170-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-174%20%2F%20174%20passing-brightgreen">
   <img alt="Drift" src="https://img.shields.io/badge/metric%20drift-zero%20spread-brightgreen">
   <img alt="Hierarchies" src="https://img.shields.io/badge/hierarchy%20rollups-10%2F10%20proven-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/conversational%20eval-60%20questions%20scored-blue">
+  <img alt="Parity" src="https://img.shields.io/badge/agent%20parity-4%2F4%20reconciled-brightgreen">
+  <img alt="AI_EXTRACT" src="https://img.shields.io/badge/contract%20extraction-2700%2F2700%20fields-brightgreen">
 </p>
 
 **Live demo:** https://sc-ontology-app.vercel.app (behind a demo sign-in gate)
@@ -23,7 +25,7 @@ Team 3M-ONTOLOGIST.
 
 ## The 60-second proof
 
-Four claims, each checkable in one click rather than taken on faith:
+Five claims, each checkable in one click rather than taken on faith:
 
 | Judging focus | Claim | Check it |
 |---|---|---|
@@ -31,6 +33,7 @@ Four claims, each checkable in one click rather than taken on faith:
 | **Real World Relevance** | The cost of the divergence is stated in decisions, not decimal places: the legacy definition hands **12 suppliers** a pass they did not earn, inflating the compliant list by 22% — and **never** errs the other way, which is why it would survive indefinitely. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — recomputed from the registry target on every page load. |
 | **Technical Execution** | One metric definition resolves identically for Planning, Procurement and Logistics — and a deliberately broken negative control is kept deployed to prove the drift test can actually fail, not just pass. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — `SC_SUPPLIER_LEGACY_DEFECT` reports **0.882631** against the correct **0.875824**, a measured 0.006807 spread the governed views do not repeat. |
 | **Solution Completeness** | The conversational layer is **scored**, not asserted: 60 golden questions run over HTTP as their own personas, failures published rather than trimmed. One of them found a real broken-access-control bug. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — `npm run eval` writes `GOVERNANCE.AGENT_EVAL_RUN`; `npm run parity` compares the Cortex Agent, the app, and the registry's canonical SQL. |
+| **Real World Relevance** | Supplier **contracts** - free text, the one source that is not a table - are read by `AI_EXTRACT` into a `SupplierContract` entity, every term scored against ground truth (**2,700 / 2,700 fields**). Held against the governed OTD, they turn the divergence into money: **$815K** of claimable penalties, **$179K** of it on 18 breaches the legacy metric shows as compliant, and **79** contracts that encode the non-governed definition. | [`/impact`](https://sc-ontology-app.vercel.app/impact) - one scorecard, every figure with its source object and a `MEASURED` / `ASSUMPTION` label. |
 
 Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
 
@@ -43,6 +46,10 @@ Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
 - [What it does](#what-it-does)
 - [Architecture](#architecture)
 - [What the divergence actually costs](#what-the-divergence-actually-costs)
+- [Supplier contracts: the unstructured source](#supplier-contracts-the-unstructured-source)
+- [The impact scorecard](#the-impact-scorecard)
+- [How it was built: CoCo skills and modules](#how-it-was-built-coco-skills-and-modules)
+- [Scaling beyond the demo](#scaling-beyond-the-demo)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
 - [Building the database from scratch](#building-the-database-from-scratch)
@@ -274,6 +281,151 @@ leaving a stale paragraph on the page.
 
 ---
 
+## Supplier contracts: the unstructured source
+
+Every other source here is a table. The most consequential supplier data usually is not: the on-time
+commitment a supplier signed, how that commitment is measured, and what a miss costs them live in
+contract prose, worded differently in every agreement. `sql/16_supplier_contracts.sql` makes the
+contract a first-class ontology entity.
+
+```mermaid
+flowchart LR
+  DOC["RAW.SUPPLIER_CONTRACT_DOC<br/>300 free-text agreements,<br/>3 different wordings"] -->|AI_EXTRACT| DIM["CANONICAL.DIM_SUPPLIER_CONTRACT<br/>sco:SupplierContract"]
+  TRUTH["RAW.SUPPLIER_CONTRACT_TERMS_TRUTH<br/>generator answers"] --> ACC["V_CONTRACT_EXTRACTION_ACCURACY<br/>scored, field by field"]
+  DIM --> ACC
+  DIM --> COMP["V_SUPPLIER_CONTRACT_COMPLIANCE"]
+  VERD["V_SUPPLIER_OTD_VERDICT<br/>governed + legacy OTD (13)"] --> COMP
+  COMP --> SV["SEMANTIC.SC_CONTRACT<br/>Contract_Analyst tool"]
+  DOC -->|Cortex Search| CS["SUPPLIER_CONTRACT_SEARCH<br/>Contract_Search tool"]
+  SV --> AGENT[SC_ONTOLOGIST_AGENT]
+  CS --> AGENT
+  COMP --> IMP["/impact"]
+```
+
+**The extraction is scored, not trusted.** The same commitment is written as `85%`, `eighty-five per
+cent (85%)` and `0.85 of all lines` depending on the template, so extraction has to read rather than
+pattern-match. The generator keeps its own answers in a table nothing else reads, and
+`V_CONTRACT_EXTRACTION_ACCURACY` scores every field: **2,700 of 2,700 correct** on the last build. The
+first build scored 96%, and the miss was ours rather than the model's: `AI_EXTRACT` correctly
+returned "Settlement Net 90", and our normaliser failed to canonicalise it to "Net 90". Scoring the
+field found it. A term that fails to parse, or parses out of range, is flagged `NEEDS_REVIEW` and
+routed to a person instead of into a metric. (This account rejects `AI_EXTRACT`'s `scores` argument
+on text input, so validation stands in for confidence scores.)
+
+**Both OTD figures are read, never re-derived.** The compliance view takes the governed and legacy
+OTD from `V_SUPPLIER_OTD_VERDICT`, the view that already publishes the 12 false passes. Computing
+them again would be a second implementation of the metric, which is the exact failure this project
+exists to prevent. Only the money is new.
+
+| Finding | Value | Why it matters |
+|---|---|---|
+| Suppliers below their signed commitment (governed) | **67** | Claimable: **$815,222**, each capped at its annual limit |
+| Of those, shown as compliant by the legacy metric | **18** | **$178,832** in penalties nobody would think to claim |
+| Contracts that measure OTD as a monthly average | **79 / 300** | The contract itself encodes the non-governed definition, so the enforceable number and the governed number differ by construction. Flagged `DEFINITION_CONFLICT` for renegotiation, not silently rescored. |
+
+The divergence stops being a decimal and becomes a line item. Access follows the same model as
+everything else: `SC_CONTRACT` and the search service are granted to procurement and the steward
+only, and `SC_PLANNER` is denied by Snowflake, not by the app (checked).
+
+---
+
+## The impact scorecard
+
+`GOVERNANCE.V_IMPACT_SCORECARD` (`sql/17_impact_scorecard.sql`) collects every claim this project
+makes about its own value into one view, recomputed on read, with the source object beside each
+number and an explicit `MEASURED` or `ASSUMPTION` label.
+
+| Pillar | Measure | Value | Basis |
+|---|---|---|---|
+| Consistency | Metric bindings resolving to the canonical value | 15 / 15, zero spread | MEASURED |
+| Accuracy | Conversational eval pass rate, run as each persona | 86.7% (52 / 60) | MEASURED |
+| Accuracy | Invented-metric questions correctly refused | 7 / 8 | MEASURED |
+| Accuracy | Cortex Agent reproduces the canonical definition | 4 / 4 reconciled, 0 diverge | MEASURED |
+| Accuracy | Contract terms extracted correctly by `AI_EXTRACT` | 100% of 2,700 fields | MEASURED |
+| Decisions | Suppliers the legacy definition wrongly clears | 12 of 300 (compliant list +22%) | MEASURED |
+| Money | Claimable contract penalties | $815,222 across 67 suppliers | MEASURED |
+| Money | Penalties hidden by the legacy definition | $178,832 across 18 suppliers | MEASURED |
+| Time | Mean time to a governed, persona-scoped answer | 18.4 s (p95 22.1 s) | MEASURED |
+| Time | Manual reconciliation of a disputed cross-team metric | 4 h | **ASSUMPTION** |
+| Time | Speed-up versus that baseline | ~780x | **ASSUMPTION** (derived) |
+
+Exactly one input is assumed: how long a disputed metric takes to settle by hand (someone notices two
+decks disagree, two analysts reconcile, a steward rules). It is a single constant in the view, so
+replace it with your own figure; every row that depends on it says so.
+
+**The parity row was also a bug fix.** The previous recorded run reported `days_of_inventory` as
+`DIVERGE` and blamed the verified query. The query was right: it reads the latest snapshot (32.667007
+at 2026-09-30). The comparator was wrong: it scored that answer against the registry's whole-table
+ratio (32.768548), a figure that sums a balance across 24 snapshots, which the ontology itself forbids.
+`scripts/parity.mjs` now compares snapshot metrics at the snapshot the question names, and the re-run
+reconciles 4 of 4.
+
+---
+
+## How it was built: CoCo skills and modules
+
+Each layer is a separate SQL module with one job, rebuilt in a fixed order by `scripts/rebuild.mjs`,
+and each maps to the Cortex Code (CoCo) skill that covers that kind of work:
+
+```mermaid
+flowchart TB
+  subgraph build [Built with Cortex Code skills]
+    K1["sql-author<br/>RAW + CANONICAL facts (00a-00d)"]
+    K2["agent-studio<br/>semantic views, verified queries,<br/>Cortex Agent (00e, 07, 10, 16)"]
+    K3["data-governance<br/>roles, row access policy,<br/>persona grants (00a, 00f)"]
+    K4["data-quality + snowflake-tasks + alert<br/>drift test, daily schedule,<br/>negative control (00f, 04, 06)"]
+    K5["machine-learning<br/>forecast + breach prediction (07b, 08)"]
+    K6["document-intelligence + cortex-ai-function-studio<br/>AI_EXTRACT contracts (16)"]
+    K7["lineage<br/>blast radius before changing a view"]
+    K8["snowflake-apps<br/>Next.js app, app.yml"]
+  end
+  K1 --> K2
+  K3 --> K2
+  K2 --> K4
+  K1 --> K5
+  K6 --> K2
+  K2 --> K8
+  K4 --> K8
+  K5 --> K8
+```
+
+| Module | Files | Plugs in through |
+|---|---|---|
+| Sources | `00a`-`00d`, `11`, `16` (contract text) | Atomic-grain `CANONICAL.FCT_*` facts |
+| Ontology | `00e`, `01`, `12`, `16` | Semantic views, derived catalogue (`ONTOLOGY_ENTITY` reads `INFORMATION_SCHEMA`) |
+| Contract | `00f`, `02`, `03`, `05` | `METRIC_DEFINITION` + `METRIC_BINDING`: one definition, many views |
+| Proof | `00f` drift, `04`, `06`, `13`, `14`, `15`, `17`, `90`-`93` | Drift test, eval, parity, scorecard |
+| Conversation | `09`, `10`, `/api/ask` | Registry-assembled SQL under the persona's role; Cortex Agent with 11 tools (9 semantic views, contract search, charting) |
+| Prediction | `07b`, `08`, `08b` | Separate registry, excluded from the drift contract, always shown with its backtest |
+
+> Confirm the skill-to-layer mapping against how your team actually built each file before
+> presenting it; the layer boundaries and file numbers are exact.
+
+---
+
+## Scaling beyond the demo
+
+- **A new metric is a row, not a project.** Insert into `METRIC_DEFINITION` with its `CANONICAL_SQL`,
+  bind it to each view in `METRIC_BINDING`, and the drift test, `/metrics`, `/consistency` and `/ask`
+  pick it up with no application change.
+- **A new source lands in `CANONICAL`, not in the views.** Any ERP, WMS or TMS feed that can populate
+  an atomic-grain fact joins the ontology through the conformed dimensions that already exist. The
+  IoT telemetry (`11`) and contracts (`16`) were both added this way, as increments, without
+  touching `00e`.
+- **A new document type reuses the contract pattern.** Quality certificates, carrier rate
+  confirmations or customs declarations follow the same path: `AI_EXTRACT`, scored against a labelled
+  sample, `NEEDS_REVIEW` routing, then a semantic view and a search service for the agent.
+- **A new persona is a role plus rows.** `PERSONA_VIEW_ACCESS` and the row access policy decide scope;
+  the database enforces it, so the app needs no persona-specific code.
+- **The pattern is industry-agnostic.** Registry, bindings, drift test, negative control and scored
+  eval describe any domain where two teams compute "the same" metric - finance close, clinical
+  operations, retail replenishment - with the supply chain entities swapped out.
+- **Scale is Snowflake's.** 6.1M rows rebuild in ~4.5 minutes on one warehouse; the semantic views
+  push computation to the engine, so volume is a warehouse-size decision, not a redesign.
+
+
+---
+
 ## Repository layout
 
 ```
@@ -357,7 +509,7 @@ npm run dev                  # http://localhost:3000
 ### 5. Verify
 
 ```bash
-npm test                     # 163 / 169 (see Known limitations)
+npm test                     # 174 / 174
 npm run smoke                # 21 end-to-end checks — needs the dev server running
 ```
 
@@ -504,6 +656,7 @@ real per-persona row scoping) is exactly the part that does not change when the 
 | `/outlook` | Governed predictions, each shown with the accuracy it achieved on held-out months. |
 | `/ask` | A question resolved to registered metrics, executed under the signed-in persona's role, with provenance and drill-down on every answer. |
 | `/network-risk` | Geospatial network topology, maritime chokepoints and simulated lane-level disruption scenarios, so the ontology drives an operational read, not only a report. |
+| `/impact` | The impact scorecard (every measured outcome with its source object and a `MEASURED` / `ASSUMPTION` label) and the supplier-contract layer: extraction accuracy, claimable and hidden penalties, definition conflicts, and the clause text behind each breach. |
 
 The period control writes to the URL, so a period-scoped view is a shareable link and every page
 stays a Server Component. It offers six presets, an explicit **Custom range**, and an **as-of date**
@@ -1155,18 +1308,18 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 | A hierarchy level renders struck through on `/ontology` | It names a dimension the semantic view does not declare | `CALL GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY();` and read `V_ONTOLOGY_HIERARCHY.validation_detail`. Fix the declaration in `sql/12`, not the page. |
 | `sign-in failed: 400` from a probe script | `smoke-outlook.mjs` / `smoke-chat.mjs` / `probe-asof.mjs` have no `.env.local` fallback | Set `SMOKE_PASSWORD` explicitly. |
 | `vercel env add` appears to hang forever | Fixed. It used `cmd /c "… < file"`, whose redirect never reaches the CLI's stdin | Pull the current `scripts/set-vercel-env.ps1`, which pipes natively with `--force`. |
-| 6 test failures on Windows | Fixture portability, not a defect | See [Known limitations](#known-limitations). |
+| Unit test failures on Windows | Fixed | `npm test` should report 174/174 on every platform. See [Known limitations](#known-limitations) for what was wrong. |
 
 ---
 
 ## Known limitations
 
-- **Eight unit tests fail on Windows** and pass on Linux/macOS. The fixtures in
-  `__tests__/lib/snowflake.test.ts` key mounted secrets by POSIX path (`/secrets/<name>/…`, which is
-  what SPCS actually mounts) while `path.join` emits backslashes on Windows.
-  > **Do not "fix" this by normalising separators in the helper.** It makes the TOML fixtures start
-  > matching paths they were never meant to match, turning 6 platform-specific failures into 15 real
-  > ones.
+- **Unit tests pass on Windows as well as Linux/macOS (174/174).** Eight used to fail on Windows. Two
+  causes, both fixed: `lib/snowflake.ts` built the SPCS secret mount path with `path.join`, which
+  emits `\secrets\...` on Windows although the mount is always POSIX (now `path.posix.join`, scoped
+  to the secret reader only - the TOML config lookup still uses native paths, as it must); and an
+  `afterEach` in `__tests__/lib/snowflake.test.ts` lost its leading semicolon, so ASI turned the
+  next line into a call on `mockRestore()`'s return value and the teardown threw.
 - **The data is synthetic.** Figures are plausible and internally consistent but describe no real 3M
   operation. Targets are `ILLUSTRATIVE`.
 - **`SC_ONTOLOGY_360` has 15 relationships, not the 16 an earlier revision claimed.** Ten are
@@ -1186,10 +1339,15 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
   is a measured regression from fixing a worse problem, and is recorded as such.
 - **Agent parity is a recorded run, not a live one.** A full Cortex Agent turn routinely exceeds the
   serverless budget, so `/consistency` reads the last `npm run parity` result with its timestamp,
-  the same way it reads the last drift run. One question currently reports `DIVERGE`:
-  `days_of_inventory` returns 32.667007 from the agent against a canonical 32.768548, which points
-  at the stored verified query pinning a different snapshot. It is left visible rather than dropped
-  from the question list.
+  the same way it reads the last drift run. The last run reconciles **4 of 4**: on every metric the
+  agent equals the canonical definition exactly, and the app differs only by the governed as-of rule.
+  An earlier run reported `days_of_inventory` as `DIVERGE`; that was the comparator scoring a
+  latest-snapshot answer against a whole-table ratio, fixed in `scripts/parity.mjs` (see
+  [The impact scorecard](#the-impact-scorecard)).
+- **Supplier contracts are synthetic text**, generated from three templates so extraction is
+  non-trivial, with ground truth kept for scoring. Real agreements are longer and messier; the
+  pattern (extract, score against a labelled sample, route low-certainty terms to review) is what
+  carries over, not the 100% figure.
 - **`/api/ask` takes 5–11s warm and ~14s cold**, and the evaluation run measures ~18s per question Split across two calls so the number appears before
   the prose, but it is not fast. The dominant costs are the resolver model call and establishing a
   fresh per-role Snowflake connection; the per-role pools are `min: 0`, so the first request for a
@@ -1248,7 +1406,7 @@ Before opening a pull request:
 
 ```bash
 npm run typecheck
-npm test                               # expect 162/170 on Windows, 170/170 elsewhere
+npm test                               # expect 174/174 on every platform
 node scripts/rebuild.mjs --verify      # every SQL check must PASS
 npm run eval                           # score the 60 questions; publish the failures, don't trim them
 npm run smoke                          # needs npm run dev in another shell
