@@ -5,9 +5,11 @@
  * whatever the app and the rebuild target and the three cannot disagree about which account is
  * being written to.
  *
- * rebuild.mjs keeps its own copy deliberately: it is the one script that must run when nothing
- * else in the repository is trustworthy, and importing from here would give it a dependency it
- * does not need.
+ * connectNamed() is the exception: scripts/migrate.mjs talks to two accounts at once, so it names
+ * each connection explicitly and ignores the env credentials.
+ *
+ * rebuild.mjs imports from here too, which is why this file depends on nothing but snowflake-sdk
+ * and smol-toml: the rebuild must run when nothing else in the repository is trustworthy.
  */
 import fs from "node:fs"
 import os from "node:os"
@@ -18,8 +20,8 @@ import { parse as parseToml } from "smol-toml"
 // The SDK logs connection details at INFO on every run, which buries a script's own output.
 snowflake.configure({ logLevel: process.env.SNOWFLAKE_LOG_LEVEL ?? "ERROR" })
 
-export function connectionConfig() {
-  if (process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD) {
+export function connectionConfig(named) {
+  if (!named && process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD) {
     return {
       account: process.env.SNOWFLAKE_ACCOUNT,
       username: process.env.SNOWFLAKE_USER,
@@ -50,7 +52,15 @@ export function connectionConfig() {
     }
   }
 
+  if (named && !connections[named]) {
+    throw new Error(
+      `No connection [${named}] in ${file}. Known: ${Object.keys(connections).join(", ") || "none"}. ` +
+        "Add it with `snow connection add` (or edit the file) - never paste the password into chat.",
+    )
+  }
+
   const wanted =
+    named ??
     process.env.SNOWFLAKE_CONNECTION_NAME ??
     process.env.SNOWFLAKE_DEFAULT_CONNECTION_NAME ??
     (typeof raw.default_connection_name === "string" ? raw.default_connection_name : undefined)
@@ -62,27 +72,63 @@ export function connectionConfig() {
   return {
     account: c.account,
     username: c.user,
-    password: c.password,
-    role: c.role ?? "ACCOUNTADMIN",
-    warehouse: c.warehouse ?? "COMPUTE_WH",
+    password: c.password ?? c.token,
+    authenticator: c.authenticator,
+    privateKeyPath: c.private_key_file ?? c.private_key_path,
+    privateKeyPass: c.private_key_file_pwd ?? c.private_key_passphrase,
+    // An empty string in connections.toml means "not set", not "no role".
+    role: c.role || "ACCOUNTADMIN",
+    warehouse: c.warehouse || "COMPUTE_WH",
+    name,
     source: `connections.toml [${name}]`,
   }
 }
 
-export function connect(application = "sc-ontology-script") {
-  const cfg = connectionConfig()
+/** SDK options for a config, covering password, PAT, key-pair and browser SSO connections. */
+export function sdkOptions(cfg, application) {
+  const auth = String(cfg.authenticator ?? "").toUpperCase()
+  const o = {
+    account: cfg.account,
+    username: cfg.username,
+    role: cfg.role,
+    warehouse: cfg.warehouse,
+    application,
+    clientSessionKeepAlive: true,
+  }
+  if (cfg.privateKeyPath) {
+    o.authenticator = "SNOWFLAKE_JWT"
+    o.privateKeyPath = cfg.privateKeyPath
+    if (cfg.privateKeyPass) o.privateKeyPass = cfg.privateKeyPass
+  } else if (auth === "EXTERNALBROWSER") {
+    o.authenticator = "EXTERNALBROWSER"
+  } else if (auth === "PROGRAMMATIC_ACCESS_TOKEN") {
+    o.authenticator = "PROGRAMMATIC_ACCESS_TOKEN"
+    o.token = cfg.password
+  } else {
+    o.password = cfg.password
+    if (auth && auth !== "SNOWFLAKE") o.authenticator = auth
+  }
+  return o
+}
+
+function open(cfg, application) {
+  const opts = sdkOptions(cfg, application)
   return new Promise((resolve, reject) => {
-    const conn = snowflake.createConnection({
-      account: cfg.account,
-      username: cfg.username,
-      password: cfg.password,
-      role: cfg.role,
-      warehouse: cfg.warehouse,
-      application,
-      clientSessionKeepAlive: true,
-    })
-    conn.connect((err) => (err ? reject(err) : resolve(conn)))
+    const conn = snowflake.createConnection(opts)
+    const cb = (err) => (err ? reject(err) : resolve(conn))
+    // Browser SSO needs the async connect; the other authenticators work with either.
+    if (opts.authenticator === "EXTERNALBROWSER") conn.connectAsync(cb)
+    else conn.connect(cb)
   })
+}
+
+export function connect(application = "sc-ontology-script") {
+  return open(connectionConfig(), application)
+}
+
+/** Connect to a specific [name] in connections.toml, ignoring the env credentials. */
+export function connectNamed(name, application = "sc-ontology-script") {
+  return open(connectionConfig(name), application)
 }
 
 export function query(conn, sqlText, binds) {

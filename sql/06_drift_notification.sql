@@ -29,11 +29,45 @@
 --   CALL SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_TEST();   -- restores all-PASS
 -- ---------------------------------------------------------------------------
 
-CREATE OR REPLACE NOTIFICATION INTEGRATION SC_GOVERNANCE_EMAIL
-  TYPE = EMAIL
-  ENABLED = TRUE
-  ALLOWED_RECIPIENTS = ('mhiremath@mmm.com')
-  COMMENT = 'Delivers governed-metric drift failures to the ontology steward. Snowflake only delivers to verified email addresses of users in this account.';
+-- WHO RECEIVES IT is account-specific, so it is not written into the alert or the
+-- digest. It lives in NOTIFICATION_SETTING and is chosen, in order, from:
+--   1. SET SC_NOTIFY_EMAIL = 'someone@example.com';   before running this file
+--      (scripts/rebuild.mjs --notify-email does this)
+--   2. the value already stored, so a re-run keeps it
+--   3. the email of the user running the build
+-- scripts/migrate.mjs deliberately does not copy this table between accounts.
+CREATE TABLE IF NOT EXISTS SUPPLY_CHAIN.GOVERNANCE.NOTIFICATION_SETTING (
+  setting_key   STRING NOT NULL,
+  setting_value STRING,
+  set_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+  set_by        STRING DEFAULT CURRENT_USER()
+) COMMENT = 'Account-specific notification settings (steward email). Not migrated between accounts.';
+
+DECLARE
+  recipient STRING DEFAULT NULLIF(TRIM(GETVARIABLE('SC_NOTIFY_EMAIL')), '');
+BEGIN
+  IF (recipient IS NULL) THEN
+    SELECT MAX(setting_value) INTO :recipient
+      FROM SUPPLY_CHAIN.GOVERNANCE.NOTIFICATION_SETTING WHERE setting_key = 'STEWARD_EMAIL';
+  END IF;
+  IF (recipient IS NULL) THEN
+    EXECUTE IMMEDIATE 'DESC USER "' || REPLACE(CURRENT_USER(), '"', '') || '"';
+    SELECT MAX(NULLIF("value", 'null')) INTO :recipient
+      FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) WHERE "property" = 'EMAIL';
+  END IF;
+
+  DELETE FROM SUPPLY_CHAIN.GOVERNANCE.NOTIFICATION_SETTING WHERE setting_key = 'STEWARD_EMAIL';
+  INSERT INTO SUPPLY_CHAIN.GOVERNANCE.NOTIFICATION_SETTING (setting_key, setting_value)
+    SELECT 'STEWARD_EMAIL', :recipient;
+
+  -- ALLOWED_RECIPIENTS takes a literal list, hence EXECUTE IMMEDIATE. With no
+  -- address at all the integration is still created, and the alert still logs.
+  EXECUTE IMMEDIATE
+    'CREATE OR REPLACE NOTIFICATION INTEGRATION SC_GOVERNANCE_EMAIL TYPE = EMAIL ENABLED = TRUE'
+    || IFF(recipient IS NULL, '', ' ALLOWED_RECIPIENTS = (''' || REPLACE(recipient, '''', '') || ''')')
+    || ' COMMENT = ''Delivers governed-metric drift failures to the ontology steward. Snowflake only delivers to verified email addresses of users in this account.''';
+  RETURN OBJECT_CONSTRUCT('steward_email', :recipient);
+END;
 
 CREATE OR REPLACE ALERT SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_FAILED
   SCHEDULE = '60 MINUTE'
@@ -56,6 +90,7 @@ BEGIN
   LET v_failed INTEGER;
   LET v_spread FLOAT;
   LET v_detail STRING;
+  LET v_to STRING;
 
   WITH latest_run AS (
     SELECT run_id FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_RESULT
@@ -75,9 +110,12 @@ BEGIN
     (detected_at, run_id, failed_metrics, max_spread, detail)
   SELECT CURRENT_TIMESTAMP(), :v_run_id, :v_failed, :v_spread, :v_detail;
 
+  SELECT MAX(setting_value) INTO :v_to
+    FROM SUPPLY_CHAIN.GOVERNANCE.NOTIFICATION_SETTING WHERE setting_key = 'STEWARD_EMAIL';
+  IF (v_to IS NOT NULL) THEN
   CALL SYSTEM$SEND_EMAIL(
     'SC_GOVERNANCE_EMAIL',
-    'mhiremath@mmm.com',
+    :v_to,
     '[Supply Chain Ontology] Metric drift detected: ' || :v_failed || ' metric(s) FAILED',
     'The governed drift test found metrics whose semantic views no longer agree with the canonical fact.'
       || '\n\nRun id: ' || :v_run_id
@@ -88,6 +126,7 @@ BEGIN
       || ' answers it. Investigate before trusting any affected figure.'
       || '\n\nFull history: GOVERNANCE.METRIC_DRIFT_RESULT (run_id above) and the Metric Registry page.'
   );
+  END IF;
 END;
 
 ALTER ALERT SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_FAILED RESUME;

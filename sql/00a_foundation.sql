@@ -81,15 +81,44 @@ CREATE ROLE IF NOT EXISTS SC_PLANNING_ANALYST
 
 USE ROLE ACCOUNTADMIN;
 
--- MONTY needs to be able to assume every persona to exercise the app locally.
-GRANT ROLE SC_PLANNER            TO USER MONTY;
-GRANT ROLE SC_PROCUREMENT        TO USER MONTY;
-GRANT ROLE SC_LOGISTICS          TO USER MONTY;
-GRANT ROLE SC_LOGISTICS_EU       TO USER MONTY;
-GRANT ROLE SC_ONTOLOGY_STEWARD   TO USER MONTY;
-GRANT ROLE SC_PROCUREMENT_ANALYST TO USER MONTY;
-GRANT ROLE SC_LOGISTICS_ANALYST  TO USER MONTY;
-GRANT ROLE SC_PLANNING_ANALYST   TO USER MONTY;
+-- The warehouse every file and the app run on. Created here so a brand-new account needs nothing
+-- set up by hand; IF NOT EXISTS leaves an existing COMPUTE_WH (and its size) untouched.
+CREATE WAREHOUSE IF NOT EXISTS COMPUTE_WH
+  WAREHOUSE_SIZE = XSMALL
+  AUTO_SUSPEND = 60
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE
+  COMMENT = 'Supply Chain Ontology: rebuild, scheduled tasks and the application.';
+
+-- Whoever runs the build, and every user in $SC_APP_USERS (comma-separated, set by
+-- scripts/rebuild.mjs --app-users), must be able to assume every persona: the app issues
+-- USE ROLE <persona> per request. Names are account-specific, so none is hard-coded; a listed
+-- user that does not exist in this account is reported and skipped rather than failing the build.
+DECLARE
+  users ARRAY DEFAULT ARRAY_CAT(
+    ARRAY_CONSTRUCT(CURRENT_USER()),
+    IFF(GETVARIABLE('SC_APP_USERS') IS NULL, ARRAY_CONSTRUCT(),
+        SPLIT(REPLACE(GETVARIABLE('SC_APP_USERS'), ' ', ''), ',')));
+  roles ARRAY DEFAULT ARRAY_CONSTRUCT('SC_PLANNER', 'SC_PROCUREMENT', 'SC_LOGISTICS', 'SC_LOGISTICS_EU',
+    'SC_ONTOLOGY_STEWARD', 'SC_PROCUREMENT_ANALYST', 'SC_LOGISTICS_ANALYST', 'SC_PLANNING_ANALYST');
+  u VARCHAR;
+  granted ARRAY DEFAULT ARRAY_CONSTRUCT();
+  skipped ARRAY DEFAULT ARRAY_CONSTRUCT();
+BEGIN
+  FOR i IN 0 TO ARRAY_SIZE(:users) - 1 DO
+    u := UPPER(TRIM(GET(:users, :i)::VARCHAR));
+    IF (u = '' OR ARRAY_CONTAINS(:u::VARIANT, :granted)) THEN CONTINUE; END IF;
+    BEGIN
+      FOR j IN 0 TO ARRAY_SIZE(:roles) - 1 DO
+        EXECUTE IMMEDIATE 'GRANT ROLE ' || GET(:roles, :j)::VARCHAR || ' TO USER "' || REPLACE(:u, '"', '') || '"';
+      END FOR;
+      granted := ARRAY_APPEND(:granted, :u);
+    EXCEPTION
+      WHEN OTHER THEN skipped := ARRAY_APPEND(:skipped, :u);
+    END;
+  END FOR;
+  RETURN OBJECT_CONSTRUCT('persona_roles_granted_to', :granted, 'users_not_found', :skipped);
+END;
 
 GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE SC_PLANNER;
 GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE SC_PROCUREMENT;

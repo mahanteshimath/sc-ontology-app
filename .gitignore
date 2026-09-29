@@ -41,3 +41,6 @@ cookies.txt
 # generated launch-video previews (Hyperframes /brag output) — not app source
 brag-output/
 brag-output-*/
+
+# scripts/migrate.mjs working state and report (account-specific)
+.migrate/

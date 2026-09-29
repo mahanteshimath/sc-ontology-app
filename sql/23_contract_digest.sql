@@ -29,6 +29,7 @@ DECLARE
   body STRING;
   top_lines STRING;
   conflict_lines STRING;
+  recipient STRING;
 BEGIN
   SELECT LISTAGG('  - ' || supplier_name || ' (' || supplier_region || '): governed OTD '
                  || TRIM(TO_VARCHAR(governed_otd, '0.0000')) || ' vs contracted ' || TRIM(TO_VARCHAR(otd_commitment, '0.00'))
@@ -59,10 +60,13 @@ BEGIN
     INTO :subject, :body
     FROM V_CONTRACT_IMPACT;
 
-  IF (P_SEND) THEN
-    CALL SYSTEM$SEND_EMAIL('SC_GOVERNANCE_EMAIL', 'mhiremath@mmm.com', :subject, :body);
+  -- The recipient is account-specific and set by sql/06 (NOTIFICATION_SETTING).
+  SELECT MAX(setting_value) INTO :recipient
+    FROM NOTIFICATION_SETTING WHERE setting_key = 'STEWARD_EMAIL';
+  IF (P_SEND AND recipient IS NOT NULL) THEN
+    CALL SYSTEM$SEND_EMAIL('SC_GOVERNANCE_EMAIL', :recipient, :subject, :body);
   END IF;
-  RETURN OBJECT_CONSTRUCT('sent', P_SEND, 'subject', subject, 'body', body);
+  RETURN OBJECT_CONSTRUCT('sent', P_SEND AND recipient IS NOT NULL, 'recipient', recipient, 'subject', subject, 'body', body);
 END;
 $$;
 

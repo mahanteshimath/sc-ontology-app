@@ -13,7 +13,9 @@
     "prewarm": "node scripts/prewarm.mjs",
     "parity": "node scripts/parity.mjs",
     "persona-proof": "node scripts/persona-proof.mjs",
-    "demo-reset": "node scripts/rebuild.mjs --only 16"
+    "demo-reset": "node scripts/rebuild.mjs --only 16",
+    "migrate": "node scripts/migrate.mjs",
+    "inventory": "node scripts/inventory.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.0",

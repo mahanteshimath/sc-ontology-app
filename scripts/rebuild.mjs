@@ -6,6 +6,11 @@
  *   node scripts/rebuild.mjs --from 01       # resume from a file onwards
  *   node scripts/rebuild.mjs --verify        # only the 90-92 verification files
  *   node scripts/rebuild.mjs --dry-run       # print the plan, execute nothing
+ *   node scripts/rebuild.mjs --no-verify     # skip 90-93 (migrate.mjs runs them after the data copy)
+ *
+ *   --connection <name>        a named connections.toml entry instead of the default
+ *   --app-users "A, B"         users granted every persona role (always includes the running user)
+ *   --notify-email x@y.com     steward email for drift alerts and the digest (default: running user's)
  *
  * ---------------------------------------------------------------------------
  * WHY THIS EXISTS RATHER THAN `snow sql -f`
@@ -45,11 +50,10 @@
  */
 
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import snowflake from "snowflake-sdk"
-import { parse as parseToml } from "smol-toml"
+import { connectionConfig, sdkOptions } from "./sf.mjs"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const SQL_DIR = path.join(ROOT, "sql")
@@ -79,13 +83,15 @@ const FILES = [
   { file: "08_prediction_layer.sql",   phase: "increment", note: "ML forecast, anomaly detection, outlook view" },
   { file: "08b_persist_forecast.sql",  phase: "increment", note: "persists the volume forecast 08 discards, and backtests it" },
   { file: "09_agent_eval.sql",         phase: "increment", note: "60-question evaluation set — needs the registry, so it follows 00f" },
+  // 13 before 16: 16's contract compliance view reads 13's V_SUPPLIER_OTD_VERDICT. The source account
+  // only ever built in the other order because 13 already existed there; a fresh account proved it.
+  { file: "13_divergence_impact.sql",  phase: "increment", note: "what the recorded spread costs, counted in decisions — needs 03's targets; MUST precede 16" },
   { file: "16_supplier_contracts.sql", phase: "increment", note: "unstructured contracts via AI_EXTRACT, Cortex Search, SC_CONTRACT - MUST precede 10, whose agent uses them" },
   { file: "10_agent.sql",              phase: "increment", note: "the Cortex Agent — needs every semantic view incl. SC_OUTLOOK from 07b" },
   { file: "10b_geospatial_reference.sql", phase: "increment", note: "geocoded nodes, regional lane geometry, and chokepoint reference data" },
   { file: "10c_network_risk_scenarios.sql", phase: "increment", note: "simulated network-risk scenarios and lane-level impact assumptions" },
   { file: "11_iot_telemetry.sql",      phase: "increment", note: "FCT_SHIPMENT_TELEMETRY, SC_TELEMETRY, temp_excursion_rate — closes the IoT gap in the ontology" },
   { file: "12_ontology_hierarchy.sql", phase: "increment", note: "declared drill paths, validated against the view and the data — MUST follow 01, which adds CALENDAR" },
-  { file: "13_divergence_impact.sql",  phase: "increment", note: "what the recorded spread costs, counted in decisions — needs 03's targets" },
   { file: "14_agent_eval_run.sql",     phase: "increment", note: "where scripts/eval.mjs records a scored run of the 60 questions" },
   { file: "15_agent_parity.sql",       phase: "increment", note: "where scripts/parity.mjs records the agent-vs-application comparison" },
   { file: "17_impact_scorecard.sql",   phase: "increment", note: "measured outcomes in one view, each labelled MEASURED or ASSUMPTION - needs 13-16" },
@@ -114,6 +120,7 @@ const DRY_RUN = flag("dry-run")
 const ONLY = value("only")
 const FROM = value("from")
 const VERIFY_ONLY = flag("verify")
+const NO_VERIFY = flag("no-verify")
 
 let plan = FILES
 if (VERIFY_ONLY) plan = FILES.filter((f) => f.phase === "verify")
@@ -126,6 +133,7 @@ if (FROM) {
   }
   plan = FILES.slice(i)
 }
+if (NO_VERIFY) plan = plan.filter((f) => f.phase !== "verify")
 
 if (plan.length === 0) {
   console.error(`Nothing to run. --only/${ONLY} matched no file.`)
@@ -173,85 +181,29 @@ if (ONLY && ONLY.startsWith("00e")) {
 }
 
 // --- connection ---
+//
+// Credentials come from scripts/sf.mjs, in the same priority order lib/snowflake.ts uses, so the
+// rebuild targets whatever the app targets. --connection <name> picks a named entry in
+// connections.toml instead (scripts/migrate.mjs uses it to build the target account).
+// sf.mjs is deliberately dependency-light (snowflake-sdk and smol-toml only) so the rebuild can
+// still run when nothing else in the repository is trustworthy.
 
-/**
- * Credentials, in the same priority order lib/snowflake.ts uses locally, so the
- * rebuild targets whatever the app targets and the two cannot disagree about
- * which account is being written to.
- */
-function connectionConfig() {
-  if (process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD) {
-    return {
-      account: process.env.SNOWFLAKE_ACCOUNT,
-      username: process.env.SNOWFLAKE_USER,
-      password: process.env.SNOWFLAKE_PASSWORD,
-      role: process.env.SNOWFLAKE_ROLE ?? "ACCOUNTADMIN",
-      warehouse: process.env.SNOWFLAKE_WAREHOUSE ?? "COMPUTE_WH",
-      source: "env",
-    }
-  }
-
-  const snowDir = process.env.SNOWFLAKE_HOME ?? path.join(os.homedir(), ".snowflake")
-  const file = path.join(snowDir, "connections.toml")
-  if (!fs.existsSync(file)) {
-    throw new Error(
-      `No credentials. Set SNOWFLAKE_USER/SNOWFLAKE_PASSWORD, or create ${file}.`,
-    )
-  }
-  const raw = parseToml(fs.readFileSync(file, "utf8"))
-
-  // connections.toml supports both [connections.name] and legacy top-level
-  // [name]; and default_connection_name is sometimes a bare string rather than a
-  // table, which is why non-object values are skipped rather than treated as
-  // connections.
-  const connections = {}
-  for (const [k, v] of Object.entries(raw)) {
-    if (v && typeof v === "object" && !Array.isArray(v)) {
-      if (k === "connections") {
-        for (const [ck, cv] of Object.entries(v)) {
-          if (cv && typeof cv === "object") connections[ck] = cv
-        }
-      } else {
-        connections[k] = v
-      }
-    }
-  }
-
-  const wanted =
-    process.env.SNOWFLAKE_CONNECTION_NAME ??
-    process.env.SNOWFLAKE_DEFAULT_CONNECTION_NAME ??
-    (typeof raw.default_connection_name === "string" ? raw.default_connection_name : undefined)
-
-  const names = Object.keys(connections)
-  const name = wanted && connections[wanted] ? wanted : names[0]
-  if (!name) throw new Error(`No connection found in ${file}`)
-
-  const c = connections[name]
-  return {
-    account: c.account,
-    username: c.user,
-    password: c.password,
-    role: c.role ?? "ACCOUNTADMIN",
-    warehouse: c.warehouse ?? "COMPUTE_WH",
-    source: `connections.toml [${name}]`,
-  }
-}
+const CONNECTION = value("connection")
+const NOTIFY_EMAIL = value("notify-email")
+const APP_USERS = value("app-users")
 
 function connect(cfg) {
   return new Promise((resolve, reject) => {
-    const conn = snowflake.createConnection({
-      account: cfg.account,
-      username: cfg.username,
-      password: cfg.password,
-      role: cfg.role,
-      warehouse: cfg.warehouse,
-      application: "sc-ontology-rebuild",
-      clientSessionKeepAlive: true,
-    })
-    conn.connect((err) => (err ? reject(err) : resolve(conn)))
+    const opts = sdkOptions(cfg, "sc-ontology-rebuild")
+    const conn = snowflake.createConnection(opts)
+    const cb = (err) => (err ? reject(err) : resolve(conn))
+    if (opts.authenticator === "EXTERNALBROWSER") conn.connectAsync(cb)
+    else conn.connect(cb)
   })
 }
 
+/** A SQL string literal. Session variables are set from flags, so they are quoted, never spliced. */
+const literal = (s) => `'${String(s).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`
 function exec(conn, sqlText) {
   return new Promise((resolve, reject) => {
     conn.execute({
@@ -274,7 +226,7 @@ function banner(cfg) {
 }
 
 async function main() {
-  const cfg = connectionConfig()
+  const cfg = connectionConfig(CONNECTION)
   banner(cfg)
 
   if (DRY_RUN) {
@@ -301,6 +253,10 @@ async function main() {
   await exec(conn, "ALTER SESSION SET MULTI_STATEMENT_COUNT = 0")
   // Long enough for the 1.5M-row generators in 00c and the ML training in 08.
   await exec(conn, "ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = 3600")
+  // Account-specific inputs, read by 00a (who gets the persona roles) and 06 (who is emailed).
+  // Unset, 00a grants to the running user only and 06 emails the running user.
+  if (APP_USERS) await exec(conn, `SET SC_APP_USERS = ${literal(APP_USERS)}`)
+  if (NOTIFY_EMAIL) await exec(conn, `SET SC_NOTIFY_EMAIL = ${literal(NOTIFY_EMAIL)}`)
 
   let failed = null
 

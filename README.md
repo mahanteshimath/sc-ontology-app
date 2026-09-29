@@ -585,8 +585,44 @@ node scripts/rebuild.mjs                 # everything, in order
 node scripts/rebuild.mjs --dry-run       # print the plan, execute nothing
 node scripts/rebuild.mjs --only 00c      # one file
 node scripts/rebuild.mjs --from 07b      # resume from a file onwards
-node scripts/rebuild.mjs --verify        # only the 90-92 verification files
+node scripts/rebuild.mjs --verify        # only the 90-93 verification files
+node scripts/rebuild.mjs --connection target --app-users "ALICE, BOB" --notify-email steward@example.com
 ```
+
+Nothing account-specific is written into `sql/`. `00a` grants every persona role to the user running
+the build plus any `--app-users` that exist on the account (missing ones are skipped and reported),
+and `06` stores the steward email in `GOVERNANCE.NOTIFICATION_SETTING` — `--notify-email`, else the
+value already stored, else the running user's own email.
+
+### Moving the backend to another account
+
+```bash
+npm run migrate -- --from pramogm-ln72054 --to target --dry-run   # preflight and plan
+npm run migrate -- --from pramogm-ln72054 --to target             # one click
+npm run migrate -- --from pramogm-ln72054 --to target --resume    # after fixing a failure
+```
+
+`--from` and `--to` are connection names in `~/.snowflake/connections.toml`, both on `ACCOUNTADMIN`.
+Objects are **rebuilt** from `sql/` (so the target gets the definitions the repository documents,
+not a clone of whatever drifted), and data is **copied** — contract terms come from `AI_EXTRACT`,
+and eval runs, the question log, drift history and certification snapshots are records of things
+that happened, so regenerating them would not be "as is". The script:
+
+1. refuses a target whose `SUPPLY_CHAIN` already has tables (unless `--force`/`--resume`) and sets
+   `CORTEX_ENABLED_CROSS_REGION` to the source's value (the agent and `AI_EXTRACT` need it);
+2. snapshots the source — inventory, column types, `COUNT(*)` and `HASH_AGG` of every base table;
+3. runs `rebuild.mjs --connection <to>`, granting persona roles to the source's app users that exist;
+4. copies every base table through Parquet with type-exact encodings (GEOGRAPHY as WKB, VARIANT and
+   ARRAY as JSON, NUMBER and timestamps as text), skipping tables already identical, retraining the
+   ML models between `CANONICAL` and `GOVERNANCE` if the facts changed;
+5. refreshes Cortex Search and sets every task and alert to its state on the source;
+6. proves the result — object-by-object inventory diff, per-table row count **and** content hash,
+   the drift test, `CI_GOVERNANCE_GATE`, and `sql/90–93` — and writes `.migrate/report.md`.
+
+`--selftest RAW.GEO_LANE,…` proves the encoding round trip on the source alone (unload, re-read,
+compare hashes) without touching a table. Not migrated, by design: users and credentials, the
+steward email, the CI user, and the app's Vercel environment, which must be pointed at the new
+account separately.
 
 ### Why there is a custom runner
 
