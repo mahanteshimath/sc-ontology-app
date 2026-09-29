@@ -506,7 +506,7 @@ flowchart TB
 │   ├── parity.mjs           Cortex Agent vs application vs CANONICAL_SQL
 │   ├── sf.mjs               shared Snowflake connection for the scripts that are not the rebuild
 │   ├── sq.mjs               run one statement or one file from the CLI, for inspection
-│   ├── smoke.mjs            23 end-to-end checks against a running instance
+│   ├── smoke.mjs            22 end-to-end checks against a running instance
 │   ├── probe-latency.mjs    cold vs repeated /api/ask, plus the two ambiguity questions
 │   ├── persona-proof.mjs    every metric under every persona's own role (npm run persona-proof)
 │   ├── smoke-outlook.mjs    11 checks on the prediction page
