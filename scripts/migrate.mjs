@@ -29,10 +29,14 @@
  * dates and timestamps with nanoseconds and offset. FLOAT and BOOLEAN travel natively (exact in
  * Parquet). A table already identical on the target is skipped, so a --resume is cheap.
  *
+ * USERS are recreated with every property and role grant, but Snowflake never reveals a password,
+ * so new person users get a temporary one they must change at first login (--skip-users to opt out).
+ *
  * NOT COPIED, deliberately: GOVERNANCE.NOTIFICATION_SETTING (the steward email is per account),
- * users and their passwords, and the app's Vercel environment. The report says so.
+ * passwords/MFA enrolments, and the app's Vercel environment. The report says so.
  * ---------------------------------------------------------------------------
  */
+import crypto from "node:crypto"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
@@ -288,6 +292,145 @@ async function copySchema(src, tgt, schema, source, targetCols) {
   return copied
 }
 
+// --- users ---
+//
+// Snowflake never reveals a password, so none can be copied. Every other user property is copied
+// as is, along with every role granted to the user. A PERSON (or untyped) user created here gets a
+// random temporary password with MUST_CHANGE_PASSWORD = TRUE; a SERVICE user gets its RSA public
+// key(s) and no password. Users that already exist on the target keep their credentials; only
+// their missing role grants are added. Roles the target lacks are created (as empty roles) so the
+// grant can be made, and reported.
+
+const SYSTEM_USERS = new Set(["SNOWFLAKE"])
+
+function tempPassword() {
+  const sets = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!#%*+-=?@^_"]
+  const all = sets.join("")
+  const pick = (s) => s[crypto.randomInt(s.length)]
+  const chars = [...sets.map(pick), ...Array.from({ length: 16 }, () => pick(all))]
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1)
+    ;[chars[i], chars[j]] = [chars[j], chars[i]]
+  }
+  return chars.join("")
+}
+
+async function describeUser(conn, name) {
+  const rows = await query(conn, `DESC USER ${ident(name)}`)
+  const p = {}
+  for (const r of rows) p[r.property] = r.value === "null" ? null : r.value
+  return p
+}
+
+async function migrateUsers(src, tgt, targetUser) {
+  const srcUsers = (await query(src, "SHOW USERS")).filter((u) => !SYSTEM_USERS.has(u.name))
+  const tgtUsers = new Set((await query(tgt, "SHOW USERS")).map((u) => u.name))
+  const tgtRoles = new Set((await query(tgt, "SHOW ROLES")).map((r) => r.name))
+  const created = []
+  const existing = []
+  const rolesCreated = []
+  const grants = []
+  const failures = []
+  const passwords = []
+
+  for (const u of srcUsers) {
+    const name = u.name
+    const d = await describeUser(src, name)
+    const type = String(d.TYPE ?? u.type ?? "").toUpperCase()
+    process.stdout.write(`  ${name.padEnd(30)} `)
+
+    if (tgtUsers.has(name)) {
+      existing.push(name)
+      process.stdout.write(`exists${name === targetUser ? " (the migrating user)" : ""}; `)
+    } else {
+      const props = []
+      const set = (k, v) => {
+        if (v !== null && v !== undefined && v !== "") props.push(`${k} = ${lit(v)}`)
+      }
+      set("LOGIN_NAME", d.LOGIN_NAME)
+      set("DISPLAY_NAME", d.DISPLAY_NAME)
+      set("FIRST_NAME", d.FIRST_NAME)
+      set("MIDDLE_NAME", d.MIDDLE_NAME)
+      set("LAST_NAME", d.LAST_NAME)
+      set("EMAIL", d.EMAIL)
+      set("COMMENT", d.COMMENT)
+      // Defaults are identifiers in Snowflake but accept quoted strings, which also survive names
+      // that do not exist on the target yet (they are resolved at login, not at CREATE).
+      set("DEFAULT_WAREHOUSE", d.DEFAULT_WAREHOUSE)
+      set("DEFAULT_NAMESPACE", d.DEFAULT_NAMESPACE)
+      set("DEFAULT_ROLE", d.DEFAULT_ROLE)
+      // DESC USER reports a JSON array (["ALL"]); CREATE USER wants a parenthesized list ('ALL').
+      if (d.DEFAULT_SECONDARY_ROLES) {
+        let list = []
+        try {
+          list = JSON.parse(d.DEFAULT_SECONDARY_ROLES)
+        } catch {
+          list = []
+        }
+        if (Array.isArray(list)) props.push(`DEFAULT_SECONDARY_ROLES = (${list.map(lit).join(", ")})`)
+      }
+      if (String(d.DISABLED).toLowerCase() === "true") props.push("DISABLED = TRUE")
+      if (d.RSA_PUBLIC_KEY) set("RSA_PUBLIC_KEY", d.RSA_PUBLIC_KEY)
+      if (d.RSA_PUBLIC_KEY_2) set("RSA_PUBLIC_KEY_2", d.RSA_PUBLIC_KEY_2)
+      const isService = type === "SERVICE" || type === "LEGACY_SERVICE"
+      if (type) props.push(`TYPE = ${type}`)
+      let pw = null
+      if (!isService) {
+        pw = tempPassword()
+        props.push(`PASSWORD = ${lit(pw)}`, "MUST_CHANGE_PASSWORD = TRUE")
+      } else if (type === "LEGACY_SERVICE" && String(d.HAS_PASSWORD ?? u.has_password).toLowerCase() === "true") {
+        pw = tempPassword()
+        props.push(`PASSWORD = ${lit(pw)}`)
+      }
+      try {
+        await query(tgt, `CREATE USER ${ident(name)} ${props.join(" ")}`)
+        created.push(name)
+        if (pw) passwords.push({ name, login: d.LOGIN_NAME ?? name, email: d.EMAIL ?? "", password: pw })
+        process.stdout.write(`created (${type || "PERSON"}${pw ? ", temporary password" : ""}); `)
+      } catch (e) {
+        failures.push({ user: name, error: String(e.message ?? e).split("\n")[0] })
+        console.log(`FAILED: ${String(e.message ?? e).split("\n")[0]}`)
+        continue
+      }
+    }
+
+    // Roles granted to this user on the source.
+    const roleGrants = (await query(src, `SHOW GRANTS TO USER ${ident(name)}`)).map((g) => g.role).filter(Boolean)
+    const have = new Set((await query(tgt, `SHOW GRANTS TO USER ${ident(name)}`)).map((g) => g.role))
+    let added = 0
+    for (const role of roleGrants) {
+      if (have.has(role)) continue
+      try {
+        if (!tgtRoles.has(role)) {
+          await query(tgt, `CREATE ROLE IF NOT EXISTS ${ident(role)} COMMENT = 'Created by scripts/migrate.mjs to carry a user grant from the source account. Privileges outside SUPPLY_CHAIN were not copied.'`)
+          tgtRoles.add(role)
+          rolesCreated.push(role)
+        }
+        await query(tgt, `GRANT ROLE ${ident(role)} TO USER ${ident(name)}`)
+        grants.push(`${role} -> ${name}`)
+        added++
+      } catch (e) {
+        failures.push({ user: name, role, error: String(e.message ?? e).split("\n")[0] })
+      }
+    }
+    console.log(`${roleGrants.length} role(s) on source, ${added} granted now`)
+  }
+
+  let passwordFile = null
+  if (passwords.length) {
+    passwordFile = path.join(WORK, "user-passwords.txt")
+    const body = [
+      `Temporary passwords for users recreated on the target by scripts/migrate.mjs (${new Date().toISOString()}).`,
+      "Each must be changed at first login (MUST_CHANGE_PASSWORD = TRUE). Hand them out securely, then delete this file.",
+      "",
+      ...passwords.map((p) => `${p.name}\tlogin=${p.login}\temail=${p.email}\tpassword=${p.password}`),
+      "",
+    ].join("\n")
+    fs.writeFileSync(passwordFile, body, { mode: 0o600 })
+  }
+  return { created, existing, rolesCreated, grants, failures, passwordFile }
+}
+
 // --- report ---
 
 function writeReport(r) {
@@ -305,6 +448,17 @@ function writeReport(r) {
   lines.push("", `Totals: ${r.totalSource.toLocaleString()} source rows, ${r.totalTarget.toLocaleString()} target rows, ${r.tables.filter((t) => t.hashMatch).length}/${r.tables.length} tables content-equal.`, "")
   lines.push(`## Schedules`, "", "| Object | Source | Target |", "|---|---|---|")
   for (const s of r.schedules) lines.push(`| ${s.name} | ${s.source} | ${s.target} |`)
+  if (r.users.length) {
+    lines.push("", `## Users`, "", "| User | Type | On target | Roles on source | Missing roles |", "|---|---|---|---:|---|")
+    for (const u of r.users) lines.push(`| ${u.name} | ${u.type || "PERSON"} | ${u.present ? "yes" : "NO"} | ${u.roles} | ${u.missingRoles.join(", ") || "-"} |`)
+    const m = r.userMigration
+    if (m) {
+      lines.push("", `Created now: ${m.created.join(", ") || "none"}. Already present: ${m.existing.join(", ") || "none"}.`)
+      if (m.rolesCreated.length) lines.push(`Roles created empty to carry a grant (their privileges outside SUPPLY_CHAIN were not copied): ${m.rolesCreated.join(", ")}.`)
+      if (m.passwordFile) lines.push("New person users have a temporary password that must be changed at first login; see the local, gitignored `.migrate/user-passwords.txt`.")
+      for (const f of m.failures) lines.push(`- FAILED ${f.user}${f.role ? ` role ${f.role}` : ""}: ${f.error}`)
+    }
+  }
   lines.push("", `## Functional checks (run after the data comparison, on the target)`, "")
   for (const c of r.checks) lines.push(`- ${c.ok ? "PASS" : "FAIL"} - ${c.name}${c.detail ? `: ${c.detail}` : ""}`)
   lines.push("", `## Not migrated, by design`, "")
@@ -421,6 +575,18 @@ async function main() {
     }
     delete state.rebuildFrom
     mark("rebuild")
+  }
+
+  // --- 4b. users and their role grants ---
+  if (!VERIFY_ONLY && !done("users") && !flag("skip-users")) {
+    log("")
+    log("Recreating the source's users and their role grants on the target...")
+    const r = await migrateUsers(src, tgt, T.who.U)
+    state.users = r
+    mark("users", { created: r.created.length, existing: r.existing.length })
+    if (r.passwordFile) {
+      log(`temporary passwords (must be changed at first login): ${path.relative(ROOT, r.passwordFile)}  - gitignored, delete after handing them out`)
+    }
   }
 
   // --- 5. data ---
@@ -544,10 +710,49 @@ async function main() {
     if (v !== crossSrc) throw new Error(`target ${v}, source ${crossSrc}`)
     return v
   })
+  const userRows = []
+  if (!flag("skip-users")) {
+    await check("every source user exists on the target with every source role", async () => {
+      const tUsers = new Set((await query(tgt, "SHOW USERS")).map((u) => u.name))
+      const gaps = []
+      for (const u of (await query(src, "SHOW USERS")).filter((u) => !SYSTEM_USERS.has(u.name))) {
+        const want = (await query(src, `SHOW GRANTS TO USER ${ident(u.name)}`)).map((g) => g.role).filter(Boolean).sort()
+        const got = tUsers.has(u.name) ? new Set((await query(tgt, `SHOW GRANTS TO USER ${ident(u.name)}`)).map((g) => g.role)) : null
+        const missingRoles = got ? want.filter((r) => !got.has(r)) : want
+        userRows.push({ name: u.name, type: u.type ?? "", present: Boolean(got), roles: want.length, missingRoles })
+        if (!got) gaps.push(`${u.name} missing`)
+        else if (missingRoles.length) gaps.push(`${u.name} lacks ${missingRoles.join(", ")}`)
+      }
+      if (gaps.length) throw new Error(gaps.join("; "))
+      return `${userRows.length} users, all roles granted`
+    })
+  }
   log("")
   log("Running sql/90-93 on the target (includes executing every verified query)...")
   const v = await runRebuild(["--verify"])
   checks.push({ name: "sql/90-93 verification files execute cleanly", ok: v.ok, detail: v.ok ? "" : `stopped at ${v.stopped}` })
+
+  // The drift test, the CI gate and sql/90-93 append their own runs to GOVERNANCE history tables.
+  // Those rows record this verification, not the source's history, so each table they touched is
+  // re-copied from the source and re-proved, leaving the target an exact copy.
+  log("")
+  log("Restoring history tables the checks appended to...")
+  const tcolsAfter = await tableColumns(tgt)
+  let restored = 0
+  for (const [t, cols] of Object.entries(source.columns).sort()) {
+    if (NOT_COPIED.has(t)) continue
+    const want = source.profiles[t]
+    const now = await profile(tgt, t, cols)
+    if (now.rows === want.rows && now.hash === want.hash) continue
+    await copyTable(src, tgt, t, cols, new Map((tcolsAfter[t] ?? []).map((c) => [c.name, c])))
+    const after = await profile(tgt, t, cols)
+    const ok = after.rows === want.rows && after.hash === want.hash
+    const row = tables.find((x) => x.table === t)
+    if (row) Object.assign(row, { targetRows: after.rows, hashMatch: ok })
+    log(`${ok ? "restored" : "MISMATCH"}  ${t}  (${now.rows} -> ${after.rows}, source ${want.rows})`)
+    restored++
+  }
+  if (!restored) log("none - the checks left every table unchanged")
 
   const totalSource = tables.reduce((a, t) => a + t.sourceRows, 0)
   const totalTarget = tables.reduce((a, t) => a + (t.targetRows ?? 0), 0)
@@ -557,11 +762,11 @@ async function main() {
       : "INCOMPLETE - see the sections below"
   const notes = [
     "GOVERNANCE.NOTIFICATION_SETTING: the steward email is per account (set by sql/06 from --notify-email or the target user's email).",
-    "Users, passwords and PATs are not copied. Persona roles were granted to the target user and to any listed app user that exists on the target.",
+    "Passwords, PATs and MFA enrolments cannot be copied (Snowflake never reveals them). Users were recreated with every other property and role grant; new person users have temporary passwords.",
     "The app's Vercel environment still points at the source until SNOWFLAKE_ACCOUNT / credentials are changed there.",
     "The CI gate user (sql/create_ci_user.sql) is not created by the migration.",
   ]
-  const file = writeReport({ source: source.account, target: `${T.who.O}-${T.who.N}`, verdict, kinds, missing, extra, unsupported, tables, totalSource, totalTarget, schedules, checks, notes })
+  const file = writeReport({ source: source.account, target: `${T.who.O}-${T.who.N}`, verdict, kinds, missing, extra, unsupported, tables, totalSource, totalTarget, schedules, checks, notes, users: userRows, userMigration: state.users })
   mark("verify", { verdict })
 
   log("")
