@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { semanticViewSql, querySemanticView, num, toIso } from "../../lib/sc"
 import { parseSynonyms, formatMetric } from "../../lib/format"
+import { summarizeLandingFacts } from "../../lib/landing-facts"
 
 /**
  * These cover the parts of the governed layer that must not regress silently:
@@ -118,5 +119,17 @@ describe("formatMetric", () => {
   })
   it("renders a dash for a missing value", () => {
     expect(formatMetric(null, "percent")).toBe("—")
+  })
+})
+
+describe("summarizeLandingFacts", () => {
+  it("uses the live registry and ontology counts instead of hardcoded marketing copy", () => {
+    const facts = summarizeLandingFacts({
+      registry: Array.from({ length: 15 }, (_, i) => ({ metricId: `m${i}` })),
+      entities: Array.from({ length: 12 }, (_, i) => ({ entity: `e${i}` })),
+    })
+
+    expect(facts.governedMetrics).toBe(15)
+    expect(facts.ontologyEntities).toBe(12)
   })
 })

@@ -210,9 +210,10 @@ export function snapshotFilters(snapshotDate: string | null): SemanticFilter[] {
 /**
  * The inverse of the as-of rule: only the rows the realized metrics deliberately exclude.
  *
- * Excluding future-dated rows is correct for measuring performance, but silently dropping 41,347
- * order lines and telling nobody is not. This returns the complement so the application can show
- * what was set aside and label it as open commitment rather than measured performance.
+ * Excluding future-dated rows is correct for measuring performance, but silently dropping tens of
+ * thousands of order lines and telling nobody is not. This returns the complement so the
+ * application can show what was set aside and label it as open commitment rather than measured
+ * performance.
  */
 export function openBacklogFilters(): SemanticFilter[] {
   return [{ ref: "calendar.is_future", op: "=", value: 1 }]

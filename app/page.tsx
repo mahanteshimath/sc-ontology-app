@@ -45,6 +45,7 @@ import { formatMetric, formatNumber } from "@/lib/format"
 import { currentSession } from "@/lib/session"
 import { BrandMark } from "@/components/brand-mark"
 import { Button } from "@/components/ui/button"
+import { summarizeLandingFacts } from "@/lib/landing-facts"
 import { ArrowRight, BarChart3, DatabaseZap, Network, ShieldCheck } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -61,7 +62,10 @@ const HEADLINE = [
 const VIEW = "SC_ONTOLOGY_360"
 const TREND_DIM = "calendar.cal_period"
 
-function LandingPage() {
+async function LandingPage() {
+  const [registry, entities] = await Promise.all([getMetricRegistry(), getOntologyEntities()])
+  const facts = summarizeLandingFacts({ registry, entities })
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#08131f] text-white">
       <div className="relative isolate">
@@ -103,9 +107,9 @@ function LandingPage() {
               </Button>
             </div>
             <div className="mt-12 grid max-w-xl grid-cols-3 gap-5 border-t border-white/10 pt-5">
-              <div><div className="text-2xl font-semibold text-white">14</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Governed metrics</div></div>
-              <div><div className="text-2xl font-semibold text-white">11</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Ontology entities</div></div>
-              <div><div className="text-2xl font-semibold text-emerald-300">0 spread</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Drift target</div></div>
+              <div><div className="text-2xl font-semibold text-white">{facts.governedMetrics}</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Governed metrics</div></div>
+              <div><div className="text-2xl font-semibold text-white">{facts.ontologyEntities}</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Ontology entities</div></div>
+              <div><div className="text-2xl font-semibold text-emerald-300">{facts.driftTarget}</div><div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Drift target</div></div>
             </div>
           </div>
 
