@@ -110,7 +110,7 @@ export function AppHeader({
           Wraps rather than scrolls below xl. A horizontal scroll strip left Ask and Operations
           off-screen with no affordance a user would notice.
         */}
-        <nav aria-label="Primary" className="xl:hidden flex flex-wrap items-center gap-1 pb-2.5">
+        <nav data-tour="nav" aria-label="Primary" className="xl:hidden flex flex-wrap items-center gap-1 pb-2.5">
           {NAV.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}

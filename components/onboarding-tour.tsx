@@ -74,9 +74,19 @@ const TOUR_STEPS: TourStep[] = [
     title: "SQL Provenance & Transparency",
     description: "Every metric has 100% transparent SQL provenance. Click any 'SQL Provenance' button to inspect the canonical Snowflake query behind the numbers.",
     icon: Database,
+    route: "/operations",
     position: "bottom",
   },
 ]
+
+// The header renders each nav link twice (xl row and wrapped row); only one is laid out.
+function findVisibleTarget(selector: string): Element | null {
+  for (const el of Array.from(document.querySelectorAll(selector))) {
+    const r = el.getBoundingClientRect()
+    if (r.width > 0 && r.height > 0) return el
+  }
+  return null
+}
 
 const LOCAL_STORAGE_KEY = "sc_ontology_tour_completed_v1"
 
@@ -94,46 +104,57 @@ export function OnboardingTour({
 
   const activeStep = TOUR_STEPS[currentStepIndex]
 
-  // Update target bounding rect when step changes or window resizes
-  const updateTargetRect = useCallback(() => {
-    if (tourState !== "ACTIVE" || !activeStep) return
-
-    const element = document.querySelector(activeStep.target)
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" })
-      const rect = element.getBoundingClientRect()
-      setTargetRect(rect)
-    } else {
-      setTargetRect(null)
-    }
-  }, [tourState, activeStep])
+  // Measure only. Scrolling from here would re-fire on the scroll event it causes.
+  const measureTarget = useCallback(() => {
+    if (!activeStep) return
+    const element = findVisibleTarget(activeStep.target)
+    setTargetRect(element ? element.getBoundingClientRect() : null)
+  }, [activeStep])
 
   // Check initial tour state on mount
   useEffect(() => {
     if (typeof window === "undefined" || !user || pathname === "/login") return
     const isCompleted = localStorage.getItem(LOCAL_STORAGE_KEY)
     if (!isCompleted) {
-      // Delay welcome modal slightly for smooth page load transition
+      // Only from IDLE: navigating mid-tour must not bounce back to the welcome modal.
       const timer = setTimeout(() => {
-        setTourState("WELCOME")
+        setTourState((s) => (s === "IDLE" ? "WELCOME" : s))
       }, 600)
       return () => clearTimeout(timer)
     }
   }, [user, pathname])
 
+  // Navigate to the step's page if needed, then poll for the target to mount and scroll to it once.
   useEffect(() => {
-    if (tourState === "ACTIVE") {
-      // Small timeout to allow route or DOM changes to stabilize
-      const timer = setTimeout(updateTargetRect, 150)
-      window.addEventListener("resize", updateTargetRect)
-      window.addEventListener("scroll", updateTargetRect)
-      return () => {
-        clearTimeout(timer)
-        window.removeEventListener("resize", updateTargetRect)
-        window.removeEventListener("scroll", updateTargetRect)
-      }
+    if (tourState !== "ACTIVE" || !activeStep) return
+    if (activeStep.route && pathname !== activeStep.route) {
+      router.push(activeStep.route)
+      return
     }
-  }, [tourState, currentStepIndex, updateTargetRect])
+    setTargetRect(null)
+    let tries = 0
+    const timer = setInterval(() => {
+      const element = findVisibleTarget(activeStep.target)
+      if (element) {
+        clearInterval(timer)
+        element.scrollIntoView({ behavior: "auto", block: "center", inline: "center" })
+        setTargetRect(element.getBoundingClientRect())
+      } else if (++tries >= 30) {
+        clearInterval(timer)
+      }
+    }, 100)
+    return () => clearInterval(timer)
+  }, [tourState, currentStepIndex, activeStep, pathname, router])
+
+  useEffect(() => {
+    if (tourState !== "ACTIVE") return
+    window.addEventListener("resize", measureTarget)
+    window.addEventListener("scroll", measureTarget, true)
+    return () => {
+      window.removeEventListener("resize", measureTarget)
+      window.removeEventListener("scroll", measureTarget, true)
+    }
+  }, [tourState, measureTarget])
 
   // Keyboard navigation
   useEffect(() => {
@@ -285,12 +306,18 @@ export function OnboardingTour({
             className="absolute z-[9999] w-full max-w-sm rounded-xl border border-border bg-slate-900 p-5 shadow-2xl text-slate-100 space-y-4 animate-in fade-in duration-200"
             style={{
               top: targetRect
-                ? `${Math.min(window.innerHeight - 240, Math.max(20, targetRect.bottom + 16))}px`
+                ? targetRect.bottom + 16 + 260 > window.innerHeight
+                  ? `${Math.max(20, targetRect.top - 16)}px`
+                  : `${targetRect.bottom + 16}px`
                 : "50%",
               left: targetRect
-                ? `${Math.min(window.innerWidth - 380, Math.max(20, targetRect.left))}px`
+                ? `${Math.max(20, Math.min(window.innerWidth - 400, targetRect.left))}px`
                 : "50%",
-              transform: targetRect ? "none" : "translate(-50%, -50%)",
+              transform: targetRect
+                ? targetRect.bottom + 16 + 260 > window.innerHeight
+                  ? "translateY(-100%)"
+                  : "none"
+                : "translate(-50%, -50%)",
               transition: "all 0.25s ease-out",
             }}
           >
