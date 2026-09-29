@@ -5,6 +5,8 @@ import {
   getContractImpact,
   getContractExtractionAccuracy,
   getContractBreaches,
+  getRefusalMix,
+  getOntologyDemand,
 } from "@/lib/sc"
 import { formatPercent } from "@/lib/format"
 
@@ -187,6 +189,79 @@ export default async function ImpactPage() {
       <Suspense fallback={<SectionSkeleton title="Supplier contracts: the unstructured source" rows={4} />}>
         <Section title="Supplier contracts: the unstructured source">{() => ContractsBody()}</Section>
       </Suspense>
+      <Suspense fallback={<SectionSkeleton title="What teams asked for: the ontology roadmap" rows={3} />}>
+        <Section title="What teams asked for: the ontology roadmap">{() => DemandBody()}</Section>
+      </Suspense>
     </PageShell>
+  )
+}
+
+const CLASS_NOTE: Record<string, string> = {
+  ACCESS_DENIED: "Metric exists; persona not granted it. The grant model working.",
+  GUARDRAIL: "Unsafe as asked (ambiguous, snapshot summed, future-dated). The rules working.",
+  UNREGISTERED_METRIC: "Measure exists in a semantic view but is not governed. Cheap to close.",
+  OUT_OF_SCOPE: "Data not in the ontology (margin, carbon, HR). A sourcing decision.",
+}
+
+async function DemandBody() {
+  const [mix, demand] = await Promise.all([getRefusalMix(), getOntologyDemand()])
+  if (mix.length === 0) return <p className="u-meta">Demand log not classified yet. Run sql/21_ontology_demand.sql.</p>
+  const wanted = demand.filter((d) => d.refusedQuestions > 0)
+  const total = mix.reduce((n, m) => n + m.timesAsked, 0)
+  const working = mix.filter((m) => m.governanceWorking).reduce((n, m) => n + m.timesAsked, 0)
+
+  return (
+    <>
+      <p className="text-xs text-muted-foreground max-w-3xl leading-relaxed">
+        Every question the conversational layer declines is logged. Read together, refusals are the roadmap: AI_CLASSIFY
+        sorts each one by why it was refused, and matches the gaps against measures that already exist in a semantic view
+        but are not yet governed. Classification is AI-assisted - review before promoting a metric.
+      </p>
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {mix.map((m) => (
+          <StatTile
+            key={m.refusalClass}
+            label={m.refusalClass.replace(/_/g, " ").toLowerCase()}
+            value={`${m.timesAsked}`}
+            tone={m.governanceWorking ? "good" : m.refusalClass === "UNREGISTERED_METRIC" ? "warn" : "default"}
+            sub={`${m.distinctQuestions} distinct question${m.distinctQuestions === 1 ? "" : "s"}. ${CLASS_NOTE[m.refusalClass] ?? ""}`}
+          />
+        ))}
+      </section>
+      <p className="u-meta">
+        {Math.round((working / Math.max(total, 1)) * 100)}% of refusals were governance doing its job; the rest is demand.
+      </p>
+      {wanted.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/80">
+              <tr className="text-left">
+                <th className="px-3 py-2 font-medium">Promote next</th>
+                <th className="px-3 py-2 font-medium text-right">Asks</th>
+                <th className="px-3 py-2 font-medium">Already in</th>
+                <th className="px-3 py-2 font-medium">What people asked</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wanted.map((d) => (
+                <tr key={d.metricReference} className="border-t border-border align-top">
+                  <td className="px-3 py-2 font-mono text-[12px] whitespace-nowrap">{d.metricReference}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{d.timesAsked}</td>
+                  <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">{d.semanticViews.join(", ")}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground italic">&ldquo;{d.sampleQuestions[0]}&rdquo;</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Provenance label="How demand is classified">
+        {`-- sql/21_ontology_demand.sql, refreshed weekly by CLASSIFY_QUESTION_DEMAND_WEEKLY
+AI_CLASSIFY('Question: ' || question || ' | Refusal reason: ' || refusal_reason,
+            ['ACCESS_DENIED', 'GUARDRAIL', 'UNREGISTERED_METRIC', 'OUT_OF_SCOPE'])
+-- candidates: measures in INFORMATION_SCHEMA.SEMANTIC_METRICS with no METRIC_BINDING
+SELECT * FROM SUPPLY_CHAIN.GOVERNANCE.V_ONTOLOGY_DEMAND ORDER BY times_asked DESC;`}
+      </Provenance>
+    </>
   )
 }

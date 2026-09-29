@@ -11,9 +11,12 @@
     "smoke": "node scripts/smoke.mjs",
     "eval": "node scripts/eval.mjs",
     "prewarm": "node scripts/prewarm.mjs",
-    "parity": "node scripts/parity.mjs"
+    "parity": "node scripts/parity.mjs",
+    "persona-proof": "node scripts/persona-proof.mjs",
+    "demo-reset": "node scripts/rebuild.mjs --only 16"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.0",
     "@radix-ui/react-separator": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/postcss": "^4.3.3",

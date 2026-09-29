@@ -135,6 +135,9 @@ SELECT
     || '. If it does not, it owes a penalty of ' || penalty_pct || '% on the value of the late lines, with a yearly ceiling of USD '
     || TRIM(cap_txt) || '. Invoices are paid ' || payment_terms || '; shipping terms ' || incoterm || '.'
   END                                                     AS contract_text,
+  -- GENERATED rows have ground truth and are scored; INGESTED rows arrive later
+  -- through INGEST_SUPPLIER_CONTRACT and have none, so they are not.
+  'GENERATED'                                             AS source,
   CURRENT_TIMESTAMP()                                     AS loaded_at
 FROM t;
 
@@ -143,60 +146,134 @@ FROM t;
 --    scores argument on text input, so certainty is judged by validation
 --    instead: a term that fails to parse or is out of range is flagged
 --    NEEDS_REVIEW and routed to a person rather than into a metric.
+--
+--    ONE DEFINITION OF EXTRACTION. The questions and the parsing live in this
+--    procedure and nowhere else. The bulk load below calls it with NULL (every
+--    document); INGEST_SUPPLIER_CONTRACT calls it with one supplier. A second
+--    copy of the prompt would be free to drift from the first -- the same
+--    failure, in the unstructured path, that the drift test catches for metrics.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE TABLE CANONICAL.DIM_SUPPLIER_CONTRACT
-  COMMENT = 'sco:SupplierContract - commercial terms extracted from RAW.SUPPLIER_CONTRACT_DOC by AI_EXTRACT. One row per supplier. NEEDS_REVIEW marks any extraction whose metric-bearing terms failed to parse or fell out of range.'
+CREATE OR REPLACE TABLE CANONICAL.DIM_SUPPLIER_CONTRACT (
+  doc_id           STRING NOT NULL,
+  supplier_id      STRING NOT NULL,
+  file_name        STRING,
+  contract_number  STRING,
+  otd_commitment   NUMBER(6,4),
+  otd_basis        STRING,
+  penalty_pct      NUMBER(6,2),
+  penalty_cap_usd  NUMBER(14,0),
+  lead_time_days   NUMBER(6,0),
+  payment_terms    STRING,
+  incoterm         STRING,
+  expiry_date      DATE,
+  needs_review     BOOLEAN,
+  extraction_raw   VARIANT,
+  extracted_at     TIMESTAMP_LTZ,
+  CONSTRAINT pk_dim_supplier_contract PRIMARY KEY (supplier_id)
+) COMMENT = 'sco:SupplierContract - commercial terms extracted from RAW.SUPPLIER_CONTRACT_DOC by AI_EXTRACT (GOVERNANCE.EXTRACT_SUPPLIER_CONTRACTS). One row per supplier. NEEDS_REVIEW marks any extraction whose metric-bearing terms failed to parse or fell out of range.';
+
+CREATE OR REPLACE PROCEDURE GOVERNANCE.EXTRACT_SUPPLIER_CONTRACTS(P_SUPPLIER_ID STRING)
+  RETURNS NUMBER
+  LANGUAGE SQL
+  COMMENT = 'Runs AI_EXTRACT over supplier contract text and upserts CANONICAL.DIM_SUPPLIER_CONTRACT. NULL = every document; a supplier id = that supplier only. Returns rows merged.'
+  EXECUTE AS OWNER
 AS
-WITH x AS (
-  SELECT
-    d.doc_id, d.supplier_id, d.file_name,
-    AI_EXTRACT(
-      text => d.contract_text,
-      responseFormat => {
-        'contract_number': 'What is the contract or agreement reference number?',
-        'otd_commitment':  'What minimum percentage of order lines must be delivered on time? Answer with the number only.',
-        'otd_basis':       'Is on-time performance measured per individual line, or as an average of monthly rates? Answer PER_LINE or MONTHLY_AVERAGE.',
-        'penalty_pct':     'What percentage of the value of late lines is owed as a penalty, credit or rebate? Answer with the number only.',
-        'penalty_cap_usd': 'What is the annual cap on penalties, credits or rebates in US dollars? Answer with the number only.',
-        'lead_time_days':  'What is the lead time in days? Answer with the number only.',
-        'payment_terms':   'What are the payment terms, for example Net 30?',
-        'incoterm':        'What is the Incoterm or delivery basis?',
-        'expiry_date':     'On what date does the agreement end? Answer in YYYY-MM-DD format.'
-      }
-    ) AS r
-  FROM RAW.SUPPLIER_CONTRACT_DOC d
-),
-p AS (
-  SELECT
-    doc_id, supplier_id, file_name, r,
-    TRY_TO_NUMBER(REGEXP_SUBSTR(r:response:otd_commitment::STRING, '[0-9]+(\\.[0-9]+)?'), 10, 4) AS otd_raw,
-    TRY_TO_NUMBER(REGEXP_SUBSTR(r:response:penalty_pct::STRING, '[0-9]+(\\.[0-9]+)?'), 6, 2)     AS penalty_pct,
-    TRY_TO_NUMBER(REGEXP_REPLACE(r:response:penalty_cap_usd::STRING, '[^0-9.]', ''), 14, 0)      AS penalty_cap_usd,
-    TRY_TO_NUMBER(REGEXP_SUBSTR(r:response:lead_time_days::STRING, '[0-9]+'))                    AS lead_time_days
-  FROM x
-)
-SELECT
-  doc_id,
-  supplier_id,
-  file_name,
-  r:response:contract_number::STRING                                         AS contract_number,
-  -- "95", "95%" and "0.95" all normalise to 0.95.
-  IFF(otd_raw > 1, otd_raw / 100, otd_raw)::NUMBER(6,4)                      AS otd_commitment,
-  IFF(CONTAINS(UPPER(r:response:otd_basis::STRING), 'MONTH'), 'MONTHLY_AVERAGE', 'PER_LINE') AS otd_basis,
-  penalty_pct,
-  penalty_cap_usd,
-  lead_time_days,
-  -- Canonicalised: 'Settlement Net 90.' and 'Net 90 from receipt of invoice' are one term.
-  'Net ' || REGEXP_SUBSTR(r:response:payment_terms::STRING, 'Net\\s*([0-9]+)', 1, 1, 'ie', 1) AS payment_terms,
-  UPPER(REGEXP_SUBSTR(r:response:incoterm::STRING, '[A-Za-z]{3}'))           AS incoterm,
-  TRY_TO_DATE(r:response:expiry_date::STRING)                                AS expiry_date,
-  -- A term that would feed a metric but did not parse, or parsed out of range,
-  -- goes to a person rather than into the compliance view as a silent NULL.
-  (otd_raw IS NULL OR penalty_pct IS NULL OR penalty_cap_usd IS NULL
-   OR IFF(otd_raw > 1, otd_raw / 100, otd_raw) NOT BETWEEN 0.5 AND 1)        AS needs_review,
-  r                                                                          AS extraction_raw,
-  CURRENT_TIMESTAMP()                                                        AS extracted_at
-FROM p;
+$$
+DECLARE
+  -- ALL = every document, ONE = the named supplier, RETRY = documents whose last
+  -- extraction came back with no response. AI_EXTRACT occasionally returns
+  -- {"error": "Empty extraction input"} for a perfectly valid 469-character
+  -- document and succeeds on the next call; without a retry that document
+  -- sits in NEEDS_REVIEW and the accuracy figure drops for a transient reason.
+  mode STRING DEFAULT IFF(:P_SUPPLIER_ID IS NULL, 'ALL', 'ONE');
+  merged NUMBER DEFAULT 0;
+  failed NUMBER DEFAULT 0;
+BEGIN
+  FOR attempt IN 1 TO 3 DO
+  MERGE INTO CANONICAL.DIM_SUPPLIER_CONTRACT tgt
+  USING (
+    WITH x AS (
+      SELECT
+        d.doc_id, d.supplier_id, d.file_name,
+        AI_EXTRACT(
+          text => d.contract_text,
+          responseFormat => {
+            'contract_number': 'What is the contract or agreement reference number?',
+            'otd_commitment':  'What minimum percentage of order lines must be delivered on time? Answer with the number only.',
+            'otd_basis':       'Is on-time performance measured per individual line, or as an average of monthly rates? Answer PER_LINE or MONTHLY_AVERAGE.',
+            'penalty_pct':     'What percentage of the value of late lines is owed as a penalty, credit or rebate? Answer with the number only.',
+            'penalty_cap_usd': 'What is the annual cap on penalties, credits or rebates in US dollars? Answer with the number only.',
+            'lead_time_days':  'What is the lead time in days? Answer with the number only.',
+            'payment_terms':   'What are the payment terms, for example Net 30?',
+            'incoterm':        'What is the Incoterm or delivery basis?',
+            'expiry_date':     'On what date does the agreement end? Answer in YYYY-MM-DD format.'
+          }
+        ) AS r
+      FROM RAW.SUPPLIER_CONTRACT_DOC d
+      WHERE (:mode = 'ALL')
+         OR (:mode = 'ONE' AND d.supplier_id = :P_SUPPLIER_ID)
+         OR (:mode = 'RETRY' AND d.supplier_id IN (
+               SELECT supplier_id FROM CANONICAL.DIM_SUPPLIER_CONTRACT
+                WHERE extraction_raw:response IS NULL OR IS_NULL_VALUE(extraction_raw:response)))
+    ),
+    p AS (
+      SELECT
+        doc_id, supplier_id, file_name, r,
+        TRY_TO_NUMBER(REGEXP_SUBSTR(r:response:otd_commitment::STRING, '[0-9]+(\\.[0-9]+)?'), 10, 4) AS otd_raw,
+        TRY_TO_NUMBER(REGEXP_SUBSTR(r:response:penalty_pct::STRING, '[0-9]+(\\.[0-9]+)?'), 6, 2)     AS penalty_pct,
+        TRY_TO_NUMBER(REGEXP_REPLACE(r:response:penalty_cap_usd::STRING, '[^0-9.]', ''), 14, 0)      AS penalty_cap_usd,
+        TRY_TO_NUMBER(REGEXP_SUBSTR(r:response:lead_time_days::STRING, '[0-9]+'))                    AS lead_time_days
+      FROM x
+    )
+    SELECT
+      doc_id,
+      supplier_id,
+      file_name,
+      r:response:contract_number::STRING                                         AS contract_number,
+      -- "95", "95%" and "0.95" all normalise to 0.95.
+      IFF(otd_raw > 1, otd_raw / 100, otd_raw)::NUMBER(6,4)                      AS otd_commitment,
+      IFF(CONTAINS(UPPER(r:response:otd_basis::STRING), 'MONTH'), 'MONTHLY_AVERAGE', 'PER_LINE') AS otd_basis,
+      penalty_pct,
+      penalty_cap_usd,
+      lead_time_days,
+      -- Canonicalised: 'Settlement Net 90.' and 'Net 90 from receipt of invoice' are one term.
+      'Net ' || REGEXP_SUBSTR(r:response:payment_terms::STRING, 'Net\\s*([0-9]+)', 1, 1, 'ie', 1) AS payment_terms,
+      UPPER(REGEXP_SUBSTR(r:response:incoterm::STRING, '[A-Za-z]{3}'))           AS incoterm,
+      TRY_TO_DATE(r:response:expiry_date::STRING)                                AS expiry_date,
+      -- A term that would feed a metric but did not parse, or parsed out of range,
+      -- goes to a person rather than into the compliance view as a silent NULL.
+      (otd_raw IS NULL OR penalty_pct IS NULL OR penalty_cap_usd IS NULL
+       OR IFF(otd_raw > 1, otd_raw / 100, otd_raw) NOT BETWEEN 0.5 AND 1)        AS needs_review,
+      r                                                                          AS extraction_raw,
+      CURRENT_TIMESTAMP()                                                        AS extracted_at
+    FROM p
+  ) src
+  ON tgt.supplier_id = src.supplier_id
+  WHEN MATCHED THEN UPDATE SET
+    doc_id = src.doc_id, file_name = src.file_name, contract_number = src.contract_number,
+    otd_commitment = src.otd_commitment, otd_basis = src.otd_basis, penalty_pct = src.penalty_pct,
+    penalty_cap_usd = src.penalty_cap_usd, lead_time_days = src.lead_time_days,
+    payment_terms = src.payment_terms, incoterm = src.incoterm, expiry_date = src.expiry_date,
+    needs_review = src.needs_review, extraction_raw = src.extraction_raw, extracted_at = src.extracted_at
+  WHEN NOT MATCHED THEN INSERT
+    (doc_id, supplier_id, file_name, contract_number, otd_commitment, otd_basis, penalty_pct,
+     penalty_cap_usd, lead_time_days, payment_terms, incoterm, expiry_date, needs_review,
+     extraction_raw, extracted_at)
+  VALUES
+    (src.doc_id, src.supplier_id, src.file_name, src.contract_number, src.otd_commitment,
+     src.otd_basis, src.penalty_pct, src.penalty_cap_usd, src.lead_time_days, src.payment_terms,
+     src.incoterm, src.expiry_date, src.needs_review, src.extraction_raw, src.extracted_at);
+    IF (attempt = 1) THEN merged := SQLROWCOUNT; END IF;
+    SELECT COUNT(*) INTO :failed FROM CANONICAL.DIM_SUPPLIER_CONTRACT
+     WHERE extraction_raw:response IS NULL OR IS_NULL_VALUE(extraction_raw:response);
+    IF (failed = 0) THEN BREAK; END IF;
+    mode := 'RETRY';
+  END FOR;
+  RETURN merged;
+END;
+$$;
+
+CALL GOVERNANCE.EXTRACT_SUPPLIER_CONTRACTS(NULL);
 
 -- ---------------------------------------------------------------------------
 -- 4. Extraction accuracy, measured. Field by field against the generator.
@@ -210,6 +287,10 @@ WITH j AS (
          c.incoterm AS x_inc, c.expiry_date AS x_exp, c.contract_number AS x_num
     FROM RAW.SUPPLIER_CONTRACT_TERMS_TRUTH t
     JOIN CANONICAL.DIM_SUPPLIER_CONTRACT c USING (supplier_id)
+    -- Only documents the generator wrote have ground truth. An amendment that
+    -- arrived through INGEST_SUPPLIER_CONTRACT would otherwise be "wrong" for
+    -- differing from the contract it replaced.
+    JOIN RAW.SUPPLIER_CONTRACT_DOC d ON d.supplier_id = c.supplier_id AND d.source = 'GENERATED'
 )
 SELECT field, COUNT(*) AS documents, COUNT_IF(ok) AS correct, ROUND(COUNT_IF(ok) / COUNT(*), 4) AS accuracy
 FROM (
@@ -365,9 +446,86 @@ CREATE OR REPLACE SEMANTIC VIEW SEMANTIC.SC_CONTRACT
   );
 
 -- ---------------------------------------------------------------------------
+-- 8. Ingest: one new or amended agreement, end to end.
+--
+-- Input:      a supplier id and the agreement as free text.
+-- Processing: file the document, AI_EXTRACT its terms (the same procedure the
+--             bulk load uses), refresh the search index, re-score compliance
+--             against the governed OTD.
+-- Output:     what was extracted, and the compliance verdict before and after.
+--
+-- The OTD in the verdict is never touched here: it is read from
+-- V_SUPPLIER_OTD_VERDICT like every other consumer, so an amendment can change
+-- what a supplier promised but never what the governed metric says they did.
+--
+-- To restore the generated corpus after a demo: node scripts/rebuild.mjs --only 16
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE GOVERNANCE.INGEST_SUPPLIER_CONTRACT(P_SUPPLIER_ID STRING, P_CONTRACT_TEXT STRING)
+  RETURNS VARIANT
+  LANGUAGE SQL
+  COMMENT = 'Files one supplier agreement (free text), extracts its terms with AI_EXTRACT, refreshes contract search, and returns the extracted terms with the compliance verdict before and after.'
+  EXECUTE AS OWNER
+AS
+$$
+DECLARE
+  known NUMBER;
+  before_row VARIANT;
+  after_row VARIANT;
+BEGIN
+  SELECT COUNT(*) INTO :known FROM RAW.SUPPLIER WHERE supplier_id = :P_SUPPLIER_ID;
+  IF (known = 0) THEN
+    RETURN OBJECT_CONSTRUCT('error', 'Unknown supplier ' || :P_SUPPLIER_ID || ' - contracts attach to a conformed SUPPLIER.');
+  END IF;
+  IF (P_CONTRACT_TEXT IS NULL OR LENGTH(TRIM(P_CONTRACT_TEXT)) < 40) THEN
+    RETURN OBJECT_CONSTRUCT('error', 'Contract text is empty or too short to extract from.');
+  END IF;
+
+  SELECT OBJECT_CONSTRUCT('otd_commitment', otd_commitment, 'otd_basis', otd_basis,
+                          'compliance_status', compliance_status, 'penalty_exposure_usd', penalty_exposure_usd)
+    INTO :before_row
+    FROM GOVERNANCE.V_SUPPLIER_CONTRACT_COMPLIANCE WHERE supplier_id = :P_SUPPLIER_ID;
+
+  MERGE INTO RAW.SUPPLIER_CONTRACT_DOC tgt
+  USING (SELECT :P_SUPPLIER_ID AS supplier_id, :P_CONTRACT_TEXT AS contract_text) src
+  ON tgt.supplier_id = src.supplier_id
+  WHEN MATCHED THEN UPDATE SET
+    contract_text = src.contract_text, source = 'INGESTED', loaded_at = CURRENT_TIMESTAMP(),
+    file_name = 'AMEND-' || src.supplier_id || '-' || TO_VARCHAR(CURRENT_TIMESTAMP(), 'YYYYMMDDHH24MISS') || '.txt'
+  WHEN NOT MATCHED THEN INSERT (doc_id, supplier_id, file_name, contract_text, source, loaded_at)
+    VALUES ('DOC-' || src.supplier_id, src.supplier_id,
+            'NEW-' || src.supplier_id || '-' || TO_VARCHAR(CURRENT_TIMESTAMP(), 'YYYYMMDDHH24MISS') || '.txt',
+            src.contract_text, 'INGESTED', CURRENT_TIMESTAMP());
+
+  CALL GOVERNANCE.EXTRACT_SUPPLIER_CONTRACTS(:P_SUPPLIER_ID);
+  ALTER CORTEX SEARCH SERVICE SEMANTIC.SUPPLIER_CONTRACT_SEARCH REFRESH;
+
+  SELECT OBJECT_CONSTRUCT(
+           'supplier', c.supplier_name,
+           'extracted', OBJECT_CONSTRUCT('otd_commitment', d.otd_commitment, 'otd_basis', d.otd_basis,
+                                         'penalty_pct', d.penalty_pct, 'penalty_cap_usd', d.penalty_cap_usd,
+                                         'lead_time_days', d.lead_time_days, 'payment_terms', d.payment_terms,
+                                         'incoterm', d.incoterm, 'needs_review', d.needs_review),
+           'governed_otd', c.governed_otd,
+           'legacy_otd', c.legacy_otd,
+           'compliance_status', c.compliance_status,
+           'penalty_exposure_usd', c.penalty_exposure_usd,
+           'penalty_hidden_by_legacy_usd', c.penalty_missed_by_legacy_usd,
+           'definition_conflict', c.definition_conflict)
+    INTO :after_row
+    FROM GOVERNANCE.V_SUPPLIER_CONTRACT_COMPLIANCE c
+    JOIN CANONICAL.DIM_SUPPLIER_CONTRACT d USING (supplier_id)
+   WHERE c.supplier_id = :P_SUPPLIER_ID;
+
+  RETURN OBJECT_CONSTRUCT('before', before_row, 'after', after_row);
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Access. Procurement owns contracts; the steward audits them. Planning and
 -- logistics see the governed OTD elsewhere and have no need of commercial terms.
 -- ---------------------------------------------------------------------------
+GRANT USAGE ON PROCEDURE GOVERNANCE.INGEST_SUPPLIER_CONTRACT(STRING, STRING) TO ROLE SC_PROCUREMENT;
+GRANT USAGE ON PROCEDURE GOVERNANCE.INGEST_SUPPLIER_CONTRACT(STRING, STRING) TO ROLE SC_ONTOLOGY_STEWARD;
 GRANT SELECT ON TABLE CANONICAL.DIM_SUPPLIER_CONTRACT              TO ROLE SC_PROCUREMENT;
 GRANT SELECT ON TABLE CANONICAL.DIM_SUPPLIER_CONTRACT              TO ROLE SC_ONTOLOGY_STEWARD;
 GRANT SELECT ON VIEW  GOVERNANCE.V_SUPPLIER_CONTRACT_COMPLIANCE    TO ROLE SC_PROCUREMENT;

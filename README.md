@@ -327,6 +327,20 @@ The divergence stops being a decimal and becomes a line item. Access follows the
 everything else: `SC_CONTRACT` and the search service are granted to procurement and the steward
 only, and `SC_PLANNER` is denied by Snowflake, not by the app (checked).
 
+**New agreements go through the same path.** `GOVERNANCE.INGEST_SUPPLIER_CONTRACT(supplier_id, text)`
+files the document, runs the *same* extraction procedure the bulk load uses
+(`EXTRACT_SUPPLIER_CONTRACTS`, with a retry for AI_EXTRACT's occasional transient empty response),
+refreshes the search index and returns the verdict before and after. Ingesting
+`docs/demo/amendment_SUP-00042.txt` (commitment raised from 85% to 87%) flips that supplier from
+`COMPLIANT` to `HIDDEN_BREACH` in about 9 seconds. `npm run demo-reset` restores the generated corpus.
+
+```bash
+npm run persona-proof   # 5 canonical metrics x 3 personas, each under its own role: 22 executions, all identical
+npm run demo-reset      # rebuilds sql/16 - the 300 generated contracts
+```
+
+The recorded walkthrough is [`docs/VIDEO_SCRIPT.md`](docs/VIDEO_SCRIPT.md).
+
 ---
 
 ## The impact scorecard
@@ -338,16 +352,16 @@ number and an explicit `MEASURED` or `ASSUMPTION` label.
 | Pillar | Measure | Value | Basis |
 |---|---|---|---|
 | Consistency | Metric bindings resolving to the canonical value | 15 / 15, zero spread | MEASURED |
-| Accuracy | Conversational eval pass rate, run as each persona | 86.7% (52 / 60) | MEASURED |
+| Accuracy | Conversational eval pass rate, run as each persona | 90.0% (54 / 60) | MEASURED |
 | Accuracy | Invented-metric questions correctly refused | 7 / 8 | MEASURED |
 | Accuracy | Cortex Agent reproduces the canonical definition | 4 / 4 reconciled, 0 diverge | MEASURED |
 | Accuracy | Contract terms extracted correctly by `AI_EXTRACT` | 100% of 2,700 fields | MEASURED |
 | Decisions | Suppliers the legacy definition wrongly clears | 12 of 300 (compliant list +22%) | MEASURED |
 | Money | Claimable contract penalties | $815,222 across 67 suppliers | MEASURED |
 | Money | Penalties hidden by the legacy definition | $178,832 across 18 suppliers | MEASURED |
-| Time | Mean time to a governed, persona-scoped answer | 18.4 s (p95 22.1 s) | MEASURED |
+| Time | Mean time to a governed, persona-scoped answer | 18.0 s (p95 20.1 s) | MEASURED |
 | Time | Manual reconciliation of a disputed cross-team metric | 4 h | **ASSUMPTION** |
-| Time | Speed-up versus that baseline | ~780x | **ASSUMPTION** (derived) |
+| Time | Speed-up versus that baseline | ~799x | **ASSUMPTION** (derived) |
 
 Exactly one input is assumed: how long a disputed metric takes to settle by hand (someone notices two
 decks disagree, two analysts reconcile, a steward rules). It is a single constant in the view, so
@@ -359,6 +373,33 @@ at 2026-09-30). The comparator was wrong: it scored that answer against the regi
 ratio (32.768548), a figure that sums a balance across 24 snapshots, which the ontology itself forbids.
 `scripts/parity.mjs` now compares snapshot metrics at the snapshot the question names, and the re-run
 reconciles 4 of 4.
+
+---
+
+## Trust, standards and reach
+
+Six increments (`18`-`23`) turn "the numbers agree" into something a buyer, an auditor and another
+team's agent can each check for themselves.
+
+| Increment | What it adds | Evidence today |
+|---|---|---|
+| `18` SCOR alignment | Every governed metric graded `EXACT` / `VARIANT` / `COMPONENT` / `NOT_IN_SCOR` against SCOR, with the difference written down | 3 exact (perfect order RL.1.1, OTD RL.2.2, days of inventory AM.2.2), 5 variant, 5 component, 2 declared not-in-SCOR |
+| `19` Trust signals | `SNOWFLAKE.CORE.CERTIFICATION_STATUS` on 10 semantic views and 6 canonical tables; 15 data-quality checks (system DMFs with expectations, re-run daily); `V_TRUST_SIGNALS` combines certification + DQ + drift into one trust level | 7 of 11 views `TRUSTED`; 3 `CERTIFIED_UNCHECKED` (no DQ monitor on their sources yet); the defect view `NOT_CERTIFIED` on purpose |
+| `20` MCP server | `SC_ONTOLOGY_MCP` exposes `governed_metric` (caller's rights procedure over `SC_ONTOLOGY_360`), the Cortex Agent and contract search. **No SQL tool.** | EU logistics 0.8959 vs global 0.8855 through MCP: the row access policy still applies |
+| `21` Demand-driven ontology | Every refused question classified by `AI_CLASSIFY` (`ACCESS_DENIED`, `GUARDRAIL`, `UNREGISTERED_METRIC`, `OUT_OF_SCOPE`); unregistered demand mapped to a candidate metric and ranked | Top asks: forecast totals, schedule adherence, scrap rate, forecast accuracy (`/impact`) |
+| `22` CI gate | `CI_GOVERNANCE_GATE()` raises on binding drift, a negative control that stops diverging, a failing DQ check, a certified defect view, extraction below 98% or an unmapped metric. `.github/workflows/governance-gate.yml` calls it over OIDC | One red run (defect view certified) and two green runs in `CI_GATE_RUN` |
+| `23` Breach digest | Weekly email: suppliers breaching on the governed number while passing on the legacy one, with exposure | Task created **suspended**; `CALL GOVERNANCE.CONTRACT_BREACH_DIGEST(FALSE)` previews it |
+
+In the app, the badge beside every `/ask` answer is `V_TRUST_SIGNALS` for `SC_ONTOLOGY_360`, and
+`/metrics` shows each metric's SCOR code. `/ontology` exports the ontology as **OWL/SKOS** (Turtle
+or JSON-LD, `GET /api/ontology?format=ttl`). The export is generated from the deployed view and the
+registry, not maintained by hand: entities become `owl:Class`, relationships `owl:ObjectProperty`
+with their join columns, metrics `skos:Concept`s linked to the entity they measure, and SCOR codes
+`skos:exactMatch` / `closeMatch` / `related` by alignment grade.
+
+To switch CI on, an admin runs `sql/ci/create_ci_user.sql`, which creates the OIDC service user
+`SVC_GITHUB_ACTIONS` bound to `repo:mahanteshimath/sc-ontology-app:ref:refs/heads/main`. The
+workflow then gates every push and pull request.
 
 ---
 
@@ -378,6 +419,9 @@ flowchart TB
     K6["document-intelligence + cortex-ai-function-studio<br/>AI_EXTRACT contracts (16)"]
     K7["lineage<br/>blast radius before changing a view"]
     K8["snowflake-apps<br/>Next.js app, app.yml"]
+    K9["certify-object + data-quality<br/>certification, DMFs, trust badge (19)"]
+    K10["cortex-ai-function-studio<br/>AI_CLASSIFY refusal roadmap (21)"]
+    K11["ci-cd<br/>governance gate over OIDC (22)"]
   end
   K1 --> K2
   K3 --> K2
@@ -387,6 +431,9 @@ flowchart TB
   K2 --> K8
   K4 --> K8
   K5 --> K8
+  K9 --> K8
+  K10 --> K2
+  K11 --> K4
 ```
 
 | Module | Files | Plugs in through |
@@ -397,6 +444,7 @@ flowchart TB
 | Proof | `00f` drift, `04`, `06`, `13`, `14`, `15`, `17`, `90`-`93` | Drift test, eval, parity, scorecard |
 | Conversation | `09`, `10`, `/api/ask` | Registry-assembled SQL under the persona's role; Cortex Agent with 11 tools (9 semantic views, contract search, charting) |
 | Prediction | `07b`, `08`, `08b` | Separate registry, excluded from the drift contract, always shown with its backtest |
+| Trust and reach | `18`-`23`, `/api/ontology`, `.github/workflows/` | SCOR grades, certification + DMFs, MCP server, refusal roadmap, CI gate, digest |
 
 > Confirm the skill-to-layer mapping against how your team actually built each file before
 > presenting it; the layer boundaries and file numbers are exact.
@@ -420,6 +468,10 @@ flowchart TB
 - **The pattern is industry-agnostic.** Registry, bindings, drift test, negative control and scored
   eval describe any domain where two teams compute "the same" metric - finance close, clinical
   operations, retail replenishment - with the supply chain entities swapped out.
+- **Other agents reuse the definitions instead of copying them.** The MCP server hands any MCP
+  client the governed metric, under the caller's own role, with no raw-SQL escape hatch.
+- **The backlog is measured, not guessed.** `V_ONTOLOGY_DEMAND` ranks the metrics people asked for
+  and were refused, so the next registry row is the one with demand behind it.
 - **Scale is Snowflake's.** 6.1M rows rebuild in ~4.5 minutes on one warehouse; the semantic views
   push computation to the engine, so volume is a warehouse-size decision, not a redesign.
 
@@ -434,6 +486,7 @@ flowchart TB
 │   ├── api/ask/             conversational resolution, persona-scoped execution
 │   ├── api/consistency/     one metric executed as every persona
 │   ├── api/drilldown/       exception rows behind a number
+│   ├── api/ontology/        the ontology as OWL/SKOS (Turtle or JSON-LD)
 │   └── …                    /, /operations, /metrics, /ontology, /consistency, /outlook, /ask
 ├── components/              presentational components (charts, tiles, brand mark)
 ├── lib/
@@ -441,6 +494,10 @@ flowchart TB
 │   ├── snowflake.ts         connection pooling, SPCS token / password / TOML auth
 │   ├── persona.ts           per-role connection pools, USE ROLE + secondary roles NONE
 │   ├── period.ts            reporting period and as-of resolution
+│   ├── ambiguity.ts         answers both metrics of an ambiguous pair (OTD, freight)
+│   ├── resolver-cache.ts    reuses a question-to-metric mapping, never a value
+│   ├── ontology-export.ts   entities, relationships, metrics, SCOR -> OWL/SKOS
+│   ├── whisper.worker.ts    on-device speech-to-text for the mic button (voice.ts helpers)
 │   └── auth.ts, session.ts  the demo sign-in gate
 ├── sql/                     every DDL statement, numbered in apply order  ← see 00_README.md
 ├── scripts/
@@ -449,12 +506,16 @@ flowchart TB
 │   ├── parity.mjs           Cortex Agent vs application vs CANONICAL_SQL
 │   ├── sf.mjs               shared Snowflake connection for the scripts that are not the rebuild
 │   ├── sq.mjs               run one statement or one file from the CLI, for inspection
-│   ├── smoke.mjs            21 end-to-end checks against a running instance
+│   ├── smoke.mjs            23 end-to-end checks against a running instance
+│   ├── probe-latency.mjs    cold vs repeated /api/ask, plus the two ambiguity questions
+│   ├── persona-proof.mjs    every metric under every persona's own role (npm run persona-proof)
 │   ├── smoke-outlook.mjs    11 checks on the prediction page
 │   ├── smoke-chat.mjs       25 checks on the conversational Ask layer, latency asserted
 │   ├── probe-asof.mjs       10 reporting-period edge cases
 │   └── set-vercel-env.ps1   pushes Snowflake settings to Vercel without printing the password
 ├── __tests__/               vitest — mocks lib/snowflake
+├── .github/workflows/       governance-gate.yml: unit tests + CI_GOVERNANCE_GATE over OIDC
+├── docs/                    demo, video script, submission deck, judge Q&A
 ├── app.yml                  Snowflake App Runtime manifest (version: 2)
 └── AGENTS.md                APPLICATION SERVICE operations reference
 ```
@@ -555,14 +616,29 @@ statement boundaries. Use the runner, not `snow sql`, for `00f`, `01` and `07`.
 | 15 | `08_prediction_layer.sql` | `SNOWFLAKE.ML` forecast and anomaly models (~112 s) |
 | 16 | `08b_persist_forecast.sql` | persists and backtests the volume forecast (~88 s) |
 | 17 | `09_agent_eval.sql` | the 60-question evaluation set, with 3 self-assertions |
-| 18 | `10_agent.sql` | `SC_ONTOLOGIST_AGENT` and its 9 tools |
-| 19 | `10b_geospatial_reference.sql` | geocoded network nodes, region-hub lane geometry and chokepoint reference data |
-| 20 | `10c_network_risk_scenarios.sql` | simulated network-risk scenario and lane-level impact assumptions |
-| 21 | `11_iot_telemetry.sql` | `FCT_SHIPMENT_TELEMETRY`, `SC_TELEMETRY`, the `temp_excursion_rate` metric — closes the IoT gap named in the brief |
-| 22 | `90_verify_base.sql` | splice anchors, registry shape, verified-query counts, agent exists, **the drift gate** |
-| 23 | `91_verify_personas.sql` | proves the EU row scope actually filters |
-| 24 | `92_verify_counts.sql` | row counts, snapshot cardinality, data shape |
-| 25 | `93_verify_verified_queries.sql` | **executes** all 39 verified queries |
+| 18 | `16_supplier_contracts.sql` | 300 contracts, `AI_EXTRACT`, Cortex Search, `SC_CONTRACT` — **must precede `10`** |
+| 19 | `10_agent.sql` | `SC_ONTOLOGIST_AGENT` and its 11 tools |
+| 20 | `10b_geospatial_reference.sql` | geocoded network nodes, region-hub lane geometry and chokepoint reference data |
+| 21 | `10c_network_risk_scenarios.sql` | simulated network-risk scenario and lane-level impact assumptions |
+| 22 | `11_iot_telemetry.sql` | `FCT_SHIPMENT_TELEMETRY`, `SC_TELEMETRY`, the `temp_excursion_rate` metric |
+| 23 | `12_ontology_hierarchy.sql` | declared drill paths, validated against the view and the data |
+| 24 | `13_divergence_impact.sql` | what the legacy spread costs, counted in supplier decisions |
+| 25 | `14_agent_eval_run.sql` | where `scripts/eval.mjs` records a scored run |
+| 26 | `15_agent_parity.sql` | where `scripts/parity.mjs` records agent-vs-application parity |
+| 27 | `17_impact_scorecard.sql` | `V_IMPACT_SCORECARD`, every figure labelled `MEASURED` or `ASSUMPTION` |
+| 28 | `18_scor_alignment.sql` | `METRIC_SCOR_ALIGNMENT`: every metric graded against SCOR |
+| 29 | `19_trust_signals.sql` | certification tags, 15 DMF checks, daily `RUN_DQ_CHECKS`, `V_TRUST_SIGNALS` |
+| 30 | `20_mcp_server.sql` | `GOVERNED_METRIC` (caller's rights) and MCP server `SC_ONTOLOGY_MCP` |
+| 31 | `21_ontology_demand.sql` | refusals classified by `AI_CLASSIFY`, `V_ONTOLOGY_DEMAND`, weekly task |
+| 32 | `22_ci_gate.sql` | `CI_GOVERNANCE_GATE()`, `CI_GATE_RUN`, role `SC_CI_GATE` |
+| 33 | `23_contract_digest.sql` | `CONTRACT_BREACH_DIGEST`, weekly task created **suspended** |
+| 34 | `90_verify_base.sql` | splice anchors, registry shape, verified-query counts, agent exists, **the drift gate** |
+| 35 | `91_verify_personas.sql` | proves the EU row scope actually filters |
+| 36 | `92_verify_counts.sql` | row counts, snapshot cardinality, data shape |
+| 37 | `93_verify_verified_queries.sql` | **executes** all 39 verified queries |
+
+The runner's `FILES` list in `scripts/rebuild.mjs` is authoritative; `sql/ci/create_ci_user.sql` is
+deliberately **not** in it (it creates a service user and must be run by an admin who has agreed to it).
 
 `sql/00_README.md` carries the full rationale. Two ordering facts matter:
 
@@ -701,6 +777,12 @@ Four rules, enforced rather than documented:
 | `GOVERNANCE.RAP_SHIP_REGION` (row access policy) | Restricts outbound rows by destination region, driven by the mapping table rather than a hardcoded role name. |
 | `GOVERNANCE.METRIC_DRIFT_TEST_DAILY` (task) | Runs the drift test at 06:00 UTC, serverless X-Small. |
 | `GOVERNANCE.METRIC_DRIFT_FAILED` (alert) | Hourly; logs any new failing run and emails via `SC_GOVERNANCE_EMAIL`. |
+| `GOVERNANCE.METRIC_SCOR_ALIGNMENT` | Each metric's SCOR code and an honest alignment grade. Documentation only; never an input. |
+| `GOVERNANCE.V_TRUST_SIGNALS` | Per semantic view: certification tag + DQ checks passing + drift bindings passing, as one trust level. Feeds the `/ask` badge. |
+| `GOVERNANCE.DQ_CHECK` / `DQ_CHECK_RESULT` (task `DQ_CHECK_DAILY`) | 15 system-DMF checks with expectations on the canonical facts, re-run at 05:35 UTC. |
+| `GOVERNANCE.SC_ONTOLOGY_MCP` (MCP server) | `governed_metric`, the agent and contract search for MCP clients; caller's rights, no SQL tool. |
+| `GOVERNANCE.V_ONTOLOGY_DEMAND` / `V_REFUSAL_MIX` | Refused questions, classified weekly by `AI_CLASSIFY`: the ontology's measured backlog. |
+| `GOVERNANCE.CI_GOVERNANCE_GATE()` | Raises (fails CI) on drift, DQ, negative-control, certification, extraction or SCOR regressions; logs to `CI_GATE_RUN`. |
 
 ### The trust boundary
 
@@ -998,15 +1080,20 @@ and not the question.
 | Run | Passed | Refusals | Traps |
 |---|---|---|---|
 | Before the prompt corrections | **47 / 60** | 7/8 | 2/4 |
-| After | **52 / 60** | 7/8 | 3/4 |
+| After the prompt corrections | **52 / 60** | 7/8 | 3/4 |
+| After deterministic disambiguation (`lib/ambiguity.ts`) | **54 / 60** | 7/8 | 3/4 |
 
-The eight remaining failures are published on `/consistency` rather than trimmed, and they are not
+The six remaining failures are published on `/consistency` rather than trimmed, and they are not
 all the same kind of thing:
 
-- **Supersets** (Q03, Q22) — still returns a related metric nobody asked for. Genuine.
-- **Ambiguity** (Q54, Q55) — commits to one of two competing metrics instead of asking. This one
-  **regressed**: making the resolver less eager to refuse also made it more willing to commit, which
-  is the honest cost of the fix above and is recorded rather than smoothed over.
+- **Supersets and near-misses** (Q03, Q20, Q22) — a related metric nobody asked for, or the total
+  where the per-unit figure was asked. Genuine.
+- **Ambiguity** (Q54, Q55) — *fixed.* The prompt corrections made the resolver more willing to
+  commit to one of two competing metrics; `lib/ambiguity.ts` now answers both members of the pair,
+  labelled, whenever the question does not pick a side. Ambiguity went from 7 to 9 correct.
+- **Future-dated trap** (Q60) — refuses *"on-time delivery including orders due next week"*
+  although the as-of rule already excludes those rows. The prompt says so; the model still refuses
+  about half the time.
 - **Predictions** (Q44) — `/ask` does not route to the prediction registry at all, so a
   forward-looking question cannot be answered on that path. An architectural gap, correctly exposed.
 - **Judgement** (Q50, *"which supplier should we terminate?"*) — surfaces the relevant metrics
@@ -1108,6 +1195,29 @@ for a breakdown got one number and nothing to chart. `runRowsAsRole` in `lib/per
 rows under the same role assumption, so a row-scoped persona now gets a genuinely shorter list of
 categories rather than a flattened one. `runAsRole` keeps its scalar contract because
 `/api/consistency` depends on it.
+
+**Ambiguous names get both metrics, in code.** "On-time delivery" is two governed metrics (supplier
+OTD, inbound; customer OTD, outbound), and so is "freight cost" (accrued vs invoiced). The prompt
+asked the model to treat an unqualified question as ambiguous; it regularly picked one side anyway
+(eval Q54, Q55). `lib/ambiguity.ts` now enforces it after the model answers: if exactly one member
+of a pair is chosen and the question carries no qualifier (supplier, customer, inbound, invoiced,
+a breakdown...), both are answered and the reason says why. It only adds a metric the persona is
+already offered, so a tie-break never widens access.
+
+**A repeated question reuses the mapping, never the number.** `lib/resolver-cache.ts` keys the
+resolver's output on a hash of every prompt input (model, the persona's offered catalogue, denied
+metrics, dimensions, conversation, reporting period and the normalised question). A hit skips
+`AI_COMPLETE`; the governed SQL still executes under the persona's role, and the answer carries a
+*mapping reused · value live* chip. Measured locally with `node scripts/probe-latency.mjs`: 16-20 s
+cold, **1.7 s** repeated, identical value. The snapshot-date lookup now runs while the model is
+thinking rather than after it.
+
+**Voice input stays on the device.** The mic button in the composer records up to 20 s, and
+Whisper (`Xenova/whisper-base.en` via transformers.js) transcribes it in a Web Worker, on WebGPU
+where the browser has it and WebAssembly otherwise. Audio is never uploaded. The transcript is put
+in the box, not sent, so a mis-heard word is caught before it becomes a question; common
+supply-chain terms (OTD, OTIF, PPV, SKU, fill rate) are normalised (`lib/voice.ts`). The model
+downloads once, on first use, into the browser cache.
 
 Verify the whole path against a deployment with `node scripts/smoke-chat.mjs` (25 checks, including
 latency as an assertion).
@@ -1332,11 +1442,11 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
   asserted by `sql/90` and `sql/93`.
 - **The 60 evaluation questions are scored, and they do not all pass.** `npm run eval` runs every
   question over HTTP as its own persona and records the result in `GOVERNANCE.AGENT_EVAL_RUN`. The
-  last run is **52/60**, with 7/8 refusals and 3/4 traps correct. Failures are published on
+  last run is **54/60** (90%), with 7/8 refusals and 3/4 traps correct. Failures are published on
   `/consistency` rather than trimmed, because an accuracy figure without the failures behind it is a
-  scoreboard rather than a diagnostic. The four classes of remaining failure are listed under
-  [Scoring the conversational layer](#scoring-the-conversational-layer); one of them (ambiguity)
-  is a measured regression from fixing a worse problem, and is recorded as such.
+  scoreboard rather than a diagnostic. The remaining failure classes are listed under
+  [Scoring the conversational layer](#scoring-the-conversational-layer); the ambiguity regression
+  recorded in the previous run is fixed in code (`lib/ambiguity.ts`), not by re-grading.
 - **Agent parity is a recorded run, not a live one.** A full Cortex Agent turn routinely exceeds the
   serverless budget, so `/consistency` reads the last `npm run parity` result with its timestamp,
   the same way it reads the last drift run. The last run reconciles **4 of 4**: on every metric the
@@ -1348,10 +1458,19 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
   non-trivial, with ground truth kept for scoring. Real agreements are longer and messier; the
   pattern (extract, score against a labelled sample, route low-certainty terms to review) is what
   carries over, not the 100% figure.
-- **`/api/ask` takes 5–11s warm and ~14s cold**, and the evaluation run measures ~18s per question Split across two calls so the number appears before
-  the prose, but it is not fast. The dominant costs are the resolver model call and establishing a
+- **A first-time `/api/ask` question takes 5–11s warm and ~14s cold**, and the evaluation run
+  measures ~18s per question. It is split across two calls so the number appears before the
+  prose, but it is not fast. The dominant costs are the resolver model call and establishing a
   fresh per-role Snowflake connection; the per-role pools are `min: 0`, so the first request for a
-  persona pays connection setup.
+  persona pays connection setup. A *repeated* question is ~1.7s, because the mapping is reused (the
+  cache is in-process, so it is per instance and empties on restart).
+- **Voice input needs a browser with `MediaRecorder` and Web Workers** (current Chrome, Edge,
+  Firefox, Safari) and a one-time model download. The button hides itself where recording is
+  unsupported, and English is the only language tuned.
+- **Three certified views are not yet `TRUSTED`.** `SC_DEMAND`, `SC_MANUFACTURING` and `SC_OUTLOOK`
+  are certified but have no data-quality check on their source tables, and the badge says so.
+- **CI is wired but not switched on.** The workflow needs the OIDC service user from
+  `sql/ci/create_ci_user.sql`, which has not been created on this account.
 - **The Vercel function ceiling is not known precisely.** `lib/env.ts` previously asserted 10s on
   Hobby; production has since served 12s requests successfully, so that figure was stale. The exact
   limit is deliberately not restated as a number — measure it with `scripts/smoke-chat.mjs`. The
@@ -1368,18 +1487,17 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 
 ## Roadmap
 
-1. **Raise conversational accuracy on the four named failure classes** — supersets, ambiguity,
-   predictions, judgement. Feed the recorded failures back into the catalogue descriptions and the
-   verified-query set rather than loosening the scoring rule. The ambiguity regression is the first
-   one to chase: the resolver needs to distinguish "do not refuse for a reason the app has already
-   handled" from "do not commit when two metrics genuinely compete".
+1. **Raise conversational accuracy on the named failure classes** — supersets, predictions,
+   judgement and the future-dated trap. Feed the recorded failures back into the catalogue
+   descriptions and the verified-query set rather than loosening the scoring rule. (Ambiguity is
+   done: `lib/ambiguity.ts` took it from 7 to 9 correct.)
 2. **Route `/ask` to the prediction registry** so a forward-looking question (Q44) is answerable at
    all, labelled a prediction and quoted with its backtested accuracy.
 3. **Fix the `days_of_inventory` verified query** that `npm run parity` reports as `DIVERGE`, and
    re-run parity to confirm.
-4. **Reduce first-turn latency.** Warm the per-role connection pools, or cache the registry and
-   dimension catalogue across requests so a turn is one model call plus one query rather than three
-   round trips.
+4. **Reduce first-turn latency.** Repeated questions are now ~1.7s (mapping reuse); a *new* question
+   still pays the model call. Next: warm the per-role pools at start-up and move the resolver cache
+   to a shared store so it survives restarts and spans instances.
 5. **Measure the drift procedure against Vercel** and re-enable the button if ~25s now completes,
    replacing the assumption in `lib/env.ts` with a measurement.
 6. **Replace illustrative targets** with committed business targets, and record provenance in
@@ -1389,6 +1507,11 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 8. **Front the app with SSO** and enable `CALLERS_RIGHTS=1` once real users hold the grants.
 9. **Feed `AGENT_IMPROVEMENT_CANDIDATE` back into the ontology** — the log now receives every turn, so
    turn the top-ranked unstable resolutions into synonyms or new verified queries.
+10. **Promote the top of `V_ONTOLOGY_DEMAND`.** Forecast totals and schedule adherence are the most
+    requested unregistered metrics; each is one registry row plus bindings once its definition is
+    agreed.
+11. **Add DQ checks for the three `CERTIFIED_UNCHECKED` views** so every certified view is `TRUSTED`
+    or says why not.
 ---
 
 ## Contributing

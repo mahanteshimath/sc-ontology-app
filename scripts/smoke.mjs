@@ -47,8 +47,9 @@ function check(name, ok, detail = "") {
 const { username, password, role } = demoCredentials()
 
 // --- the gate ---------------------------------------------------------------
-const anonPage = await fetch(`${BASE}/`, { redirect: "manual" })
-check("unauthenticated page is redirected", anonPage.status === 307, `status ${anonPage.status}`)
+// "/" is the public product overview (proxy.ts); every data-bearing page must redirect.
+const anonPage = await fetch(`${BASE}/metrics`, { redirect: "manual" })
+check("unauthenticated data page is redirected", anonPage.status === 307, `status ${anonPage.status}`)
 
 const anonApi = await fetch(`${BASE}/api/drilldown`, {
   method: "POST",
@@ -106,6 +107,15 @@ const drill = await fetch(`${BASE}/api/drilldown`, {
 }).then((r) => r.json())
 check("drill-down returns exception rows", drill.total > 0 && drill.rows?.length === 5, `total ${drill.total}`)
 check("drill-down excludes future-dated rows", /CURRENT_DATE\(\)/.test(drill.sql ?? ""))
+
+// --- ontology export --------------------------------------------------------
+const jsonld = await fetch(`${BASE}/api/ontology`, { headers: { cookie } }).then((r) => r.json())
+const graph = jsonld["@graph"] ?? []
+const classes = graph.filter((n) => n["@type"] === "owl:Class" && n["sc:baseObject"]).length
+const metricsOut = graph.filter((n) => Array.isArray(n["@type"]) && n["@type"].includes("sc:GovernedMetric")).length
+check("ontology export has entity classes and governed metrics", classes > 0 && metricsOut > 0, `${classes} classes, ${metricsOut} metrics`)
+const ttl = await fetch(`${BASE}/api/ontology?format=ttl`, { headers: { cookie } })
+check("ontology export serves Turtle", ttl.headers.get("content-type")?.startsWith("text/turtle") && (await ttl.text()).includes("a owl:Ontology"))
 
 // --- persona is enforced ----------------------------------------------------
 const ask = await fetch(`${BASE}/api/ask`, {

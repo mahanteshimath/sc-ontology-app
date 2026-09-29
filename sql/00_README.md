@@ -48,6 +48,12 @@ Useful flags: `--dry-run`, `--only 00c`, `--from 01`, `--verify`.
 | 12 | `11_iot_telemetry.sql` | `CANONICAL.FCT_SHIPMENT_TELEMETRY`, `SEMANTIC.SC_TELEMETRY`, the `temp_excursion_rate` metric — splices `SHIPMENT_TELEMETRY` into the already-live `SC_ONTOLOGY_360` |
 | 12a | `12`–`15` | hierarchies, divergence impact, eval run, agent parity |
 | 12b | `17_impact_scorecard.sql` | `GOVERNANCE.V_IMPACT_SCORECARD` — every measured outcome, labelled `MEASURED` or `ASSUMPTION`; needs `13`–`16` |
+| 12c | `18_scor_alignment.sql` | `GOVERNANCE.METRIC_SCOR_ALIGNMENT` — each metric graded `EXACT` / `VARIANT` / `COMPONENT` / `NOT_IN_SCOR` |
+| 12d | `19_trust_signals.sql` | certification tags on views and facts, `DQ_CHECK` (15 DMF checks), `RUN_DQ_CHECKS` + daily task, `V_TRUST_SIGNALS` |
+| 12e | `20_mcp_server.sql` | `GOVERNED_METRIC` (caller's rights) and the MCP server `SC_ONTOLOGY_MCP` — no SQL tool |
+| 12f | `21_ontology_demand.sql` | `CLASSIFY_QUESTION_DEMAND` (`AI_CLASSIFY`), weekly task, `V_ONTOLOGY_DEMAND`, `V_REFUSAL_MIX` |
+| 12g | `22_ci_gate.sql` | `CI_GOVERNANCE_GATE()`, `CI_GATE_RUN`, role `SC_CI_GATE` — needs `16`, `18`, `19` |
+| 12h | `23_contract_digest.sql` | `CONTRACT_BREACH_DIGEST` and its weekly task, created **suspended** (resuming it sends email) |
 | 13 | `90_verify_base.sql` | splice-anchor assertions, registry shape, the drift gate |
 | 14 | `91_verify_personas.sql` | proves the EU row scope is live |
 | 15 | `92_verify_counts.sql` | row counts, snapshot cardinality, future-dated share |

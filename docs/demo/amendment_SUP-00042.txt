@@ -1,0 +1,21 @@
+AMENDMENT No. 2 to Supply Agreement SCA-0042-2024
+Between Buyer and Supplier 0042 Materials (APAC)
+Effective: October 1, 2026
+
+The parties agree that the following clauses replace the corresponding clauses of the
+original agreement in their entirety.
+
+Clause 4.1 - Delivery performance.
+Supplier shall deliver no fewer than 87% of purchase order lines on or before the confirmed
+delivery date. Performance is measured across all purchase order lines received, each line
+counting equally.
+
+Clause 5 - Service credits.
+For any shortfall against clause 4.1, Supplier shall credit Buyer 4% of the invoiced value of
+each late line, not to exceed USD 100,000 per contract year.
+
+Clause 7 - Commercial terms.
+Standard lead time is 30 calendar days from order acknowledgement. Payment terms remain Net 60.
+Goods are delivered DAP (Incoterms 2020).
+
+All other terms of the agreement remain unchanged.

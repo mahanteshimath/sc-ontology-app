@@ -227,6 +227,16 @@ SELECT hierarchy_id, level_no, dimension_ref, resolves, rollup_status,
         </div>
       </section>
 
+      <section className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-4 py-3 text-sm">
+        <span className="font-semibold">Export as OWL/SKOS</span>
+        <a className="underline underline-offset-4" href="/api/ontology?format=ttl&download=1">Turtle (.ttl)</a>
+        <a className="underline underline-offset-4" href="/api/ontology?download=1">JSON-LD (.jsonld)</a>
+        <span className="text-xs text-muted-foreground">
+          Generated from the deployed view and the metric registry, with SCOR codes as skos:exactMatch/closeMatch.
+          Opens in Protégé or any triple store.
+        </span>
+      </section>
+
       <Provenance label="Source of this page">
         {`SELECT * FROM SUPPLY_CHAIN.GOVERNANCE.ONTOLOGY_ENTITY       WHERE semantic_view = 'SC_ONTOLOGY_360';
 SELECT * FROM SUPPLY_CHAIN.GOVERNANCE.ONTOLOGY_RELATIONSHIP WHERE semantic_view = 'SC_ONTOLOGY_360';

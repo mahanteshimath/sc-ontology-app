@@ -343,4 +343,34 @@ describe("POST /api/ask", () => {
     expect(res.status).toBe(500)
     expect((await res.json()).error).toContain("warehouse suspended")
   })
+
+  /**
+   * The resolver cache reuses a mapping, never a number: the second ask skips AI_COMPLETE but
+   * still executes the governed query, and says it reused the mapping.
+   */
+  it("reuses the resolver mapping for a repeated question but still executes the query", async () => {
+    resolverReturns({ answerable: true, metricIds: ["otd_pct"], dimension: null, reason: "ok" })
+    const { POST } = await import("../../app/api/ask/route")
+
+    const first = await (await POST(request({ question: "What is customer on-time delivery?" }))).json()
+    const second = await (await POST(request({ question: "what is customer on-time delivery" }))).json()
+
+    const llmCalls = querySnowflake.mock.calls.filter((c) => /AI_COMPLETE/.test(String(c[0])))
+    expect(llmCalls).toHaveLength(1)
+    expect(first.resolverCached).toBe(false)
+    expect(second.resolverCached).toBe(true)
+    expect(second.metrics.map((m: { metricId: string }) => m.metricId)).toEqual(["otd_pct"])
+    expect(querySemanticView).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not reuse a mapping across different reporting periods", async () => {
+    resolverReturns({ answerable: true, metricIds: ["otd_pct"], dimension: null, reason: "ok" })
+    const { POST } = await import("../../app/api/ask/route")
+
+    await POST(request({ question: "What is customer on-time delivery?", period: "last-month" }))
+    await POST(request({ question: "What is customer on-time delivery?", period: "t3m" }))
+
+    const llmCalls = querySnowflake.mock.calls.filter((c) => /AI_COMPLETE/.test(String(c[0])))
+    expect(llmCalls).toHaveLength(2)
+  })
 })

@@ -72,6 +72,8 @@ import { resolvePeriod, periodFilters, snapshotFilters } from "@/lib/period"
 import { currentSession } from "@/lib/session"
 import { RESOLVER_MODEL, ONTOLOGY_VIEW } from "@/lib/constants"
 import { buildChart, type ChartSpec } from "@/lib/chart"
+import { disambiguate } from "@/lib/ambiguity"
+import { resolverCacheKey, getCachedResolution, setCachedResolution } from "@/lib/resolver-cache"
 
 export const dynamic = "force-dynamic"
 
@@ -434,10 +436,30 @@ Rules:
 Reply with ONLY a JSON object:
 {"answerable": true|false, "metricIds": ["..."], "dimension": "entity.dimension"|null, "reason": "one sentence"}`
 
-    const llmRows = await querySnowflake(`SELECT AI_COMPLETE(?, ?) AS RESOLUTION`, {
-      binds: [RESOLVER_MODEL, prompt],
+    // Snapshot-date lookup does not depend on the resolver, so it runs while the model thinks.
+    // The catch only stops an unused rejection being reported as unhandled; awaiting it below
+    // still throws.
+    const snapshotDateLookup = getLatestSnapshotDate(period.to ?? period.asOf)
+    snapshotDateLookup.catch(() => {})
+
+    const cacheKey = resolverCacheKey({
+      model: RESOLVER_MODEL,
+      question,
+      catalogue,
+      dimensions: dimCatalogue,
+      denied: deniedBlock,
+      conversation: conversationBlock,
+      period: period.description,
     })
-    const resolution = extractJson(String(llmRows[0]?.RESOLUTION ?? ""))
+    let resolution = getCachedResolution<Resolution>(cacheKey)
+    const resolverCached = resolution !== null
+    if (!resolution) {
+      const llmRows = await querySnowflake(`SELECT AI_COMPLETE(?, ?) AS RESOLUTION`, {
+        binds: [RESOLVER_MODEL, prompt],
+      })
+      resolution = extractJson(String(llmRows[0]?.RESOLUTION ?? ""))
+      if (resolution) setCachedResolution(cacheKey, resolution)
+    }
 
     if (!resolution) {
       const reason = "The resolver did not return a usable mapping. Please rephrase the question."
@@ -457,9 +479,18 @@ Reply with ONLY a JSON object:
     }
 
     // Validate every choice against the registry — the LLM's output is never trusted directly.
-    const chosen = resolution.metricIds
+    // Then apply the one rule the model keeps ignoring: an unqualified "on-time delivery" or
+    // "freight cost" names two metrics, so both are answered (lib/ambiguity.ts). Only metrics this
+    // persona is already offered can be added.
+    const disambiguation = disambiguate(
+      question,
+      resolution.metricIds,
+      available.map((a) => a.metric.metricId),
+    )
+    const chosen = disambiguation.metricIds
       .map((id) => available.find((a) => a.metric.metricId === id))
       .filter((x): x is { metric: (typeof registry)[number]; ref: string } => x !== undefined)
+    if (disambiguation.note) resolution.reason = `${disambiguation.note} ${resolution.reason ?? ""}`.trim()
 
     const validDimension =
       resolution.dimension && dimensions.some((d) => d.ref === resolution.dimension)
@@ -490,7 +521,7 @@ Reply with ONLY a JSON object:
     // is split into two queries so neither is computed on the other's terms.
     const realized = chosen.filter((c) => c.metric.asOfScope !== "SNAPSHOT")
     const snapshot = chosen.filter((c) => c.metric.asOfScope === "SNAPSHOT")
-    const snapshotDate = snapshot.length > 0 ? await getLatestSnapshotDate(period.to ?? period.asOf) : null
+    const snapshotDate = snapshot.length > 0 ? await snapshotDateLookup : null
 
     const dims = validDimension ? [validDimension] : []
     const groups: { refs: string[]; filters: SemanticFilter[]; scope: string }[] = []
@@ -626,6 +657,7 @@ Reply with ONLY a JSON object:
       rows: capped,
       rowCount: rows.length,
       snapshotDate,
+      resolverCached,
       sql: sqlByGroup.join("\n\n"),
     })
   } catch (e) {

@@ -3,7 +3,7 @@ import Link from "next/link"
 import { RefreshCw, ShieldCheck } from "lucide-react"
 import { PageShell, Section, SectionSkeleton } from "@/components/ui-kit"
 import { PeriodControl } from "@/components/period-control"
-import { getPersonas, getMetricRegistry } from "@/lib/sc"
+import { getPersonas, getMetricRegistry, getTrustSignals } from "@/lib/sc"
 import { resolvePeriod, type ResolvedPeriod } from "@/lib/period"
 import { currentSession } from "@/lib/session"
 import { AskChat } from "@/components/ask-chat"
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic"
 
 /** The chat needs the persona catalogue and the metric count, so it loads in its own section. */
 async function AskBody({ period }: { period: ResolvedPeriod }) {
-  const [personas, registry] = await Promise.all([getPersonas(), getMetricRegistry()])
+  const [personas, registry, trust] = await Promise.all([getPersonas(), getMetricRegistry(), getTrustSignals()])
   const session = await currentSession()
 
   /**
@@ -41,6 +41,8 @@ async function AskBody({ period }: { period: ResolvedPeriod }) {
         rowScope: p.rowScope,
       }))}
       metricCount={registry.length}
+      // Every /ask answer executes on SC_ONTOLOGY_360, so that is the view whose trust is shown.
+      trust={trust.find((t) => t.semanticView === "SC_ONTOLOGY_360") ?? null}
       period={{
         id: period.id,
         from: period.from,

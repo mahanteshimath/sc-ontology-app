@@ -97,6 +97,15 @@ function MetricRow({ m, outlooks = [] }: { m: MetricDefinition; outlooks?: Metri
               <span className="u-subhead block truncate">{m.businessName}</span>
               <span className="u-mono text-muted-foreground flex items-center gap-2">
                 {m.metricId}
+                {m.scor && (
+                  <span
+                    title={`SCOR ${m.scor.attribute} / ${m.scor.process}: ${m.scor.metric} (${m.scor.alignment})`}
+                    className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border border-border bg-secondary/70"
+                  >
+                    SCOR {m.scor.code ?? m.scor.attribute}
+                    {m.scor.alignment !== "EXACT" && <span className="font-normal normal-case opacity-70">{m.scor.alignment.toLowerCase().replace(/_/g, " ")}</span>}
+                  </span>
+                )}
                 {outlooks.length > 0 && (
                   <span className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/15 text-[var(--link)] border border-[var(--brand-primary)]/30">
                     Forecast
@@ -165,6 +174,17 @@ function MetricRow({ m, outlooks = [] }: { m: MetricDefinition; outlooks?: Metri
           <Field label="Version" mono>
             v{m.version} from {m.effectiveFrom}
           </Field>
+          {m.scor && (
+            <Field label={`SCOR alignment - ${m.scor.alignment.replace(/_/g, " ")}`}>
+              <span className="font-medium">
+                {m.scor.code ? `${m.scor.code} ` : ""}
+                {m.scor.metric}
+              </span>
+              <span className="block u-meta leading-relaxed">
+                {m.scor.attribute} / {m.scor.process}. {m.scor.note}
+              </span>
+            </Field>
+          )}
         </dl>
 
         <div className="grid gap-5 md:grid-cols-2">

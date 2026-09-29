@@ -66,15 +66,20 @@ Source: `GOVERNANCE.V_DIVERGENCE_IMPACT`
               |
               v
  SEMANTIC  SC_ONTOLOGY_360 + 9 domain views   <-- the only query surface
+              |      CERTIFIED tag (SNOWFLAKE.CORE.CERTIFICATION_STATUS)
               |                      |
               v                      v
- GOVERNANCE  metric registry,     Cortex Agent (11 tools)
-   drift test (daily), persona         |
-   grants + row access policy          |
-              |                        |
-              v                        v
-         Next.js app: /ask, /consistency, /ontology, /impact ...
+ GOVERNANCE  metric registry + SCOR,  Cortex Agent (11 tools)
+   drift test (daily), 15 DMFs,          |        MCP server SC_ONTOLOGY_MCP
+   persona grants + row access policy,   |        (governed_metric, agent, search;
+   refusal classifier -> roadmap         |         no raw SQL tool)
+              |                          |               |
+              v                          v               v
+         Next.js app: /ask (voice), /consistency,    any MCP client
+         /ontology (OWL export), /impact              (IDE, other agents)
          queries run AS the persona's Snowflake role
+              ^
+ CI  GitHub Actions (OIDC) -> CALL CI_GOVERNANCE_GATE()  fails the PR on drift / DQ / certification
 ```
 
 Key point for the slide: **the drift test compares every view against an independent canonical SQL
@@ -90,12 +95,33 @@ on the atomic fact**, so two views cannot agree while both being wrong.
 | Drift test, daily schedule, alert, negative control | `00f`, `04`, `06` | `data-quality`, `snowflake-tasks`, `alert` |
 | Forecast and breach prediction | `07b`, `08` | `machine-learning` |
 | Contract extraction | `16` | `document-intelligence`, `cortex-ai-function-studio` |
+| SCOR industry alignment | `18` | `sql-author` |
+| Certification + data-quality monitors, trust badge | `19` | `certify-object`, `data-quality` |
+| MCP server for other agents | `20` | `sql-author` (no dedicated skill) |
+| Refusal classification -> ontology roadmap | `21` | `cortex-ai-function-studio` (AI_CLASSIFY) |
+| CI governance gate | `22`, `.github/workflows/governance-gate.yml` | `ci-cd` |
+| Weekly contract-breach digest | `23` | `snowflake-tasks`, `notification` |
 | Impact of changing a view | - | `lineage` |
-| App | `app/`, `app.yml` | `snowflake-apps` |
+| App (voice input, OWL/JSON-LD export) | `app/`, `app.yml` | `snowflake-apps` |
 
 Modules connect through three contracts only: atomic `CANONICAL` facts, the metric registry
 (`METRIC_DEFINITION` + `METRIC_BINDING`), and persona access (`PERSONA_VIEW_ACCESS` + row access
 policy). `node scripts/rebuild.mjs` rebuilds all of it, 6.1M rows, in ~4.5 minutes.
+
+**One workflow, end to end (the video):**
+
+```
+INPUT        docs/demo/amendment_SUP-00042.txt   (free text: commitment 85% -> 87%)
+   |  $document-intelligence
+PROCESSING   GOVERNANCE.INGEST_SUPPLIER_CONTRACT  -> AI_EXTRACT -> DIM_SUPPLIER_CONTRACT
+             -> search index refresh -> compliance re-scored against the governed OTD   (~9 s)
+   |  $data-quality
+PROOF        npm run persona-proof   5/5 metrics identical, 22 persona-scoped executions
+             METRIC_DRIFT_TEST()     every binding PASS, zero spread
+   |  $agent-studio  /  %SC_ONTOLOGIST_AGENT
+OUTPUT       "Which suppliers breached but look compliant?"  -> 19 suppliers, $196,156
+             (18 before the amendment - the new contract is already in the answer)
+```
 
 > Before presenting: confirm the skill column against how your team actually built each file.
 
@@ -108,17 +134,23 @@ policy). `node scripts/rebuild.mjs` rebuilds all of it, 6.1M rows, in ~4.5 minut
 | | Measure | Value |
 |---|---|---|
 | Consistency | Metric bindings matching the canonical value | **15 / 15, zero spread** |
-| Accuracy | Conversational eval, 60 questions, run as each persona | **86.7%** (52/60), failures published |
+| Consistency | Same metric, planning vs procurement vs logistics, each under its own role | **5 / 5 identical** (22 executions) |
+| Accuracy | Conversational eval, 60 questions, run as each persona | **90.0%** (54/60), failures published |
 | Accuracy | Cortex Agent vs app vs canonical SQL | **4 / 4 reconciled** |
 | Accuracy | Contract terms extracted by AI_EXTRACT | **2,700 / 2,700 fields** |
 | Decisions | Suppliers wrongly cleared by the legacy metric | **12** (compliant list +22%) |
 | Money | Claimable contract penalties | **$815,222** (67 suppliers) |
 | Money | Penalties hidden by the legacy metric | **$178,832** (18 suppliers) |
-| Time | Governed, persona-scoped answer | **18.4 s** mean |
-| Time | vs manual reconciliation (4 h, *assumed*) | ~780x faster *(assumption, labelled)* |
+| Trust | Semantic views certified + DQ-monitored + drift-checked (`TRUSTED`) | **7 / 11**; 3 certified but their source tables have no DQ monitor yet (shown as such, not as trusted); the defect view is deliberately uncertified |
+| Trust | Data-quality monitors on canonical facts (DMFs with expectations) | **15 / 15 passing** |
+| Standards | Governed metrics mapped to SCOR | **13 / 15** (3 exact, 5 variant, 5 component); 2 declared not-in-SCOR |
+| Time | Governed, persona-scoped answer | **18.0 s** mean (p95 20.1 s) |
+| Time | Same question again (mapping reused, value re-queried live) | **1.7 s** (was 16-20 s) |
+| Time | vs manual reconciliation (4 h, *assumed*) | ~799x faster *(assumption, labelled)* |
 
-Source: `GOVERNANCE.V_IMPACT_SCORECARD` - `/impact`. Every row names its source object; the only
-assumption is labelled as one.
+Source: `GOVERNANCE.V_IMPACT_SCORECARD` - `/impact`; trust rows `GOVERNANCE.V_TRUST_SIGNALS`; SCOR
+`GOVERNANCE.METRIC_SCOR_ALIGNMENT`; repeat latency `scripts/probe-latency.mjs`. Every row names its
+source object; the only assumption is labelled as one.
 
 ### 7. The finding nobody else will have
 
@@ -136,6 +168,17 @@ assumption is labelled as one.
 - **New document type reuses the contract pattern:** quality certificates, rate confirmations,
   customs declarations. Extract, score against a labelled sample, route low-certainty terms to
   review.
+- **The roadmap writes itself.** Every refused question is classified by AI_CLASSIFY (access denied /
+  guardrail / unregistered metric / out of scope). Unregistered-metric demand is ranked, so the
+  steward promotes what teams actually asked for - forecast totals and schedule adherence lead
+  today. Source: `GOVERNANCE.V_ONTOLOGY_DEMAND` - `/impact`.
+- **Every agent gets the same number.** `GOVERNANCE.SC_ONTOLOGY_MCP` exposes the governed metrics,
+  the agent and contract search over MCP, executing as the caller (row access policy honoured:
+  EU logistics gets 0.8959, global logistics 0.8855), with no raw-SQL tool.
+- **Portable ontology.** `/api/ontology` exports OWL/SKOS (Turtle or JSON-LD), generated from the
+  deployed view and the registry, with SCOR codes as `skos:exactMatch` / `closeMatch`.
+- **Governance in the build.** A PR that makes a binding drift, fails a DQ monitor, certifies the
+  defect view or leaves a metric SCOR-unmapped fails CI (`CI_GOVERNANCE_GATE`, proven red and green).
 - **Industry-agnostic.** Registry + bindings + drift test + negative control + scored eval applies
   anywhere two teams compute "the same" metric: finance close, clinical ops, retail.
 
@@ -150,8 +193,10 @@ assumption is labelled as one.
 
 ### Presenter notes
 
-- Prewarm before presenting: `SMOKE_BASE=<url> npm run prewarm` (`/api/ask` is ~14 s cold).
-- Demo click path: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md).
+- Prewarm before presenting: `SMOKE_BASE=<url> npm run prewarm` (`/api/ask` is ~14 s cold; a repeated
+  question is ~1.7 s because the resolver mapping is reused - the value is always re-queried).
+- Judge questions and prepared answers: [`JUDGE_QA.md`](JUDGE_QA.md).
+- Demo click path: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md). Recorded video: [`VIDEO_SCRIPT.md`](VIDEO_SCRIPT.md).
 - The data is synthetic and targets are `ILLUSTRATIVE`; say so once, then point out that the
   arithmetic is computed from the same atomic facts the governed metrics use.
 - Record a 2-3 minute fallback video of the demo; do not narrate a live outage.

@@ -121,6 +121,15 @@ export interface MetricDefinition {
   warnThreshold: number | null
   failThreshold: number | null
   targetSource: string | null
+  /** SCOR industry alignment (GOVERNANCE.METRIC_SCOR_ALIGNMENT). Documentation, never an input. */
+  scor?: {
+    code: string | null
+    metric: string
+    attribute: string
+    process: string
+    alignment: "EXACT" | "VARIANT" | "COMPONENT" | "NOT_IN_SCOR"
+    note: string
+  } | null
 }
 
 export interface OntologyEntity {
@@ -187,6 +196,8 @@ export const getMetricRegistry = cachedMetadata(async function getMetricRegistry
       d.version, d.effective_from, d.as_of_scope, d.as_of_rule,
       d.target_value, d.warn_threshold, d.fail_threshold, d.target_source,
       l.status AS drift_status, l.value_spread AS drift_spread, l.canonical_value,
+      s.scor_code, s.scor_metric, s.scor_attribute, s.scor_process,
+      s.alignment AS scor_alignment, s.note AS scor_note,
       (
         SELECT ARRAY_AGG(OBJECT_CONSTRUCT('sv', b.semantic_view, 'ref', b.metric_reference, 'persona', b.persona_role))
           WITHIN GROUP (ORDER BY b.semantic_view)
@@ -195,6 +206,8 @@ export const getMetricRegistry = cachedMetadata(async function getMetricRegistry
       ) AS bindings
     FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DEFINITION d
     LEFT JOIN latest l ON l.metric_id = d.metric_id AND l.rn = 1
+    -- LEFT: a metric added before its SCOR mapping still renders; it just shows no badge.
+    LEFT JOIN SUPPLY_CHAIN.GOVERNANCE.METRIC_SCOR_ALIGNMENT s ON s.metric_id = d.metric_id
     ORDER BY d.domain, d.business_name
   `)
 
@@ -230,6 +243,16 @@ export const getMetricRegistry = cachedMetadata(async function getMetricRegistry
       warnThreshold: num(r.WARN_THRESHOLD),
       failThreshold: num(r.FAIL_THRESHOLD),
       targetSource: r.TARGET_SOURCE ?? null,
+      scor: r.SCOR_METRIC
+        ? {
+            code: r.SCOR_CODE ?? null,
+            metric: r.SCOR_METRIC,
+            attribute: r.SCOR_ATTRIBUTE,
+            process: r.SCOR_PROCESS,
+            alignment: r.SCOR_ALIGNMENT,
+            note: r.SCOR_NOTE,
+          }
+        : null,
     }
   })
 })
@@ -1502,4 +1525,107 @@ export async function getContractBreaches(limit = 15) {
     status: r.COMPLIANCE_STATUS as string,
     contractText: r.CONTRACT_TEXT as string,
   }))
+}
+
+
+// --- Trust signals ---------------------------------------------------------------------------
+
+export interface TrustSignal {
+  semanticView: string
+  certification: string | null
+  dqChecks: number
+  dqPassed: number
+  checkedAt: string | null
+  metricBindings: number
+  bindingsDriftPass: number
+  driftAt: string | null
+  trustLevel: "TRUSTED" | "CERTIFIED_UNCHECKED" | "DQ_FAILING" | "DRIFTING" | "NOT_CERTIFIED"
+}
+
+/**
+ * Certification, data quality and drift per semantic view (GOVERNANCE.V_TRUST_SIGNALS).
+ * Returns [] rather than throwing when the view is absent, so a database built before
+ * sql/19 still renders every answer - just without the badge.
+ */
+export async function getTrustSignals(): Promise<TrustSignal[]> {
+  try {
+    const rows = await querySnowflake(
+      `SELECT semantic_view, certification, dq_checks, dq_passed, checked_at, metric_bindings,
+              bindings_drift_pass, drift_at, trust_level
+         FROM SUPPLY_CHAIN.GOVERNANCE.V_TRUST_SIGNALS ORDER BY semantic_view`,
+    )
+    return rows.map((r) => ({
+      semanticView: r.SEMANTIC_VIEW as string,
+      certification: (r.CERTIFICATION as string) ?? null,
+      dqChecks: num(r.DQ_CHECKS) ?? 0,
+      dqPassed: num(r.DQ_PASSED) ?? 0,
+      checkedAt: toIso(r.CHECKED_AT),
+      metricBindings: num(r.METRIC_BINDINGS) ?? 0,
+      bindingsDriftPass: num(r.BINDINGS_DRIFT_PASS) ?? 0,
+      driftAt: toIso(r.DRIFT_AT),
+      trustLevel: r.TRUST_LEVEL as TrustSignal["trustLevel"],
+    }))
+  } catch {
+    return []
+  }
+}
+
+
+// --- Demand-driven ontology ------------------------------------------------------------------
+
+export interface RefusalMix {
+  refusalClass: string
+  distinctQuestions: number
+  timesAsked: number
+  governanceWorking: boolean
+}
+
+export interface OntologyDemand {
+  metricReference: string
+  semanticViews: string[]
+  description: string | null
+  refusedQuestions: number
+  timesAsked: number
+  sampleQuestions: string[]
+}
+
+const arr = (v: unknown): string[] => (Array.isArray(v) ? v : typeof v === "string" ? JSON.parse(v) : []) as string[]
+
+/** Why questions were refused (GOVERNANCE.V_REFUSAL_MIX). [] before sql/21 has run. */
+export async function getRefusalMix(): Promise<RefusalMix[]> {
+  try {
+    const rows = await querySnowflake(
+      `SELECT refusal_class, distinct_questions, times_asked, governance_working
+         FROM SUPPLY_CHAIN.GOVERNANCE.V_REFUSAL_MIX ORDER BY times_asked DESC`,
+    )
+    return rows.map((r) => ({
+      refusalClass: r.REFUSAL_CLASS as string,
+      distinctQuestions: num(r.DISTINCT_QUESTIONS) ?? 0,
+      timesAsked: num(r.TIMES_ASKED) ?? 0,
+      governanceWorking: r.GOVERNANCE_WORKING === true,
+    }))
+  } catch {
+    return []
+  }
+}
+
+/** Unregistered measures ranked by the refused demand they would answer (V_ONTOLOGY_DEMAND). */
+export async function getOntologyDemand(): Promise<OntologyDemand[]> {
+  try {
+    const rows = await querySnowflake(
+      `SELECT metric_reference, semantic_views, description, refused_questions, times_asked, sample_questions
+         FROM SUPPLY_CHAIN.GOVERNANCE.V_ONTOLOGY_DEMAND
+        ORDER BY times_asked DESC, metric_reference`,
+    )
+    return rows.map((r) => ({
+      metricReference: r.METRIC_REFERENCE as string,
+      semanticViews: arr(r.SEMANTIC_VIEWS),
+      description: (r.DESCRIPTION as string) ?? null,
+      refusedQuestions: num(r.REFUSED_QUESTIONS) ?? 0,
+      timesAsked: num(r.TIMES_ASKED) ?? 0,
+      sampleQuestions: arr(r.SAMPLE_QUESTIONS),
+    }))
+  } catch {
+    return []
+  }
 }

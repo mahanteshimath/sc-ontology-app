@@ -1,0 +1,58 @@
+name: Governance gate
+
+# Blocks a merge that would make two teams get two answers.
+#
+# Runs the same controls as the 06:00 schedule - drift test, data quality, negative
+# control, contract extraction, SCOR coverage - on every pull request, plus the unit
+# tests. CI_GOVERNANCE_GATE raises on any failure, so `snow sql` exits non-zero and
+# the check goes red. Mark "governance-gate" as a required check in branch
+# protection to make it blocking.
+#
+# Authentication is OIDC (workload identity federation): no Snowflake secret is
+# stored in GitHub. The service user is created from sql/ci/create_ci_user.sql and
+# holds one role, SC_CI_GATE, which may call the gate procedure and nothing else.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC token for Snowflake
+  contents: read    # actions/checkout
+
+env:
+  SNOWFLAKE_ACCOUNT: PRAMOGM-LN72054   # an account identifier is not a secret
+  SNOWFLAKE_ROLE: SC_CI_GATE
+  SNOWFLAKE_WAREHOUSE: COMPUTE_WH
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  governance-gate:
+    runs-on: ubuntu-latest
+    # The OIDC subject below is branch-scoped to main; pull requests from forks get no
+    # token and are skipped here rather than failing on authentication.
+    # Skipped until the repository variable SNOWFLAKE_CI_ENABLED is 'true', i.e. until an admin
+    # has run sql/ci/create_ci_user.sql - otherwise every push would fail on authentication.
+    if: vars.SNOWFLAKE_CI_ENABLED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Snowflake CLI
+        uses: snowflakedb/snowflake-actions@v3
+        with:
+          use-oidc: true
+      - name: Test connection
+        run: snow connection test -x
+      - name: Run the governance gate
+        run: snow sql -x -q "CALL SUPPLY_CHAIN.GOVERNANCE.CI_GOVERNANCE_GATE()"

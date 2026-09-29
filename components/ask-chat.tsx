@@ -31,14 +31,15 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation } from "@tanstack/react-query"
-import { ArrowUp, BotMessageSquare, RefreshCw, RotateCcw, Sparkles } from "lucide-react"
+import { ArrowUp, BotMessageSquare, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatusPill, Tag } from "@/components/ui-kit"
 import { DrilldownButton } from "@/components/drilldown"
 import { AskCharts } from "@/components/ask-charts"
+import { VoiceInput } from "@/components/voice-input"
 import { formatMetricValue } from "@/lib/format"
 import { assessTarget, ragTextClass } from "@/lib/target"
-import { type MetricOutlook } from "@/lib/sc"
+import { type MetricOutlook, type TrustSignal } from "@/lib/sc"
 import type { ChartSpec } from "@/lib/chart"
 
 interface PersonaOption {
@@ -83,6 +84,8 @@ interface AskResponse {
   rows?: Record<string, any>[]
   rowCount?: number
   snapshotDate?: string | null
+  /** The question-to-metric mapping was reused; the query itself still ran live. */
+  resolverCached?: boolean
   sql?: string
   suggestions?: string[]
   error?: string
@@ -138,10 +141,12 @@ export function AskChat({
   personas,
   metricCount,
   period,
+  trust = null,
 }: {
   personas: PersonaOption[]
   metricCount: number
   period: { id: string; from: string | null; to: string | null; asOf: string; label: string; description: string }
+  trust?: TrustSignal | null
 }) {
   const [question, setQuestion] = useState("")
   const [persona, setPersona] = useState(personas[0]?.roleName ?? "")
@@ -370,7 +375,7 @@ export function AskChat({
           )}
 
           {/* Answer */}
-          {turn.answer?.answerable && <Answer turn={turn} answer={turn.answer} period={period} />}
+          {turn.answer?.answerable && <Answer turn={turn} answer={turn.answer} period={period} trust={trust} />}
         </article>
       ))}
 
@@ -419,12 +424,16 @@ export function AskChat({
           rows={1}
           className="min-h-10 max-h-28 flex-1 resize-y rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm leading-6 outline-none placeholder:text-muted-foreground focus:border-[color-mix(in_oklab,var(--brand-primary)_45%,transparent)] focus:bg-background"
         />
+        <VoiceInput
+          disabled={mutation.isPending}
+          onTranscript={(text) => setQuestion((q) => (q.trim() ? `${q.trim()} ${text}` : text))}
+        />
         <Button type="submit" size="icon" title="Send question" disabled={mutation.isPending || !question.trim()}>
           <ArrowUp className="h-4 w-4" aria-hidden />
           <span className="sr-only">{mutation.isPending ? "Resolving" : "Send question"}</span>
         </Button>
       </form>
-      <p className="-mt-3 text-center u-meta">Enter to send · Shift + Enter for a new line</p>
+      <p className="-mt-3 text-center u-meta">Enter to send · Shift + Enter for a new line · Mic transcribes on this device</p>
     </div>
   )
 }
@@ -439,10 +448,12 @@ function Answer({
   turn,
   answer,
   period,
+  trust,
 }: {
   turn: Turn
   answer: AskResponse
   period: { id: string; from: string | null; to: string | null; asOf: string }
+  trust: TrustSignal | null
 }) {
   const metrics = answer.metrics ?? []
   const rows = answer.rows ?? []
@@ -457,10 +468,16 @@ function Answer({
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <Tag title="The Snowflake role the query actually ran under">executed as {answer.executedAs}</Tag>
+        {trust && <TrustBadge trust={trust} />}
         {answer.period && <Tag title={answer.period.description}>{answer.period.label}</Tag>}
         {answer.snapshotDate && (
           <Tag title="Balance metrics are read at a single snapshot, never summed across months">
             snapshot {String(answer.snapshotDate).slice(0, 10)}
+          </Tag>
+        )}
+        {answer.resolverCached && (
+          <Tag title="The question-to-metric mapping was reused from an identical earlier question. The governed query above ran live, under this persona's role.">
+            mapping reused · value live
           </Tag>
         )}
         {answer.personaError && (
@@ -686,5 +703,43 @@ function Answer({
         </div>
       </details>
     </section>
+  )
+}
+
+/**
+ * Why this answer can be trusted, in one chip: the certification tag on the view it ran on, the
+ * data quality checks on the facts behind it, and the latest drift result for its metrics. Each
+ * part is read from GOVERNANCE.V_TRUST_SIGNALS; the chip never infers trust the view did not state.
+ */
+function TrustBadge({ trust }: { trust: TrustSignal }) {
+  const ok = trust.trustLevel === "TRUSTED"
+  const label =
+    trust.trustLevel === "TRUSTED"
+      ? `certified · ${trust.dqPassed}/${trust.dqChecks} quality checks · ${trust.bindingsDriftPass}/${trust.metricBindings} drift-free`
+      : trust.trustLevel === "CERTIFIED_UNCHECKED"
+        ? "certified · no quality checks yet"
+        : trust.trustLevel === "DQ_FAILING"
+          ? `quality checks failing (${trust.dqPassed}/${trust.dqChecks})`
+          : trust.trustLevel === "DRIFTING"
+            ? `drift detected (${trust.bindingsDriftPass}/${trust.metricBindings})`
+            : "not certified"
+  const title = [
+    `${trust.semanticView}: ${trust.certification ?? "no"} certification tag (SNOWFLAKE.CORE.CERTIFICATION_STATUS)`,
+    `Data quality: ${trust.dqPassed} of ${trust.dqChecks} checks passed${trust.checkedAt ? `, ${trust.checkedAt.slice(0, 16).replace("T", " ")}` : ""}`,
+    `Drift: ${trust.bindingsDriftPass} of ${trust.metricBindings} metric bindings PASS${trust.driftAt ? `, ${trust.driftAt.slice(0, 16).replace("T", " ")}` : ""}`,
+  ].join("\n")
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 u-mono"
+      style={{
+        borderColor: `color-mix(in oklab, var(${ok ? "--status-good" : "--status-warn"}) 40%, transparent)`,
+        background: `color-mix(in oklab, var(${ok ? "--status-good" : "--status-warn"}) 10%, transparent)`,
+        color: `var(${ok ? "--status-good" : "--status-warn"})`,
+      }}
+    >
+      <ShieldCheck className="h-3 w-3" aria-hidden />
+      {label}
+    </span>
   )
 }
