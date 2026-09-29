@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3M-ONTOLOGIST — Supply Chain Ontology · Submission deck</title>
+<meta name="description" content="One definition, every team, the same answer. Governed conversational analytics on Snowflake semantic views.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23071320'/%3E%3Cg fill='none' stroke='%2329b5e8' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='16' cy='16' r='3.2' fill='%2329b5e8' stroke='none'/%3E%3Ccircle cx='16' cy='5.6' r='2.2'/%3E%3Ccircle cx='26.4' cy='16' r='2.2'/%3E%3Ccircle cx='16' cy='26.4' r='2.2'/%3E%3Ccircle cx='5.6' cy='16' r='2.2'/%3E%3Cpath d='M16 8v5M19 16h5M16 19v5M8 16h5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* one navy-tinted gray family, one accent (brand cyan), one warning hue reserved for the legacy metric */
+  --bg:#071320; --bg-2:#0b1c30; --ink:#e9f0f7; --mute:#94a6ba; --dim:#62778d;
+  --line:rgba(233,240,247,.12); --line-2:rgba(233,240,247,.22);
+  --cyan:#29b5e8; --cyan-soft:rgba(41,181,232,.12); --coral:#f0876a;
+  --sans:"Geist",ui-sans-serif,system-ui,"Segoe UI",sans-serif;
+  --mono:"Geist Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --serif:"Instrument Serif",Georgia,"Times New Roman",serif;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#040b14;color:var(--ink);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+
+/* ---------- stage: fixed 1920x1080 canvas scaled to fit ---------- */
+.stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform:translate(-50%,-50%) scale(var(--s,1));transform-origin:center;background:var(--bg);overflow:hidden;
+  background-image:
+    radial-gradient(1100px 700px at 88% -10%,rgba(41,181,232,.13),transparent 60%),
+    radial-gradient(900px 600px at -5% 110%,rgba(10,106,142,.22),transparent 60%);}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---------- chrome ---------- */
+.chrome-top{position:absolute;left:96px;right:96px;top:48px;display:flex;justify-content:space-between;align-items:center;z-index:5;font:500 20px/1 var(--mono);letter-spacing:.06em;color:var(--mute);text-transform:uppercase}
+.chrome-top .brand{display:flex;align-items:center;gap:14px;color:var(--ink)}
+.chrome-top svg{width:30px;height:30px;color:var(--cyan)}
+.chrome-top .sec{transition:opacity .3s}
+.chrome-bot{position:absolute;left:96px;right:96px;bottom:40px;display:flex;align-items:center;gap:28px;z-index:5;font:400 20px/1 var(--mono);color:var(--dim)}
+.ticks{display:flex;gap:8px;flex:1}
+.ticks button{flex:0 0 44px;height:20px;background:none;border:0;cursor:pointer;position:relative}
+.ticks button::before{content:"";position:absolute;left:0;right:0;top:9px;height:2px;background:var(--line-2);transition:background .3s,height .3s,top .3s}
+.ticks button.on::before{background:var(--cyan);height:4px;top:8px}
+.ticks button.done::before{background:var(--mute)}
+.count{min-width:96px;text-align:right;font-variant-numeric:tabular-nums}
+.count b{color:var(--ink);font-weight:500}
+
+/* ---------- slides ---------- */
+.slide{position:absolute;inset:0;padding:150px 96px 110px;opacity:0;visibility:hidden;transition:opacity .45s var(--ease),visibility 0s .45s}
+.slide.on{opacity:1;visibility:visible;transition:opacity .45s var(--ease)}
+.slide [data-a]{opacity:0;transform:translateY(22px)}
+.slide.on [data-a]{animation:rise .8s var(--ease) both;animation-delay:calc(var(--i,0)*90ms + 120ms)}
+@keyframes rise{to{opacity:1;transform:none}}
+
+.eyebrow{font:500 22px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:28px}
+h1,h2{font-family:var(--serif);font-weight:400;letter-spacing:-.02em;line-height:.98;text-wrap:balance}
+h2{font-size:92px}
+h2 em,h1 em{font-style:italic;color:var(--cyan)}
+p{text-wrap:pretty}
+.lead{font-size:30px;line-height:1.45;color:var(--mute);max-width:32em}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.src{font:400 20px/1.4 var(--mono);color:var(--dim)}
+.src b{color:var(--mute);font-weight:400}
+.chip{display:inline-block;font:500 20px/1 var(--mono);padding:8px 12px;border:1px solid var(--line-2);border-radius:5px;color:var(--ink);white-space:nowrap}
+.chip.c{border-color:rgba(41,181,232,.5);color:var(--cyan);background:var(--cyan-soft)}
+
+/* ---------- 01 title ---------- */
+.s-title h1{font-size:164px;margin-top:20px}
+.s-title .sub{position:absolute;left:1290px;right:96px;top:560px;font-size:28px;color:var(--mute);line-height:1.4}
+.meta{position:absolute;left:96px;right:96px;bottom:118px;display:grid;grid-template-columns:330px 470px 190px 1fr;border-top:1px solid var(--line-2)}
+.meta div{padding:26px 32px 0 0}
+.meta dt{font:500 19px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:14px}
+.meta dd{font-size:28px;line-height:1.35;color:var(--ink)}
+.meta dd.small{font-size:24px;color:var(--mute);line-height:1.4}
+
+/* ---------- 02 the meeting ---------- */
+.s-meeting{display:grid;grid-template-columns:660px 1fr;gap:110px}
+.s-meeting h2{font-size:104px}
+.s-meeting blockquote{margin-top:52px;padding-left:26px;border-left:2px solid var(--cyan);font:italic 400 40px/1.25 var(--serif);color:var(--ink)}
+.duel{align-self:center;display:flex;flex-direction:column}
+.duel .row{padding:36px 0;border-top:1px solid var(--line-2)}
+.duel .row:last-of-type{border-bottom:1px solid var(--line-2)}
+.duel .lab{font:500 22px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:14px;display:flex;gap:16px;align-items:center}
+.duel .num{font:300 168px/1 var(--mono);letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.duel .legacy .num{color:var(--coral)}
+.duel .gov .num{color:var(--cyan)}
+.duel .note{font-size:24px;color:var(--mute);margin-top:10px}
+.delta{align-self:flex-start;margin:22px 0;font:500 24px/1 var(--mono);color:var(--ink);display:flex;align-items:center;gap:18px}
+.delta i{width:64px;height:2px;background:var(--line-2)}
+.delta span{color:var(--coral)}
+
+/* ---------- 03 who / pain ---------- */
+.s-who{display:grid;grid-template-columns:1fr 520px;gap:100px}
+.s-who h2{font-size:84px;margin-bottom:44px}
+.defs{border-top:1px solid var(--line-2)}
+.defs .d{display:grid;grid-template-columns:250px 1fr;gap:24px;padding:30px 0;border-bottom:1px solid var(--line)}
+.defs dt{font:500 20px/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);padding-top:8px}
+.defs dd{font-size:30px;line-height:1.42;color:var(--ink)}
+.defs dd s{color:var(--dim);text-decoration-thickness:1px}
+.defs dd .to{color:var(--cyan)}
+.pers{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
+.stats{align-self:start;display:flex;flex-direction:column;border-left:1px solid var(--line-2);padding-left:56px;margin-top:-6px}
+.stats .st{padding:20px 0;border-top:1px solid var(--line)}
+.stats .st:first-child{border-top:0;padding-top:0}
+.stats .big{font:300 108px/1 var(--mono);letter-spacing:-.05em;color:var(--coral)}
+.stats .big small{font-size:48px;color:var(--mute);letter-spacing:-.02em}
+.stats .cap{font-size:24px;line-height:1.35;color:var(--mute);margin-top:6px;max-width:17em}
+.stats .why{font:italic 400 32px/1.3 var(--serif);color:var(--ink);padding-top:22px;border-top:1px solid var(--line)}
+
+/* ---------- 04 architecture ---------- */
+.s-arch{padding-top:132px}
+.s-arch h2{font-size:64px;margin-bottom:26px}
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0 56px;position:relative}
+.col{position:relative;min-width:0}
+.node{overflow-wrap:anywhere}
+.col:not(:last-child)::after{content:"";position:absolute;right:-42px;top:22px;width:28px;height:12px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='12' fill='none' stroke='%2329b5e8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 6h25M21 1l5 5-5 5'/%3E%3C/svg%3E")}
+.col h3{font:500 20px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);padding-bottom:16px;border-bottom:1px solid var(--line-2);margin-bottom:16px}
+.node{padding:14px 16px;border:1px solid var(--line-2);border-radius:8px;background:rgba(233,240,247,.03);margin-bottom:10px;font-size:22px;line-height:1.3}
+.node b{display:block;font-weight:500;color:var(--ink)}
+.node span{display:block;color:var(--mute);font-size:20px;margin-top:3px}
+.node.hot{border-color:rgba(41,181,232,.55);background:var(--cyan-soft)}
+.node.hot b{color:var(--cyan)}
+.grp{font:400 18px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:2px 0 10px}
+.gate{margin-top:14px;display:flex;align-items:center;gap:22px;padding:16px 22px;border:1px dashed rgba(41,181,232,.55);border-radius:8px;font-size:22px}
+.gate .chip{flex:none}
+.gate em{font-style:normal;color:var(--mute)}
+.keypt{margin-top:14px;font:italic 400 34px/1.25 var(--serif);color:var(--ink)}
+.keypt em{color:var(--cyan)}
+
+/* ---------- 05 skills ---------- */
+.s-skills{display:grid;grid-template-columns:1fr 460px;gap:80px;padding-top:132px}
+.s-skills h2{font-size:64px;margin-bottom:22px}
+table{width:100%;border-collapse:collapse}
+th{font:500 18px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:left;padding:0 0 12px;border-bottom:1px solid var(--line-2)}
+td{padding:0;height:45px;border-bottom:1px solid var(--line);font-size:22px;vertical-align:middle;white-space:nowrap}
+td:first-child{color:var(--ink);padding-right:18px}
+td.m{font:400 19px/1 var(--mono);color:var(--dim);padding-right:18px}
+td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
+.contracts{align-self:end;padding-bottom:6px}
+.contracts h3{font:500 20px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+.contracts h3 + p{font-size:26px;line-height:1.35;color:var(--mute);margin-bottom:26px}
+.contracts ol{list-style:none;counter-reset:c;border-top:1px solid var(--line-2)}
+.contracts li{counter-increment:c;padding:20px 0 20px 58px;border-bottom:1px solid var(--line);position:relative;font-size:25px;line-height:1.3}
+.contracts li::before{content:"0" counter(c);position:absolute;left:0;top:23px;font:500 20px/1 var(--mono);color:var(--cyan)}
+.contracts li span{display:block;color:var(--mute);font:400 20px/1.3 var(--mono);margin-top:6px}
+.rebuild{margin-top:24px;font:400 20px/1.5 var(--mono);color:var(--dim)}
+.rebuild b{color:var(--ink);font-weight:500}
+
+/* ---------- 06 workflow ---------- */
+.s-flow h2{font-size:76px;max-width:1400px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;margin-top:48px;position:relative}
+.steps::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--line-2)}
+.step{padding-top:26px;position:relative}
+.step::before{content:"";position:absolute;left:0;top:-5px;width:11px;height:11px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 6px var(--cyan-soft)}
+.step:nth-child(2){margin-top:36px}.step:nth-child(3){margin-top:72px}.step:nth-child(4){margin-top:108px}
+.step:nth-child(2)::before{top:-41px}.step:nth-child(3)::before{top:-77px}.step:nth-child(4)::before{top:-113px}
+.step::after{content:"";position:absolute;left:5px;top:calc(var(--o,0px)*-1);height:var(--o,0px);width:1px;background:var(--line-2)}
+.step:nth-child(2){--o:36px}.step:nth-child(3){--o:72px}.step:nth-child(4){--o:108px}
+.step .k{font:500 20px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:16px}
+.step h3{font:400 44px/1.05 var(--serif);margin-bottom:16px}
+.step p{font-size:24px;line-height:1.42;color:var(--mute);margin-bottom:20px;max-width:17em}
+.step p code{font:400 20px/1.4 var(--mono);color:var(--ink);word-break:break-word}
+.step .out{font:300 72px/1 var(--mono);letter-spacing:-.04em;color:var(--cyan);margin:4px 0 8px}
+.step .out small{font-size:30px;letter-spacing:0;color:var(--mute)}
+
+/* ---------- 07 impact ---------- */
+.s-impact{display:grid;grid-template-columns:700px 1fr;gap:110px}
+.s-impact h2{font-size:64px;margin-bottom:34px}
+.hero .n{font:300 150px/.95 var(--mono);letter-spacing:-.06em;color:var(--cyan);white-space:nowrap}
+.hero .n small{font-size:84px;color:var(--mute);letter-spacing:-.04em}
+.hero p{font-size:32px;line-height:1.35;margin:22px 0 40px;max-width:17em}
+.hero .sub{display:flex;gap:44px;padding-top:28px;border-top:1px solid var(--line-2)}
+.hero .sub div{font-size:23px;color:var(--mute);line-height:1.3}
+.hero .sub b{display:block;font:400 54px/1 var(--mono);letter-spacing:-.03em;color:var(--ink);margin-bottom:8px}
+.rows{align-self:center}
+.rows .r{display:grid;grid-template-columns:150px 1fr auto;align-items:baseline;gap:24px;padding:19px 0;border-top:1px solid var(--line)}
+.rows .r:first-child{border-top:1px solid var(--line-2)}
+.rows .r:last-of-type{border-bottom:1px solid var(--line)}
+.rows .g{font:500 19px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.rows .d{font-size:26px;color:var(--ink)}
+.rows .v{font:400 38px/1 var(--mono);letter-spacing:-.03em;text-align:right;font-variant-numeric:tabular-nums}
+.rows .v small{font-size:22px;color:var(--mute);letter-spacing:0}
+.rows + .src{margin-top:22px}
+
+/* ---------- 08 finding ---------- */
+.s-find{display:grid;grid-template-columns:1fr 760px;gap:100px;align-items:center}
+.s-find h2{font-size:100px;margin-bottom:36px}
+.s-find .lead{margin-bottom:28px}
+.dots{display:grid;grid-template-columns:repeat(20,1fr);gap:14px;width:760px}
+.dots i{aspect-ratio:1;border-radius:50%;background:rgba(233,240,247,.14)}
+.dots i.h{background:var(--cyan);box-shadow:0 0 14px rgba(41,181,232,.35)}
+.legend{display:flex;gap:34px;margin-top:26px;font:400 21px/1 var(--mono);color:var(--mute)}
+.legend span::before{content:"";display:inline-block;width:14px;height:14px;border-radius:50%;background:rgba(233,240,247,.3);margin-right:12px;vertical-align:-1px}
+.legend span.h::before{background:var(--cyan)}
+.s-find .fine{font:italic 400 36px/1.3 var(--serif);color:var(--ink);padding-top:26px;border-top:1px solid var(--line-2);max-width:20em}
+
+/* ---------- 09 scale ---------- */
+.s-scale{display:grid;grid-template-columns:600px 1fr;gap:100px}
+.s-scale h2{font-size:88px}
+.s-scale .lead{margin-top:34px;font-size:28px}
+.tags{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 56px;align-content:start;padding-top:52px}
+.it{padding:26px 0 30px;border-top:1px solid var(--line-2)}
+.it h3{font:500 21px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:12px}
+.it p{font-size:25px;line-height:1.4;color:var(--ink)}
+.it p span{color:var(--mute)}
+
+/* ---------- 10 close ---------- */
+.s-close{display:flex;flex-direction:column;justify-content:center}
+.s-close blockquote{font:400 128px/1.02 var(--serif);letter-spacing:-.025em;max-width:1500px;text-wrap:balance}
+.s-close blockquote em{color:var(--cyan)}
+.s-close .foot{margin-top:64px;display:flex;gap:80px;align-items:flex-end;padding-top:30px;border-top:1px solid var(--line-2);max-width:1500px}
+.s-close .foot div{font-size:26px;color:var(--mute);line-height:1.4}
+.s-close .foot b{display:block;font:500 19px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:12px;font-weight:500}
+.s-close .foot a{color:var(--cyan);text-decoration:none;font:500 32px/1 var(--mono)}
+.s-close .foot a:hover{text-decoration:underline;text-underline-offset:6px}
+
+/* ---------- solution: USP, features ---------- */
+.s-usp h2{font-size:84px;max-width:1500px}
+.s-usp .lead{margin:24px 0 34px;font-size:28px;max-width:38em}
+.cmp{width:100%}
+.cmp th{padding-bottom:14px}
+.cmp td{height:74px;font-size:26px;white-space:normal}
+.cmp td:first-child{color:var(--mute);width:25%}
+.cmp td.no{color:var(--dim);width:21%}
+.cmp td.us{color:var(--ink);font-weight:500;background:linear-gradient(90deg,var(--cyan-soft),transparent);box-shadow:inset 2px 0 0 var(--cyan);padding-left:22px}
+.cmp th.us{color:var(--cyan);padding-left:22px}
+
+.s-feat{display:grid;grid-template-columns:1fr 1000px;gap:80px;align-items:center}
+.s-feat.rev{grid-template-columns:1000px 1fr}
+.s-feat h2{font-size:64px;margin-bottom:34px}
+.pts{list-style:none;border-top:1px solid var(--line-2)}
+.pts li{padding:17px 0;border-bottom:1px solid var(--line);font-size:25px;line-height:1.38;color:var(--ink)}
+.pts li b{color:var(--cyan);font-weight:500}
+.pts li span{color:var(--mute)}
+.kpis{display:flex;gap:52px;margin-top:26px}
+.kpis div{font-size:21px;line-height:1.3;color:var(--mute)}
+.kpis b{display:block;font:400 56px/1 var(--mono);color:var(--cyan);letter-spacing:-.03em;margin-bottom:8px}
+
+.frame{border-radius:14px;background:#0b1c30;border:1px solid var(--line-2);overflow:hidden;
+  box-shadow:0 40px 90px -30px rgba(2,10,20,.9),0 0 0 1px rgba(41,181,232,.06),inset 0 1px 0 rgba(233,240,247,.08)}
+.frame .bar{height:44px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line);font:400 18px/1 var(--mono);color:var(--dim)}
+.frame .bar i{width:11px;height:11px;border-radius:50%;background:rgba(233,240,247,.16)}
+.frame .bar span{margin-left:14px}
+.frame .win{overflow:hidden;height:var(--h)}
+.frame img{display:block;width:calc(100% * var(--z,1));margin:var(--y,0) 0 0 var(--x,0)}
+
+.s-more{display:flex;flex-direction:column}
+.s-more .hd{display:flex;justify-content:space-between;align-items:flex-end;gap:60px;margin-bottom:34px}
+.s-more h2{font-size:64px;white-space:nowrap}
+.s-more .hd p{font-size:23px;line-height:1.4;color:var(--mute);max-width:26em}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+.pair figcaption{margin-top:22px;font-size:24px;line-height:1.4;color:var(--mute);max-width:30em}
+.pair figcaption b{display:block;font:500 20px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px}
+
+/* ---------- why best ---------- */
+.s-win h2{font-size:84px;margin-bottom:44px}
+.wins{border-top:1px solid var(--line-2)}
+.wins .w{display:grid;grid-template-columns:400px 1fr 500px;gap:48px;align-items:baseline;padding:48px 0;border-bottom:1px solid var(--line)}
+.wins .w .k{font:500 21px/1.3 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.wins .w p{font:400 46px/1.15 var(--serif);color:var(--ink)}
+.wins .w .v{font:300 44px/1.15 var(--mono);letter-spacing:-.03em;color:var(--ink);text-align:right}
+.wins .w .v small{display:block;font:400 20px/1.4 var(--mono);letter-spacing:0;color:var(--mute);margin-top:6px}
+
+/* ---------- print: one slide per page ---------- */
+@media print{
+  @page{size:1920px 1080px;margin:0}
+  html,body{overflow:visible;height:auto;background:#071320}
+  .stage{position:static;transform:none;height:auto;overflow:visible;background:#071320}
+  .stage::after,.chrome-top,.chrome-bot{display:none}
+  .slide{position:relative;height:1080px;opacity:1;visibility:visible;break-after:page;background:var(--bg)}
+  .slide [data-a]{opacity:1;transform:none;animation:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .slide,.slide.on{transition:none}
+  .slide.on [data-a]{animation:none;opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <header class="chrome-top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+        <circle cx="16" cy="16" r="3.2" fill="currentColor" stroke="none"/>
+        <circle cx="16" cy="4.6" r="2.4"/><circle cx="27.4" cy="16" r="2.4"/><circle cx="16" cy="27.4" r="2.4"/><circle cx="4.6" cy="16" r="2.4"/>
+        <path d="M16 7v5.8M19.2 16h5.8M16 19.2V25M7 16h5.8"/>
+        <path d="M18.3 6.9 25.5 14.1M25.5 17.9 18.3 25.1M13.7 25.1 6.5 17.9M6.5 14.1 13.7 6.9" opacity=".45"/>
+      </svg>
+      3M-ONTOLOGIST
+    </div>
+    <div class="sec" id="sec">Submission</div>
+  </header>
+
+  <main id="slides">
+
+    <!-- 01 TITLE -->
+    <section class="slide s-title" data-sec="Submission" aria-label="Title">
+      <div class="eyebrow" data-a style="--i:0">Supply Chain Ontology</div>
+      <h1 data-a style="--i:1">One definition.<br>Every team.<br><em>The same answer.</em></h1>
+      <p class="sub" data-a style="--i:2">Governed conversational analytics on Snowflake semantic views, with a test that proves the answers stay identical.</p>
+      <dl class="meta" data-a style="--i:3">
+        <div><dt>Team name</dt><dd>3M-ONTOLOGIST</dd></div>
+        <div><dt>Team leaders</dt><dd>Mahantesh · Devansh · Sathyam</dd></div>
+        <div><dt>Team size</dt><dd>3</dd></div>
+        <div><dt>Problem statement</dt><dd class="small">Teams compute the “same” supply chain metric differently, get different numbers, and cannot prove which is right. The wrong one quietly clears non-compliant suppliers.</dd></div>
+      </dl>
+    </section>
+
+    <!-- 02 THE MEETING -->
+    <section class="slide s-meeting" data-sec="1 · Problem brief" aria-label="The meeting everyone has sat in">
+      <div>
+        <div class="eyebrow" data-a style="--i:0">1 · Problem brief</div>
+        <h2 data-a style="--i:1">Two numbers.<br>Same 420,000<br><em>receipt lines.</em></h2>
+        <blockquote data-a style="--i:2">“Same question, two answers. The hour gets spent on whose number is right, not on what to do.”</blockquote>
+      </div>
+      <div class="duel">
+        <div class="row legacy" data-a style="--i:2">
+          <div class="lab">Legacy <span class="chip">average of monthly averages</span></div>
+          <div class="num">0.882631</div>
+          <div class="note">Supplier on-time delivery, as most dashboards compute it today.</div>
+        </div>
+        <div class="delta" data-a style="--i:3"><i></i>Δ <span>0.006807</span> — enough to change who passes</div>
+        <div class="row gov" data-a style="--i:4">
+          <div class="lab">Governed <span class="chip c">every receipt line counts once</span></div>
+          <div class="num">0.875824</div>
+          <div class="note">Defined once as a Snowflake semantic view, tested against atomic facts.</div>
+        </div>
+        <div class="src" data-a style="--i:5;margin-top:22px"><b>Source</b> SEMANTIC.SC_SUPPLIER_LEGACY_DEFECT vs SC_SUPPLIER</div>
+      </div>
+    </section>
+
+    <!-- 03 WHO / PAIN -->
+    <section class="slide s-who" data-sec="1 · Problem brief" aria-label="Who it is for and what hurts">
+      <div>
+        <div class="eyebrow" data-a style="--i:0">1 · Problem brief</div>
+        <h2 data-a style="--i:1">A wrong pass makes <em>no noise.</em></h2>
+        <dl class="defs" data-a style="--i:2">
+          <div class="d"><dt>Business problem</dt><dd>One metric, a different number in every team’s tool. The disagreement is found in a review meeting, not in a test.</dd></div>
+          <div class="d"><dt>Target users</dt><dd><div class="pers"><span class="chip">Planning</span><span class="chip">Procurement</span><span class="chip">Logistics</span><span class="chip">Logistics · EU</span><span class="chip c">Ontology steward</span></div></dd></div>
+          <div class="d"><dt>Pain → fix</dt><dd><s>Hours arguing over whose number is right.</s> <span class="to">Metrics defined once as semantic views and proven identical for every persona, every day.</span></dd></div>
+          <div class="d"><dt>Industry</dt><dd>Manufacturing supply chain. ERP, WMS, TMS, IoT and supplier contracts, each with its own idea of “on-time”.</dd></div>
+        </dl>
+      </div>
+      <aside class="stats" data-a style="--i:3">
+        <div class="st"><div class="big">12<small> / 300</small></div><div class="cap">suppliers wrongly cleared by the legacy definition</div></div>
+        <div class="st"><div class="big">+22<small>%</small></div><div class="cap">bigger “compliant” list than the truth supports</div></div>
+        <div class="st"><div class="big">0</div><div class="cap">suppliers wrongly escalated, so nobody complains</div></div>
+        <p class="why">A false fail is disputed within a week. A false pass is never rechecked.</p>
+      </aside>
+    </section>
+
+    <!-- 04 SOLUTION: USP -->
+    <section class="slide s-usp" data-sec="Solution" aria-label="What makes it different">
+      <div class="eyebrow" data-a style="--i:0">Solution · our USP</div>
+      <h2 data-a style="--i:1">It <em>tests its own agreement,</em> every day.</h2>
+      <p class="lead" data-a style="--i:2">And keeps a deliberately broken metric deployed, so you can watch the test catch it.</p>
+      <table class="cmp" data-a style="--i:3">
+        <thead><tr><th></th><th>Typical BI dashboard</th><th>Typical text-to-SQL chat</th><th class="us">Supply Chain Ontology</th></tr></thead>
+        <tbody>
+          <tr><td>Where a metric is defined</td><td class="no">In each report</td><td class="no">In each prompt</td><td class="us">Once, in a governed registry</td></tr>
+          <tr><td>Same number for every team</td><td class="no">Hoped for</td><td class="no">Not guaranteed</td><td class="us">Proven daily, zero spread</td></tr>
+          <tr><td>Access control</td><td class="no">App layer</td><td class="no">App layer</td><td class="us">Snowflake role and row policy</td></tr>
+          <tr><td>Numbers in the answer</td><td class="no">Not applicable</td><td class="no">Can be invented</td><td class="us">Invented figures discarded</td></tr>
+          <tr><td>Contracts and free text</td><td class="no">Left out</td><td class="no">Left out</td><td class="us">Read by AI_EXTRACT, 2,700 of 2,700 fields</td></tr>
+          <tr><td>Cost of disagreement</td><td class="no">Unknown</td><td class="no">Unknown</td><td class="us">12 suppliers · $178,832 hidden</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 05 FEATURE: ASK -->
+    <section class="slide s-feat" data-sec="Solution" aria-label="Feature: Ask the Ontology">
+      <div>
+        <div class="eyebrow" data-a style="--i:0">Feature 01 · Ask</div>
+        <h2 data-a style="--i:1">Plain English in. <em>A governed number out.</em></h2>
+        <ul class="pts" data-a style="--i:2">
+          <li><b>The model never writes SQL.</b> <span>It picks registered metrics; anything unregistered cannot be asked.</span></li>
+          <li><b>Follow-ups work.</b> <span>“And by supplier region?” is understood, and every turn is re-checked against the persona’s grants.</span></li>
+          <li><b>Invented figures are discarded.</b> <span>Prose with a number the rows lack is replaced by a template.</span></li>
+          <li><b>Speak it.</b> <span>Whisper runs in the browser. Audio never leaves the device.</span></li>
+        </ul>
+        <div class="kpis" data-a style="--i:3"><div><b>1.7 s</b>repeat question,<br>was 16–20 s</div><div><b>90.0%</b>on a scored<br>60-question eval</div></div>
+      </div>
+      <div class="frame" data-a style="--i:2;--h:640px;--y:-345px;--z:1.42;--x:-21%">
+        <div class="bar"><i></i><i></i><i></i><span>sc-ontology-app.vercel.app/ask</span></div>
+        <div class="win"><img src="deck-assets/ask-full.png" alt="Ask page answering supplier on-time delivery with a governed value, target, chart and provenance"></div>
+      </div>
+    </section>
+
+    <!-- 06 FEATURE: CONSISTENCY -->
+    <section class="slide s-feat rev" data-sec="Solution" aria-label="Feature: Cross-persona consistency">
+      <div class="frame" data-a style="--i:2;--h:640px;--y:-95px;--z:1.4;--x:-20%">
+        <div class="bar"><i></i><i></i><i></i><span>sc-ontology-app.vercel.app/consistency</span></div>
+        <div class="win"><img src="deck-assets/consistency.png" alt="Consistency page showing four personas, 15 metrics, exact agreement and the persona access model"></div>
+      </div>
+      <div>
+        <div class="eyebrow" data-a style="--i:0">Feature 02 · Consistency</div>
+        <h2 data-a style="--i:1">One metric. Four real roles. <em>The same number.</em></h2>
+        <ul class="pts" data-a style="--i:2">
+          <li><b>Executed as each Snowflake role,</b> <span>with secondary roles off, so the database enforces access.</span></li>
+          <li><b>Checked against atomic SQL.</b> <span>Two views cannot agree while both being wrong. Runs daily at 06:00 UTC.</span></li>
+          <li><b>A broken control stays live.</b> <span>0.882631 against the correct 0.875824 proves the test can fail.</span></li>
+        </ul>
+        <div class="kpis" data-a style="--i:3"><div><b>15 / 15</b>bindings match,<br>zero spread</div><div><b>4</b>personas,<br>same answer</div></div>
+      </div>
+    </section>
+
+    <!-- 07 FEATURE: ONTOLOGY -->
+    <section class="slide s-feat" data-sec="Solution" aria-label="Feature: Live ontology">
+      <div>
+        <div class="eyebrow" data-a style="--i:0">Feature 03 · Ontology</div>
+        <h2 data-a style="--i:1">The diagram <em>cannot drift</em> from what is queried.</h2>
+        <ul class="pts" data-a style="--i:2">
+          <li><b>Read live from INFORMATION_SCHEMA.</b> <span>Entities and relationships come from the deployed view.</span></li>
+          <li><b>Hierarchies are measured.</b> <span>Every rollup is tested as a true functional dependency. Two plausible ones were rejected.</span></li>
+          <li><b>Portable.</b> <span>OWL/SKOS export as Turtle or JSON‑LD, with SCOR codes as exactMatch and closeMatch.</span></li>
+        </ul>
+        <div class="kpis" data-a style="--i:3"><div><b>12</b>entities</div><div><b>15</b>relationships</div><div><b>10</b>rollups<br>proven</div></div>
+      </div>
+      <div class="frame" data-a style="--i:2;--h:640px;--y:-281px;--z:1.2;--x:-10%">
+        <div class="bar"><i></i><i></i><i></i><span>sc-ontology-app.vercel.app/ontology</span></div>
+        <div class="win"><img src="deck-assets/ontology-full.png" alt="Entity relationship model with five conformed dimensions and seven fact tables"></div>
+      </div>
+    </section>
+
+    <!-- 08 FEATURE: IMPACT -->
+    <section class="slide s-feat rev" data-sec="Solution" aria-label="Feature: Impact scorecard">
+      <div class="frame" data-a style="--i:2;--h:640px;--y:-109px;--z:1.4;--x:-20%">
+        <div class="bar"><i></i><i></i><i></i><span>sc-ontology-app.vercel.app/impact</span></div>
+        <div class="win"><img src="deck-assets/impact.png" alt="Impact scorecard listing measured outcomes with their source objects"></div>
+      </div>
+      <div>
+        <div class="eyebrow" data-a style="--i:0">Feature 04 · Impact</div>
+        <h2 data-a style="--i:1">Every claim carries <em>its source.</em></h2>
+        <ul class="pts" data-a style="--i:2">
+          <li><b>MEASURED or ASSUMPTION,</b> <span>labelled on every row, with the object it came from.</span></li>
+          <li><b>Contracts become money.</b> <span>AI_EXTRACT reads 300 free-text contracts and holds them against the governed metric.</span></li>
+          <li><b>Definition conflicts surface.</b> <span>79 contracts encode the non-governed definition of on-time.</span></li>
+        </ul>
+        <div class="kpis" data-a style="--i:3"><div><b>$815K</b>claimable<br>penalties</div><div><b>$179K</b>hidden by the<br>legacy metric</div></div>
+      </div>
+    </section>
+
+    <!-- 09 FEATURE: OPERATIONS -->
+    <section class="slide s-more" data-sec="Solution" aria-label="Feature: Overview and network risk">
+      <div class="hd">
+        <div>
+          <div class="eyebrow" data-a style="--i:0">Feature 05 · Operations</div>
+          <h2 data-a style="--i:1">Built for operations, <em>not just reports.</em></h2>
+        </div>
+        <p data-a style="--i:1">Plus governed forecasts shown only with their backtested accuracy, a guided tour, light and dark themes, and a shareable period with an as-of date.</p>
+      </div>
+      <div class="pair">
+        <figure data-a style="--i:2">
+          <div class="frame" style="--h:484px;--y:-63px;--z:1.4;--x:-20%">
+            <div class="bar"><i></i><i></i><i></i><span>sc-ontology-app.vercel.app/</span></div>
+            <div class="win"><img src="deck-assets/home.png" alt="Overview with governed metric cards, targets and twelve-month trends"></div>
+          </div>
+          <figcaption><b>Overview</b>Target, prior period, year-on-year and a 12-month trend for every headline metric, with a click through to the offending rows.</figcaption>
+        </figure>
+        <figure data-a style="--i:3">
+          <div class="frame" style="--h:484px;--y:-85px;--z:1.4;--x:-20%">
+            <div class="bar"><i></i><i></i><i></i><span>sc-ontology-app.vercel.app/network-risk</span></div>
+            <div class="win"><img src="deck-assets/network-risk.png" alt="World map of the supply network with maritime chokepoints and simulated lane disruption"></div>
+          </div>
+          <figcaption><b>Network risk</b>Geospatial topology, maritime chokepoints and simulated lane disruption. The ontology drives an operational read.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 10 ARCHITECTURE -->
+    <section class="slide s-arch" data-sec="2 · Architecture" aria-label="Architecture and data flow">
+      <div class="eyebrow" data-a style="--i:0">2 · Architecture · data flow</div>
+      <h2 data-a style="--i:1">Everything queries one surface: <em>the ontology.</em></h2>
+      <div class="flow" data-a style="--i:2">
+        <div class="col">
+          <h3>Sources</h3>
+          <div class="grp">Structured</div>
+          <div class="node"><b>ERP</b><span>PO receipts, sales orders</span></div>
+          <div class="node"><b>WMS · TMS</b><span>inventory, shipments, freight</span></div>
+          <div class="node"><b>IoT</b><span>shipment telemetry</span></div>
+          <div class="grp">Unstructured</div>
+          <div class="node"><b>Supplier contracts</b><span>300 free-text documents</span></div>
+        </div>
+        <div class="col">
+          <h3>Model</h3>
+          <div class="node"><b>RAW → CANONICAL</b><span>atomic-grain facts, 6.1M rows</span></div>
+          <div class="node hot"><b>AI_EXTRACT</b><span>contract terms, scored against ground truth</span></div>
+          <div class="node"><b>Cortex Search</b><span>DIM_SUPPLIER_CONTRACT index</span></div>
+        </div>
+        <div class="col">
+          <h3>Semantic</h3>
+          <div class="node hot"><b>SC_ONTOLOGY_360</b><span>the only query surface</span></div>
+          <div class="node"><b>9 domain views</b><span>one per business domain</span></div>
+          <div class="node"><b>CERTIFIED tag</b><span>SNOWFLAKE.CORE.CERTIFICATION_STATUS</span></div>
+        </div>
+        <div class="col">
+          <h3>Governance</h3>
+          <div class="node"><b>Metric registry + SCOR</b><span>13 of 15 mapped</span></div>
+          <div class="node hot"><b>Daily drift test</b><span>vs independent canonical SQL</span></div>
+          <div class="node"><b>15 DQ monitors</b><span>expectations on facts</span></div>
+          <div class="node"><b>Persona grants + row policy</b><span>EU scoping</span></div>
+          <div class="node"><b>Refusal classifier</b><span>feeds the roadmap</span></div>
+        </div>
+        <div class="col">
+          <h3>Serve</h3>
+          <div class="node hot"><b>Cortex Agent</b><span>11 tools</span></div>
+          <div class="node"><b>MCP server</b><span>SC_ONTOLOGY_MCP · no raw SQL tool</span></div>
+          <div class="node"><b>Next.js app</b><span>/ask (voice) · /consistency · /ontology · /impact</span></div>
+          <div class="node"><b>Runs as the persona</b><span>caller’s Snowflake role</span></div>
+        </div>
+      </div>
+      <div class="gate" data-a style="--i:3"><span class="chip c">CI gate</span><span>GitHub Actions (OIDC) → <span class="mono">CALL CI_GOVERNANCE_GATE()</span> <em>fails the PR on drift, data quality or certification.</em></span></div>
+    </section>
+
+    <!-- 05 SKILLS -->
+    <section class="slide s-skills" data-sec="2 · Architecture" aria-label="CoCo CLI skills and how modules connect">
+      <div>
+        <div class="eyebrow" data-a style="--i:0">2 · Architecture · CoCo CLI skills</div>
+        <h2 data-a style="--i:1">Fourteen layers, <em>one skill each.</em></h2>
+        <table data-a style="--i:2">
+          <thead><tr><th>Layer</th><th>SQL module</th><th>CoCo skill</th></tr></thead>
+          <tbody>
+            <tr><td>Sources and facts</td><td class="m">00a–00d, 11</td><td class="k">sql-author</td></tr>
+            <tr><td>Semantic views, agent</td><td class="m">00e, 07, 10</td><td class="k">agent-studio</td></tr>
+            <tr><td>Roles, row policy, grants</td><td class="m">00a, 00f</td><td class="k">data-governance</td></tr>
+            <tr><td>Drift test, schedule, alert</td><td class="m">00f, 04, 06</td><td class="k">data-quality · snowflake-tasks · alert</td></tr>
+            <tr><td>Forecast, breach prediction</td><td class="m">07b, 08</td><td class="k">machine-learning</td></tr>
+            <tr><td>Contract extraction</td><td class="m">16</td><td class="k">document-intelligence · cortex-ai-function-studio</td></tr>
+            <tr><td>SCOR industry alignment</td><td class="m">18</td><td class="k">sql-author</td></tr>
+            <tr><td>Certification, DQ, trust badge</td><td class="m">19</td><td class="k">certify-object · data-quality</td></tr>
+            <tr><td>MCP server for other agents</td><td class="m">20</td><td class="k">sql-author</td></tr>
+            <tr><td>Refusals → ontology roadmap</td><td class="m">21</td><td class="k">cortex-ai-function-studio</td></tr>
+            <tr><td>CI governance gate</td><td class="m">22, workflow</td><td class="k">ci-cd</td></tr>
+            <tr><td>Weekly breach digest</td><td class="m">23</td><td class="k">snowflake-tasks · notification</td></tr>
+            <tr><td>Impact of changing a view</td><td class="m">—</td><td class="k">lineage</td></tr>
+            <tr><td>App, voice, OWL export</td><td class="m">app/, app.yml</td><td class="k">snowflake-apps</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <aside class="contracts" data-a style="--i:3">
+        <h3>How modules plug together</h3>
+        <p>Three contracts. Nothing else is shared.</p>
+        <ol>
+          <li>Atomic CANONICAL facts<span>the only source of truth</span></li>
+          <li>Metric registry<span>METRIC_DEFINITION + METRIC_BINDING</span></li>
+          <li>Persona access<span>PERSONA_VIEW_ACCESS + row access policy</span></li>
+        </ol>
+        <div class="rebuild"><b>rebuild.mjs</b> rebuilds all of it,<br>6.1M rows, in about 4.5 minutes.</div>
+      </aside>
+    </section>
+
+    <!-- 06 WORKFLOW -->
+    <section class="slide s-flow" data-sec="2 · Architecture" aria-label="One workflow end to end">
+      <div class="eyebrow" data-a style="--i:0">2 · Architecture · one workflow, end to end</div>
+      <h2 data-a style="--i:1">A contract amendment lands. <em>The answer changes in nine seconds.</em></h2>
+      <div class="steps">
+        <div class="step" data-a style="--i:2">
+          <div class="k">Input</div>
+          <h3>Free-text amendment</h3>
+          <p>Supplier SUP-00042 raises its on-time commitment from 85% to 87%.</p>
+          <span class="chip c">$document-intelligence</span>
+        </div>
+        <div class="step" data-a style="--i:3">
+          <div class="k">Processing</div>
+          <h3>Extract, index, re-score</h3>
+          <p><code>INGEST_SUPPLIER_CONTRACT</code> runs AI_EXTRACT, refreshes search and re-scores compliance against the governed metric. About 9 s.</p>
+          <span class="chip c">$document-intelligence</span>
+        </div>
+        <div class="step" data-a style="--i:4">
+          <div class="k">Proof</div>
+          <h3>Nothing drifted</h3>
+          <p>5 of 5 metrics identical across personas, 22 scoped executions. Every binding PASS, zero spread.</p>
+          <span class="chip c">$data-quality</span>
+        </div>
+        <div class="step" data-a style="--i:5">
+          <div class="k">Output</div>
+          <h3>“Breached but look compliant?”</h3>
+          <div class="out">19 <small>suppliers</small></div>
+          <p>$196,156 in penalties. Was 18 before the amendment: the new contract is already in the answer.</p>
+          <span class="chip c">$agent-studio</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 IMPACT -->
+    <section class="slide s-impact" data-sec="3 · Impact" aria-label="Measured outcomes">
+      <div class="hero">
+        <div class="eyebrow" data-a style="--i:0">3 · Impact statement</div>
+        <div class="n" data-a style="--i:1"><small>$</small>178,832</div>
+        <p data-a style="--i:2">in contract penalties the legacy metric hides, across 18 suppliers.</p>
+        <div class="sub" data-a style="--i:3">
+          <div><b>$815,222</b>claimable across 67 suppliers</div>
+          <div><b>12</b>suppliers wrongly cleared</div>
+        </div>
+      </div>
+      <div class="rows-wrap" style="align-self:center">
+        <div class="rows" data-a style="--i:2">
+          <div class="r"><span class="g">Consistency</span><span class="d">Bindings matching canonical value</span><span class="v">15 / 15</span></div>
+          <div class="r"><span class="g">Consistency</span><span class="d">Same metric, three personas, own roles</span><span class="v">5 / 5</span></div>
+          <div class="r"><span class="g">Accuracy</span><span class="d">Conversational eval, 60 questions</span><span class="v">90.0<small>%</small></span></div>
+          <div class="r"><span class="g">Accuracy</span><span class="d">Agent vs app vs canonical SQL</span><span class="v">4 / 4</span></div>
+          <div class="r"><span class="g">Accuracy</span><span class="d">Contract fields extracted correctly</span><span class="v">2,700 / 2,700</span></div>
+          <div class="r"><span class="g">Trust</span><span class="d">Data-quality monitors passing</span><span class="v">15 / 15</span></div>
+          <div class="r"><span class="g">Standards</span><span class="d">Metrics mapped to SCOR</span><span class="v">13 / 15</span></div>
+          <div class="r"><span class="g">Time</span><span class="d">Governed answer, then repeat</span><span class="v">18.0<small> s</small> → 1.7<small> s</small></span></div>
+        </div>
+        <div class="src" data-a style="--i:4"><b>Source</b> GOVERNANCE.V_IMPACT_SCORECARD · live at /impact. Data is synthetic; targets are illustrative.</div>
+      </div>
+    </section>
+
+    <!-- 08 FINDING -->
+    <section class="slide s-find" data-sec="3 · Impact" aria-label="The finding">
+      <div>
+        <div class="eyebrow" data-a style="--i:0">3 · Impact · the finding</div>
+        <h2 data-a style="--i:1">79 of 300 contracts <em>write the flaw into the agreement.</em></h2>
+        <p class="lead" data-a style="--i:2">They define on-time as a monthly average. The enforceable number and the governed number differ by construction.</p>
+        <p class="fine" data-a style="--i:3">A dashboard cannot renegotiate a contract. The ontology can flag every one.</p>
+      </div>
+      <div>
+        <div class="dots" id="dots" data-a style="--i:2" role="img" aria-label="300 contracts, 79 highlighted as using the monthly-average definition"></div>
+        <div class="legend" data-a style="--i:4"><span class="h">79 monthly-average clause</span><span>221 other</span></div>
+      </div>
+    </section>
+
+    <!-- 09 SCALE -->
+    <section class="slide s-scale" data-sec="3 · Impact" aria-label="Scalability and beyond the demo">
+      <div>
+        <div class="eyebrow" data-a style="--i:0">3 · Impact · scalability</div>
+        <h2 data-a style="--i:1">A new metric is <em>one row.</em></h2>
+        <p class="lead" data-a style="--i:2">A new source is one canonical fact. IoT and contracts were both added that way, without touching the base semantic layer.</p>
+        <div class="tags" data-a style="--i:3"><span class="chip c">Finance close</span><span class="chip c">Clinical ops</span><span class="chip c">Retail</span></div>
+        <p class="src" data-a style="--i:3;margin-top:18px">Same pattern anywhere two teams compute “the same” metric.</p>
+      </div>
+      <div class="grid2">
+        <div class="it" data-a style="--i:2"><h3>No-code pickup</h3><p>Drift test, registry page, consistency runner and /ask all see a new metric. <span>No code change.</span></p></div>
+        <div class="it" data-a style="--i:3"><h3>New document types</h3><p>Quality certificates, rate confirmations, customs declarations. <span>Extract, score, route low certainty to review.</span></p></div>
+        <div class="it" data-a style="--i:4"><h3>The roadmap writes itself</h3><p>Refused questions are classified; unregistered-metric demand is ranked. <span>Forecast totals and schedule adherence lead.</span></p></div>
+        <div class="it" data-a style="--i:5"><h3>Every agent, same number</h3><p>MCP exposes governed metrics, executing as the caller. <span>EU logistics 0.8959, global 0.8855.</span></p></div>
+        <div class="it" data-a style="--i:6"><h3>Portable ontology</h3><p>OWL/SKOS export as Turtle or JSON‑LD. <span>SCOR codes as exactMatch and closeMatch.</span></p></div>
+        <div class="it" data-a style="--i:7"><h3>Governance in the build</h3><p>A PR that drifts a binding or certifies the defect view <span>fails CI. Proven red and green.</span></p></div>
+      </div>
+    </section>
+
+    <!-- 16 WHY BEST -->
+    <section class="slide s-win" data-sec="3 · Impact" aria-label="Why this is the best submission">
+      <div class="eyebrow" data-a style="--i:0">Why this is best</div>
+      <h2 data-a style="--i:1">Proven on <em>all three</em> judging focuses.</h2>
+      <div class="wins" data-a style="--i:2">
+        <div class="w"><div class="k">Real-world relevance</div><p>Models the chain in the brief and prices the divergence in decisions.</p><div class="v">12 suppliers<small>$178,832 in penalties the legacy metric hides</small></div></div>
+        <div class="w"><div class="k">Technical execution</div><p>Definitions are proven, not asserted, and a broken control stays deployed.</p><div class="v">15 / 15<small>zero spread · 174 of 174 tests passing</small></div></div>
+        <div class="w"><div class="k">Solution completeness</div><p>Structured and unstructured data, scored chat, MCP, a CI gate, OWL export.</p><div class="v">90.0%<small>60-question eval · 4 of 4 parity · 2,700 fields</small></div></div>
+      </div>
+    </section>
+
+    <!-- 17 CLOSE -->
+    <section class="slide s-close" data-sec="Close" aria-label="Close">
+      <blockquote data-a style="--i:0">One definition. Every team. <em>The same answer,</em> and a test that proves it tomorrow.</blockquote>
+      <div class="foot" data-a style="--i:1">
+        <div><b>Live demo</b><a href="https://sc-ontology-app.vercel.app" target="_blank" rel="noopener">sc-ontology-app.vercel.app</a></div>
+        <div><b>Team</b>3M-ONTOLOGIST · Mahantesh, Devansh, Sathyam</div>
+        <div><b>Note</b>The broken definition is left deployed so you can watch the test catch it.</div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="chrome-bot">
+    <nav class="ticks" id="ticks" aria-label="Slides"></nav>
+    <div class="count" id="count"></div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const slides = [...document.querySelectorAll('.slide')];
+  const ticks = document.getElementById('ticks');
+  const count = document.getElementById('count');
+  const sec = document.getElementById('sec');
+  let cur = 0;
+
+  const fit = () => stage.style.setProperty('--s', Math.min(innerWidth / 1920, innerHeight / 1080));
+  addEventListener('resize', fit); fit();
+
+  slides.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+    b.onclick = () => go(i);
+    ticks.appendChild(b);
+  });
+
+  const dots = document.getElementById('dots');
+  for (let i = 0; i < 300; i++) { const d = document.createElement('i'); if (i < 79) d.className = 'h'; dots.appendChild(d); }
+
+  function go(n) {
+    cur = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle('on', i === cur));
+    [...ticks.children].forEach((b, i) => { b.classList.toggle('on', i === cur); b.classList.toggle('done', i < cur); });
+    count.innerHTML = '<b>' + String(cur + 1).padStart(2, '0') + '</b> / ' + String(slides.length).padStart(2, '0');
+    sec.textContent = slides[cur].dataset.sec;
+    history.replaceState(null, '', '#' + (cur + 1));
+  }
+
+  addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+  });
+  stage.addEventListener('click', e => {
+    if (e.target.closest('a,button')) return;
+    const r = stage.getBoundingClientRect();
+    go(e.clientX - r.left < r.width * .25 ? cur - 1 : cur + 1);
+  });
+
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+})();
+</script>
+</body>
+</html>

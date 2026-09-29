@@ -44,7 +44,8 @@ export const config = {
     /**
      * Everything except the sign-in routes, Next.js internals and static files. Written as a
      * negative lookahead so newly added application routes are covered without touching this list.
+     * `deck/` is the static submission deck in public/deck; it holds no data, so it is public.
      */
-    "/((?!login|api/auth|_next/static|_next/image|favicon.ico|icon.svg).*)",
+    "/((?!login|api/auth|deck/|_next/static|_next/image|favicon.ico|icon.svg).*)",
   ],
 }

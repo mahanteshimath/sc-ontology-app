@@ -32,6 +32,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // public/deck/index.html is not served at /deck on its own, and its relative image paths need the trailing slash.
+  async redirects() {
+    return [{ source: '/deck', destination: '/deck/index.html', permanent: false }]
+  },
 }
 
 export default nextConfig
