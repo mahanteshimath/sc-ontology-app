@@ -1,5 +1,6 @@
-import { listDemoUsers, authConfigured } from "@/lib/auth"
+import { listDemoUsers, authConfigured, oneClickEnabled } from "@/lib/auth"
 import { LoginForm } from "@/components/login-form"
+import { OneClickPersonas } from "@/components/one-click-personas"
 import { APP_TITLE, TEAM_NAME } from "@/lib/constants"
 import Link from "next/link"
 import { ArrowLeft, LockKeyhole, ShieldCheck } from "lucide-react"
@@ -56,6 +57,12 @@ DEMO_USERS=planner:<pw>:SC_PLANNER;buyer:<pw>:SC_PROCUREMENT;logistics:<pw>:SC_L
           </div>
         ) : (
           <>
+            {oneClickEnabled() && (
+              <OneClickPersonas
+                users={users.filter((u) => u.personaRole !== "SC_ONTOLOGY_STEWARD")}
+                next={Array.isArray(sp.next) ? sp.next[0] ?? "/tour" : sp.next ?? "/tour"}
+              />
+            )}
             <LoginForm next={next} />
             <div className="rounded-xl border border-white/10 bg-white/[0.05] p-5 space-y-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Available workspaces</div>

@@ -267,10 +267,12 @@ td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
 /* ---------- print: one slide per page ---------- */
 @media print{
   @page{size:1920px 1080px;margin:0}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   html,body{overflow:visible;height:auto;background:#071320}
   .stage{position:static;transform:none;height:auto;overflow:visible;background:#071320}
   .stage::after,.chrome-top,.chrome-bot{display:none}
-  .slide{position:relative;height:1080px;opacity:1;visibility:visible;break-after:page;background:var(--bg)}
+  .slide{position:relative;height:1080px;opacity:1;visibility:visible;break-after:page;background:var(--bg);overflow:hidden}
+  .slide:last-child{break-after:auto}
   .slide [data-a]{opacity:1;transform:none;animation:none}
 }
 @media (prefers-reduced-motion:reduce){
@@ -605,7 +607,7 @@ td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
           <div class="r"><span class="g">Accuracy</span><span class="d">Agent vs app vs canonical SQL</span><span class="v">4 / 4</span></div>
           <div class="r"><span class="g">Accuracy</span><span class="d">Contract fields extracted correctly</span><span class="v">2,700 / 2,700</span></div>
           <div class="r"><span class="g">Trust</span><span class="d">Data-quality monitors passing</span><span class="v">15 / 15</span></div>
-          <div class="r"><span class="g">Standards</span><span class="d">Metrics mapped to SCOR</span><span class="v">13 / 15</span></div>
+          <div class="r"><span class="g">Time saved</span><span class="d">vs 4 h manual reconciliation (assumed)</span><span class="v">799<small>x</small></span></div>
           <div class="r"><span class="g">Time</span><span class="d">Governed answer, then repeat</span><span class="v">18.0<small> s</small> → 1.7<small> s</small></span></div>
         </div>
         <div class="src" data-a style="--i:4"><b>Source</b> GOVERNANCE.V_IMPACT_SCORECARD · live at /impact. Data is synthetic; targets are illustrative.</div>
@@ -629,11 +631,11 @@ td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
     <!-- 09 SCALE -->
     <section class="slide s-scale" data-sec="3 · Impact" aria-label="Scalability and beyond the demo">
       <div>
-        <div class="eyebrow" data-a style="--i:0">3 · Impact · scalability</div>
+        <div class="eyebrow" data-a style="--i:0">3 · Impact · scalability and beyond the demo</div>
         <h2 data-a style="--i:1">A new metric is <em>one row.</em></h2>
         <p class="lead" data-a style="--i:2">A new source is one canonical fact. IoT and contracts were both added that way, without touching the base semantic layer.</p>
         <div class="tags" data-a style="--i:3"><span class="chip c">Finance close</span><span class="chip c">Clinical ops</span><span class="chip c">Retail</span></div>
-        <p class="src" data-a style="--i:3;margin-top:18px">Same pattern anywhere two teams compute “the same” metric.</p>
+        <p class="src" data-a style="--i:3;margin-top:18px">Beyond the demo: the same pattern applies anywhere two teams compute “the same” metric.</p>
       </div>
       <div class="grid2">
         <div class="it" data-a style="--i:2"><h3>No-code pickup</h3><p>Drift test, registry page, consistency runner and /ask all see a new metric. <span>No code change.</span></p></div>
@@ -651,7 +653,7 @@ td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
       <h2 data-a style="--i:1">Proven on <em>all three</em> judging focuses.</h2>
       <div class="wins" data-a style="--i:2">
         <div class="w"><div class="k">Real-world relevance</div><p>Models the chain in the brief and prices the divergence in decisions.</p><div class="v">12 suppliers<small>$178,832 in penalties the legacy metric hides</small></div></div>
-        <div class="w"><div class="k">Technical execution</div><p>Definitions are proven, not asserted, and a broken control stays deployed.</p><div class="v">15 / 15<small>zero spread · 174 of 174 tests passing</small></div></div>
+        <div class="w"><div class="k">Technical execution</div><p>Definitions are proven, not asserted, and a broken control stays deployed.</p><div class="v">15 / 15<small>zero spread · 203 of 203 tests passing</small></div></div>
         <div class="w"><div class="k">Solution completeness</div><p>Structured and unstructured data, scored chat, MCP, a CI gate, OWL export.</p><div class="v">90.0%<small>60-question eval · 4 of 4 parity · 2,700 fields</small></div></div>
       </div>
     </section>

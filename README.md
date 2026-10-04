@@ -35,7 +35,7 @@ procurement and logistics — and tested on a schedule rather than asserted in a
 
 ### Prototype / MVP brief
 
-> Supply Chain Ontology (3M-ONTOLOGIST) is a working MVP, live at app, that makes every team see the same supply-chain number. Metrics like on-time delivery, fill rate, days of inventory and landed cost are defined once as Snowflake semantic views in a governed registry. Planning, Procurement and Logistics ask questions in plain English or by voice; answers run under each user's own Snowflake role, with provenance and drill-down to rows. A daily drift test checks against independent atomic SQL: 15/15 bindings match, zero spread. A deliberately broken legacy metric stays deployed (0.882631 vs 0.875824) to prove the test can fail. AI_EXTRACT reads 300 supplier contracts (2,700/2,700 fields correct) and exposes $178,832 of penalties the legacy metric hides. Built with Cortex Code skills, a Cortex Agent, Cortex Search and an MCP server. Scored 90.0% on 60 golden questions. Extends to any metric, source or document type with one registry row. Finally this is just not MVP its real world solution for many problems.
+> Supply Chain Ontology (3M-ONTOLOGIST) is a working MVP, live at app, that makes every team see the same supply-chain number. Metrics like on-time delivery, fill rate, days of inventory and landed cost are defined once as Snowflake semantic views in a governed registry. Planning, Procurement and Logistics ask questions in plain English or by voice; answers run under each user's own Snowflake role, with provenance and drill-down to rows. A daily drift test checks against independent atomic SQL: 15/15 bindings match, zero spread. A deliberately broken legacy metric stays deployed (0.882631 vs 0.875824) to prove the test can fail. AI_EXTRACT reads 300 supplier contracts (2,700/2,700 fields correct) and exposes $178,832 of penalties the legacy metric hides. Built with Cortex Code skills, a Cortex Agent, Cortex Analyst, Cortex Search and an MCP server. Scored 88.3% on 60 golden questions (latest full run); Cortex Analyst, asked the same questions under each persona's role, lands on the governed metric for 94.2% of answerable ones. Asked "what is our on-time delivery?", the TMS and CRM native definitions disagree by 20.1 points; the ontology gives one answer. Extends to any metric, source or document type with one registry row.
 
 ### Where each submission requirement is covered
 
@@ -74,6 +74,8 @@ procurement and logistics — and tested on a schedule rather than asserted in a
 
 The live [ontology page](https://sc-ontology-app.vercel.app/ontology) draws the entity model straight from `INFORMATION_SCHEMA`.
 
+![Architecture: sources, canonical layer, ontology, conversation, personas](public/deck/deck-assets/architecture.svg)
+
 ---
 
 ## The 60-second proof
@@ -87,8 +89,10 @@ Five claims, each checkable in one click rather than taken on faith:
 | **Technical Execution** | One metric definition resolves identically for Planning, Procurement and Logistics — and a deliberately broken negative control is kept deployed to prove the drift test can actually fail, not just pass. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — `SC_SUPPLIER_LEGACY_DEFECT` reports **0.882631** against the correct **0.875824**, a measured 0.006807 spread the governed views do not repeat. |
 | **Solution Completeness** | The conversational layer is **scored**, not asserted: 60 golden questions run over HTTP as their own personas, failures published rather than trimmed. One of them found a real broken-access-control bug. | [`/consistency`](https://sc-ontology-app.vercel.app/consistency) — `npm run eval` writes `GOVERNANCE.AGENT_EVAL_RUN`; `npm run parity` compares the Cortex Agent, the app, and the registry's canonical SQL. |
 | **Real World Relevance** | Supplier **contracts** - free text, the one source that is not a table - are read by `AI_EXTRACT` into a `SupplierContract` entity, every term scored against ground truth (**2,700 / 2,700 fields**). Held against the governed OTD, they turn the divergence into money: **$815K** of claimable penalties, **$179K** of it on 18 breaches the legacy metric shows as compliant, and **79** contracts that encode the non-governed definition. | [`/impact`](https://sc-ontology-app.vercel.app/impact) - one scorecard, every figure with its source object and a `MEASURED` / `ASSUMPTION` label. |
+| **Real World Relevance** | The brief's pain, measured live: asked "what is our on-time delivery?", the ERP, supplier portal, TMS and CRM native definitions give different answers over the **same events** — outbound spans **20.1 points** (69.4% CRM vs. 89.5% TMS). The governed metric is one value for every persona. | [`/ontology`](https://sc-ontology-app.vercel.app/ontology) — "Many source systems, one definition", from `GOVERNANCE.V_SOURCE_DEFINITION_SPREAD`. |
+| **Technical Execution** | Two independent text-to-SQL paths agree. Cortex Analyst, run under each persona's role, resolves **49 / 52** answerable eval questions to the governed metric; its 3 misses were raw-table SQL, which the guard refused to execute. On invented metrics it answers where the registry refuses (2 / 8 vs. 7 / 8), which is why the registry answers and Analyst cross-checks. | [`/ask`](https://sc-ontology-app.vercel.app/ask) — "Ask Cortex Analyst too" on any answer; `node scripts/analyst-parity.mjs` writes `GOVERNANCE.ANALYST_PARITY_RESULT`. |
 
-Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
+Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes), or the in-app [`/tour`](https://sc-ontology-app.vercel.app/tour).
 
 ---
 
@@ -476,6 +480,8 @@ flowchart TB
     K9["certify-object + data-quality<br/>certification, DMFs, trust badge (19)"]
     K10["cortex-ai-function-studio<br/>AI_CLASSIFY refusal roadmap (21)"]
     K11["ci-cd<br/>governance gate over OIDC (22)"]
+    K12["agent-studio + sql-author<br/>SC_VALUE_CHAIN, Cortex Analyst bridge (24, 25)"]
+    K13["data-governance<br/>tag-based masking, service principal (26)"]
   end
   K1 --> K2
   K3 --> K2
@@ -488,20 +494,21 @@ flowchart TB
   K9 --> K8
   K10 --> K2
   K11 --> K4
+  K12 --> K8
+  K2 --> K12
+  K13 --> K2
 ```
 
 | Module | Files | Plugs in through |
 |---|---|---|
-| Sources | `00a`-`00d`, `11`, `16` (contract text) | Atomic-grain `CANONICAL.FCT_*` facts |
-| Ontology | `00e`, `01`, `12`, `16` | Semantic views, derived catalogue (`ONTOLOGY_ENTITY` reads `INFORMATION_SCHEMA`) |
+| Sources | `00a`-`00d`, `11`, `16` (contract text), `27` (ERP / portal / TMS / CRM / IoT presentations) | Atomic-grain `CANONICAL.FCT_*` facts; `SOURCE_ATTRIBUTE_MAP` records each native attribute's mapping |
+| Ontology | `00e`, `01`, `12`, `16`, `24` | Semantic views incl. `SC_VALUE_CHAIN` (Supplier → Part → Plant → Shipment → Customer Order → Customer), derived catalogue (`ONTOLOGY_ENTITY` reads `INFORMATION_SCHEMA`) |
 | Contract | `00f`, `02`, `03`, `05` | `METRIC_DEFINITION` + `METRIC_BINDING`: one definition, many views |
-| Proof | `00f` drift, `04`, `06`, `13`, `14`, `15`, `17`, `90`-`93` | Drift test, eval, parity, scorecard |
-| Conversation | `09`, `10`, `/api/ask` | Registry-assembled SQL under the persona's role; Cortex Agent with 11 tools (9 semantic views, contract search, charting) |
+| Proof | `00f` drift, `04`, `06`, `13`, `14`, `15`, `17`, `90`-`93`, `scripts/analyst-parity.mjs` | Drift test, eval, Agent and Cortex Analyst parity, scorecard |
+| Conversation | `09`, `10`, `25`, `/api/ask`, `/api/ask/analyst` | Registry-assembled SQL under the persona's role; Cortex Analyst cross-check (SQL generated by an owner's-rights procedure, executed under the persona's role); Cortex Agent with 11 tools |
 | Prediction | `07b`, `08`, `08b` | Separate registry, excluded from the drift contract, always shown with its backtest |
-| Trust and reach | `18`-`23`, `/api/ontology`, `.github/workflows/` | SCOR grades, certification + DMFs, MCP server, refusal roadmap, CI gate, digest |
-
-> Confirm the skill-to-layer mapping against how your team actually built each file before
-> presenting it; the layer boundaries and file numbers are exact.
+| Trust and reach | `18`-`23`, `26`, `/api/ontology`, `.github/workflows/` | SCOR grades, certification + DMFs, tag-based masking, MCP server, refusal roadmap, CI gate, digest |
+| Security | `lib/sql-guard.ts`, `sql/ci/create_app_service_user.sql` | Token allow-list for interpolated rule SQL; key-pair `TYPE=SERVICE` principal holding persona roles only |
 
 ---
 
@@ -726,7 +733,7 @@ statement boundaries. Use the runner, not `snow sql`, for `00f`, `01` and `07`.
 | 34 | `90_verify_base.sql` | splice anchors, registry shape, verified-query counts, agent exists, **the drift gate** |
 | 35 | `91_verify_personas.sql` | proves the EU row scope actually filters |
 | 36 | `92_verify_counts.sql` | row counts, snapshot cardinality, data shape |
-| 37 | `93_verify_verified_queries.sql` | **executes** all 39 verified queries |
+| 37 | `93_verify_verified_queries.sql` | **executes** all 42 verified queries |
 
 The runner's `FILES` list in `scripts/rebuild.mjs` is authoritative; `sql/ci/create_ci_user.sql` is
 deliberately **not** in it (it creates a service user and must be run by an admin who has agreed to it).
@@ -1669,7 +1676,7 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
   one added by `sql/11_iot_telemetry.sql` (`TELEMETRY_TO_FULFILLMENT`). The remaining one is
   unrecoverable, and inventing an edge to reach a round count risks creating a second join path and
   breaking a metric.
-- **The agent assets are reproducible as of this revision** — the Cortex Agent, all 39 verified
+- **The agent assets are reproducible as of this revision** — the Cortex Agent, all 42 verified
   queries and the 60-question evaluation set are committed SQL, rebuilt by `scripts/rebuild.mjs` and
   asserted by `sql/90` and `sql/93`.
 - **The 60 evaluation questions are scored, and they do not all pass.** `npm run eval` runs every

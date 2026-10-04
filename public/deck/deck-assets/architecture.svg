@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Inter, Segoe UI, Arial, sans-serif">
+  <title>Supply Chain Ontology - architecture and data flow</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .lane{fill:#0f1c2b;stroke:#1f3347;stroke-width:1.5}
+      .lt{fill:#7dd3fc;font-size:15px;font-weight:700;letter-spacing:2px}
+      .box{fill:#132538;stroke:#2c4a66;stroke-width:1.5}
+      .gov{fill:#0f2a24;stroke:#2f6b57;stroke-width:1.5}
+      .h{fill:#f1f5f9;font-size:16px;font-weight:600}
+      .s{fill:#94a3b8;font-size:12.5px}
+      .k{fill:#fbbf24;font-size:11.5px;font-weight:600}
+      .ln{stroke:#64748b;stroke-width:2;fill:none;marker-end:url(#a)}
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="#08131f"/>
+  <text x="40" y="52" fill="#f8fafc" font-size="28" font-weight="700">Supply Chain Ontology - governed conversational analytics on Snowflake</text>
+  <text x="40" y="80" fill="#94a3b8" font-size="15">Many sources -> one canonical layer -> one ontology -> one governed answer per metric, for every persona. Yellow tags name the CoCo skill used to build each module.</text>
+
+  <!-- lanes -->
+  <rect class="lane" x="30" y="105" width="290" height="760" rx="14"/><text class="lt" x="50" y="135">1 SOURCES</text>
+  <rect class="lane" x="340" y="105" width="290" height="760" rx="14"/><text class="lt" x="360" y="135">2 CANONICAL</text>
+  <rect class="lane" x="650" y="105" width="330" height="760" rx="14"/><text class="lt" x="670" y="135">3 ONTOLOGY</text>
+  <rect class="lane" x="1000" y="105" width="290" height="760" rx="14"/><text class="lt" x="1020" y="135">4 CONVERSATION</text>
+  <rect class="lane" x="1310" y="105" width="260" height="760" rx="14"/><text class="lt" x="1330" y="135">5 PERSONAS</text>
+
+  <!-- sources -->
+  <rect class="box" x="50" y="155" width="250" height="80" rx="10"/><text class="h" x="65" y="182">ERP (SAP MM style)</text><text class="s" x="65" y="203">EBELN, LIFNR, BUDAT YYYYMMDD</text><text class="s" x="65" y="221">OTD = 2-day GR grace</text>
+  <rect class="box" x="50" y="250" width="250" height="80" rx="10"/><text class="h" x="65" y="277">Supplier portal</text><text class="s" x="65" y="298">supplier scorecards</text><text class="s" x="65" y="316">OTD = average of averages</text>
+  <rect class="box" x="50" y="345" width="250" height="80" rx="10"/><text class="h" x="65" y="372">TMS / carriers</text><text class="s" x="65" y="393">POD timestamps (UTC), lanes</text><text class="s" x="65" y="411">OTD = within 1 day</text>
+  <rect class="box" x="50" y="440" width="250" height="80" rx="10"/><text class="h" x="65" y="467">CRM / order mgmt</text><text class="s" x="65" y="488">order headers</text><text class="s" x="65" y="506">OTD = every line on time</text>
+  <rect class="box" x="50" y="535" width="250" height="80" rx="10"/><text class="h" x="65" y="562">IoT sensors</text><text class="s" x="65" y="583">peak temperature (deg F)</text><text class="s" x="65" y="601">cold-chain excursions</text>
+  <rect class="box" x="50" y="630" width="250" height="80" rx="10"/><text class="h" x="65" y="657">Supplier contracts (PDF text)</text><text class="s" x="65" y="678">unstructured: OTD clause,</text><text class="s" x="65" y="696">penalty %, cap, incoterm</text>
+  <text class="k" x="50" y="740">migration-guide / snowpark-python (00b-00c, 27)</text>
+  <text class="k" x="50" y="760">document-intelligence: AI_EXTRACT (16)</text>
+  <text class="s" x="50" y="800">Measured: outbound OTD spans</text>
+  <text class="s" x="50" y="818">20.1 pts across native definitions</text>
+
+  <!-- canonical -->
+  <rect class="box" x="360" y="155" width="250" height="230" rx="10"/>
+  <text class="h" x="375" y="182">CANONICAL facts</text>
+  <text class="s" x="375" y="206">FCT_SUPPLIER_DELIVERY_LINE  420K</text>
+  <text class="s" x="375" y="226">FCT_ORDER_LINE_FULFILLMENT 1.5M</text>
+  <text class="s" x="375" y="246">FCT_LANDED_COST_SHIPMENT   1.48M</text>
+  <text class="s" x="375" y="266">FCT_INVENTORY_SNAPSHOT     137K</text>
+  <text class="s" x="375" y="286">FCT_SHIPMENT_TELEMETRY</text>
+  <text class="s" x="375" y="306">DIM_SUPPLIER_CONTRACT (300)</text>
+  <text class="s" x="375" y="334">atomic grain, one row per event</text>
+  <text class="s" x="375" y="352">SOURCE_ATTRIBUTE_MAP: native -> ontology</text>
+  <rect class="gov" x="360" y="405" width="250" height="150" rx="10"/>
+  <text class="h" x="375" y="432">Governance controls</text>
+  <text class="s" x="375" y="456">RAP_SHIP_REGION row access</text>
+  <text class="s" x="375" y="476">MP_CONFIDENTIAL_NUMBER masking</text>
+  <text class="s" x="375" y="496">  via SC_SENSITIVITY tag</text>
+  <text class="s" x="375" y="516">DMFs + certification tags</text>
+  <text class="s" x="375" y="536">no persona can read RAW</text>
+  <text class="k" x="360" y="580">sql-author (00d) - data-governance (00f, 26)</text>
+  <text class="k" x="360" y="600">data-quality + certify-object (19)</text>
+
+  <!-- ontology -->
+  <rect class="box" x="670" y="155" width="290" height="170" rx="10"/>
+  <text class="h" x="685" y="182">Semantic views (12)</text>
+  <text class="s" x="685" y="206">SC_ONTOLOGY_360: 12 entities, 15 rels</text>
+  <text class="s" x="685" y="226">SC_VALUE_CHAIN: Supplier -> Part -> Plant</text>
+  <text class="s" x="685" y="244">  -> Shipment -> Customer Order -> Customer</text>
+  <text class="s" x="685" y="266">+ 6 domain views, outlook, telemetry, contract</text>
+  <text class="s" x="685" y="288">42 verified queries, all executed (93)</text>
+  <text class="s" x="685" y="308">synonyms on every entity/metric</text>
+  <rect class="gov" x="670" y="340" width="290" height="150" rx="10"/>
+  <text class="h" x="685" y="367">Metric registry</text>
+  <text class="s" x="685" y="391">METRIC_DEFINITION + METRIC_BINDING</text>
+  <text class="s" x="685" y="411">OTD, fill rate, DOI, landed cost, ...</text>
+  <text class="s" x="685" y="431">owner, target, as-of rule, exception rule</text>
+  <text class="s" x="685" y="451">7 hierarchies, 10 rollups proven (12)</text>
+  <text class="s" x="685" y="471">OWL / SKOS export, SCOR mapping</text>
+  <rect class="gov" x="670" y="505" width="290" height="110" rx="10"/>
+  <text class="h" x="685" y="532">Proof</text>
+  <text class="s" x="685" y="556">daily drift test: 16/16 bindings, 0 spread</text>
+  <text class="s" x="685" y="576">negative control kept deployed</text>
+  <text class="s" x="685" y="596">CI governance gate (OIDC)</text>
+  <text class="k" x="670" y="640">agent-studio (00e, 24) - sql-author (12)</text>
+  <text class="k" x="670" y="660">data-quality + snowflake-tasks + alert (04, 06)</text>
+  <text class="k" x="670" y="680">ci-cd (22)</text>
+
+  <!-- conversation -->
+  <rect class="box" x="1020" y="155" width="250" height="140" rx="10"/>
+  <text class="h" x="1035" y="182">Registry engine (default)</text>
+  <text class="s" x="1035" y="206">AI_COMPLETE maps question</text>
+  <text class="s" x="1035" y="224">  -> registered metric IDs only</text>
+  <text class="s" x="1035" y="244">app builds SEMANTIC_VIEW SQL</text>
+  <text class="s" x="1035" y="264">88.3% on 60 golden Qs,</text>
+  <text class="s" x="1035" y="282">7/8 invented metrics refused</text>
+  <rect class="box" x="1020" y="310" width="250" height="140" rx="10"/>
+  <text class="h" x="1035" y="337">Cortex Analyst cross-check</text>
+  <text class="s" x="1035" y="361">owner's-rights generator</text>
+  <text class="s" x="1035" y="379">  returns SQL text only</text>
+  <text class="s" x="1035" y="399">guard: one read-only SEMANTIC_VIEW</text>
+  <text class="s" x="1035" y="419">49/52 resolve to governed metric</text>
+  <text class="s" x="1035" y="437">agreement badge in /ask</text>
+  <rect class="box" x="1020" y="465" width="250" height="120" rx="10"/>
+  <text class="h" x="1035" y="492">Cortex Agent + MCP</text>
+  <text class="s" x="1035" y="516">11 tools: semantic views,</text>
+  <text class="s" x="1035" y="534">Cortex Search on contracts</text>
+  <text class="s" x="1035" y="554">managed MCP server</text>
+  <text class="s" x="1035" y="572">parity: 4/4 reconciled</text>
+  <text class="k" x="1020" y="610">cortex-ai-function-studio (ask, 21)</text>
+  <text class="k" x="1020" y="630">agent-optimization (09, 10, 14, 15)</text>
+  <text class="k" x="1020" y="650">machine-learning: forecasts (07b, 08)</text>
+
+  <!-- personas -->
+  <rect class="box" x="1330" y="155" width="220" height="330" rx="10"/>
+  <text class="h" x="1345" y="182">Next.js app</text>
+  <text class="s" x="1345" y="206">Snowflake App Runtime</text>
+  <text class="s" x="1345" y="224">or Vercel (key-pair service user)</text>
+  <text class="s" x="1345" y="256">per request:</text>
+  <text class="s" x="1345" y="274">USE ROLE persona</text>
+  <text class="s" x="1345" y="292">USE SECONDARY ROLES NONE</text>
+  <text class="s" x="1345" y="324">SC_PLANNER</text>
+  <text class="s" x="1345" y="344">SC_PROCUREMENT</text>
+  <text class="s" x="1345" y="364">SC_LOGISTICS</text>
+  <text class="s" x="1345" y="384">SC_LOGISTICS_EU (EU rows)</text>
+  <text class="s" x="1345" y="404">SC_ONTOLOGY_STEWARD</text>
+  <text class="s" x="1345" y="436">same metric -> same value</text>
+  <text class="s" x="1345" y="456">for every persona</text>
+  <text class="k" x="1330" y="510">snowflake-apps (app.yml)</text>
+
+  <!-- flows -->
+  <path class="ln" d="M300,430 L355,270"/>
+  <path class="ln" d="M610,270 L665,240"/>
+  <path class="ln" d="M610,480 L665,420"/>
+  <path class="ln" d="M960,240 L1015,225"/>
+  <path class="ln" d="M960,420 L1015,380"/>
+  <path class="ln" d="M960,270 L1015,520"/>
+  <path class="ln" d="M1270,225 L1325,260"/>
+  <path class="ln" d="M1270,380 L1325,320"/>
+  <path class="ln" d="M1270,525 L1325,420"/>
+
+  <text x="40" y="890" fill="#64748b" font-size="12">Figures are read from GOVERNANCE.V_IMPACT_SCORECARD, V_SOURCE_DEFINITION_SPREAD and VERIFIED_QUERY_CHECK at the time of writing; data is synthetic, arithmetic is real.</text>
+</svg>

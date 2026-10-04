@@ -1,7 +1,8 @@
 /**
  * Sign in / sign out for the demo gate.
  *
- * POST /api/auth/login   { username, password }
+ * POST /api/auth/login      { username, password }
+ * POST /api/auth/one-click  { username }   only when DEMO_ONE_CLICK=true; never the steward
  * POST /api/auth/logout
  *
  * Failures are deliberately vague ("Incorrect username or password") so the response cannot be
@@ -9,7 +10,13 @@
  * an operator error rather than a credential error and is worth reporting clearly.
  */
 
-import { signIn, authConfigured, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth"
+import {
+  signIn,
+  signInOneClick,
+  authConfigured,
+  SESSION_COOKIE,
+  sessionCookieOptions,
+} from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     return res
   }
 
-  if (action !== "login") {
+  if (action !== "login" && action !== "one-click") {
     return Response.json({ error: "Unknown action" }, { status: 404 })
   }
 
@@ -43,13 +50,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   const username = (body.username ?? "").trim()
   const password = body.password ?? ""
 
-  if (!username || !password) {
-    return Response.json({ error: "Username and password are required" }, { status: 400 })
-  }
-
-  const token = await signIn(username, password)
-  if (!token) {
-    return Response.json({ error: "Incorrect username or password" }, { status: 401 })
+  let token: string | null
+  if (action === "one-click") {
+    if (!username) return Response.json({ error: "Username is required" }, { status: 400 })
+    token = await signInOneClick(username)
+    if (!token) return Response.json({ error: "One-click access is not available for this workspace" }, { status: 403 })
+  } else {
+    if (!username || !password) {
+      return Response.json({ error: "Username and password are required" }, { status: 400 })
+    }
+    token = await signIn(username, password)
+    if (!token) {
+      return Response.json({ error: "Incorrect username or password" }, { status: 401 })
+    }
   }
 
   const secure = new URL(req.url).protocol === "https:"

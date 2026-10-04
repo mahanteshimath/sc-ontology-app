@@ -44,3 +44,8 @@ brag-output-*/
 
 # scripts/migrate.mjs working state and report (account-specific)
 .migrate/
+
+# agent / browser-automation scratch output and Python bytecode
+.playwright-mcp/
+.cortex/
+__pycache__/

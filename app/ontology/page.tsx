@@ -5,18 +5,27 @@ import {
   getOntologyRelationships,
   getEntityAttributes,
   getOntologyHierarchies,
+  getValueChainParity,
+  getSourceDefinitionSpread,
+  getSourceAttributeMap,
 } from "@/lib/sc"
 import { parseSynonyms } from "@/lib/format"
 import { OntologyGraph } from "@/components/ontology-graph"
+import { ValueChain } from "@/components/value-chain"
+import { SourceSpread } from "@/components/source-spread"
 
 export const dynamic = "force-dynamic"
 
 async function OntologyBody() {
-  const [entities, relationships, attributes, hierarchyLevels] = await Promise.all([
+  const [entities, relationships, attributes, hierarchyLevels, chainRelationships, chainParity, sourceSpread, sourceMap] = await Promise.all([
     getOntologyEntities(),
     getOntologyRelationships(),
     getEntityAttributes(),
     getOntologyHierarchies(),
+    getOntologyRelationships("SC_VALUE_CHAIN"),
+    getValueChainParity().catch(() => []),
+    getSourceDefinitionSpread().catch(() => []),
+    getSourceAttributeMap().catch(() => []),
   ])
 
   const dims = entities.filter((e) => e.entityRole === "DIMENSION")
@@ -55,6 +64,29 @@ async function OntologyBody() {
           sub={`${provenRollups}/${rollups.length} rollups measured as true`}
         />
       </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">Value chain</h2>
+        <p className="text-xs text-muted-foreground max-w-3xl leading-relaxed">
+          Supplier → Part → Plant → Shipment → Customer Order → Customer, as the business draws it. Encoded as the
+          SC_VALUE_CHAIN semantic view over the same canonical facts and metric expressions as SC_ONTOLOGY_360, and
+          checked live below: every link must be a declared relationship, and every shared metric must return the
+          identical value from both views.
+        </p>
+        <ValueChain relationships={chainRelationships} parity={chainParity} />
+      </section>
+
+      {sourceSpread.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Many source systems, one definition</h2>
+          <p className="text-xs text-muted-foreground max-w-3xl leading-relaxed">
+            The same question — &ldquo;what is our on-time delivery?&rdquo; — asked of each source system using its own native
+            definition, over the same underlying events. The sources disagree; the governed metric is the single answer
+            every persona receives. Computed live from GOVERNANCE.V_SOURCE_DEFINITION_SPREAD.
+          </p>
+          <SourceSpread spread={sourceSpread} mapping={sourceMap} />
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Entity relationship model</h2>

@@ -29,7 +29,7 @@
  *
  * Auth is auto-detected (in priority order):
  *   1. SPCS token file (/snowflake/session/token) — read fresh on every call
- *   2. SNOWFLAKE_USER + SNOWFLAKE_PASSWORD env vars — password auth (local dev)
+ *   2. SNOWFLAKE_USER + SNOWFLAKE_PRIVATE_KEY (key-pair) or SNOWFLAKE_PASSWORD env vars
  *   3. ~/.snowflake/config.toml default connection — zero-config local dev
  *
  * Caller's rights applies only to a real (production) deployment. In local dev and in
@@ -465,17 +465,44 @@ function getCallersPool(combinedToken: string, serviceToken: string): ReturnType
 
 function getPasswordPool(): ReturnType<typeof snowflake.createPool> {
   if (!passwordPool) {
-    sfLog("pool: creating password-auth pool (SNOWFLAKE_USER)")
+    sfLog("pool: creating env-credential pool (SNOWFLAKE_USER)")
     passwordPool = snowflake.createPool(
       {
         ...baseConfig(),
-        username: process.env.SNOWFLAKE_USER,
-        password: process.env.SNOWFLAKE_PASSWORD,
+        ...(envCredentials() as snowflake.ConnectionOptions),
       },
       POOL_CONFIG,
     )
   }
   return passwordPool
+}
+
+/**
+ * Credentials from environment variables, or null when none are set.
+ *
+ * Key-pair (SNOWFLAKE_PRIVATE_KEY, PEM text with literal or escaped newlines) is preferred: it is
+ * the only option for the least-privilege TYPE=SERVICE principal created by
+ * sql/ci/create_app_service_user.sql, which cannot hold a password. Password auth is kept for local
+ * development against a human user.
+ */
+export function envCredentials(): Partial<snowflake.ConnectionOptions> | null {
+  const user = process.env.SNOWFLAKE_USER
+  if (!user) return null
+  const key = process.env.SNOWFLAKE_PRIVATE_KEY
+  if (key) {
+    return {
+      username: user,
+      authenticator: "SNOWFLAKE_JWT",
+      privateKey: key.replace(/\\n/g, "\n"),
+      ...(process.env.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE && {
+        privateKeyPass: process.env.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE,
+      }),
+    }
+  }
+  if (process.env.SNOWFLAKE_PASSWORD) {
+    return { username: user, password: process.env.SNOWFLAKE_PASSWORD }
+  }
+  return null
 }
 
 function getTomlPool(conn: TomlConnection): ReturnType<typeof snowflake.createPool> {
@@ -687,7 +714,7 @@ export async function querySnowflake(query: string, options: QueryOptions = {}):
   }
 
   // Explicit env vars: password auth via pooled connections
-  if (process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD) {
+  if (envCredentials()) {
     return queryWithPool(getPasswordPool(), query, "password", warehouse, binds)
   }
 
@@ -700,7 +727,7 @@ export async function querySnowflake(query: string, options: QueryOptions = {}):
   throw new Error(
     "No Snowflake credentials found. Provide one of:\n" +
     "  1. SPCS token file at /snowflake/session/token\n" +
-    "  2. SNOWFLAKE_USER + SNOWFLAKE_PASSWORD env vars\n" +
+    "  2. SNOWFLAKE_USER + SNOWFLAKE_PRIVATE_KEY (or SNOWFLAKE_PASSWORD) env vars\n" +
       "  3. ~/.snowflake/config.toml with a default connection"
   )
 }
@@ -745,7 +772,7 @@ export async function querySnowflakeLongRunning(
     console.warn("[snowflake] useCallersRights=true has no effect outside SPCS — using local dev credentials")
   }
 
-  if (process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD) {
+  if (envCredentials()) {
     return queryWithPoolLongRunning(getPasswordPool(), query, "password", longOpts, warehouse, binds)
   }
 
@@ -757,7 +784,7 @@ export async function querySnowflakeLongRunning(
   throw new Error(
     "No Snowflake credentials found. Provide one of:\n" +
     "  1. SPCS token file at /snowflake/session/token\n" +
-    "  2. SNOWFLAKE_USER + SNOWFLAKE_PASSWORD env vars\n" +
+    "  2. SNOWFLAKE_USER + SNOWFLAKE_PRIVATE_KEY (or SNOWFLAKE_PASSWORD) env vars\n" +
     "  3. ~/.snowflake/config.toml with a default connection"
   )
 }

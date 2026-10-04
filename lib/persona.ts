@@ -26,7 +26,7 @@
  */
 
 import snowflake from "snowflake-sdk"
-import { getServiceToken, readTomlDefaultConnection } from "@/lib/snowflake"
+import { envCredentials, getServiceToken, readTomlDefaultConnection } from "@/lib/snowflake"
 
 function baseOptions(): snowflake.ConnectionOptions {
   const token = getServiceToken()
@@ -38,12 +38,9 @@ function baseOptions(): snowflake.ConnectionOptions {
       ...(process.env.SNOWFLAKE_ACCOUNT_URL && { accessUrl: process.env.SNOWFLAKE_ACCOUNT_URL }),
     }
   }
-  if (process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD) {
-    return {
-      account: process.env.SNOWFLAKE_ACCOUNT ?? "",
-      username: process.env.SNOWFLAKE_USER,
-      password: process.env.SNOWFLAKE_PASSWORD,
-    }
+  const creds = envCredentials()
+  if (creds) {
+    return { account: process.env.SNOWFLAKE_ACCOUNT ?? "", ...creds } as snowflake.ConnectionOptions
   }
   const conn = readTomlDefaultConnection()
   if (!conn) throw new Error("No Snowflake credentials available for per-role execution")

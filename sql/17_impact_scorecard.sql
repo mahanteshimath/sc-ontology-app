@@ -29,7 +29,13 @@ drift AS (
     FROM METRIC_DRIFT_RESULT
    WHERE run_id = (SELECT run_id FROM METRIC_DRIFT_RESULT ORDER BY run_at DESC LIMIT 1)
 ),
-ev AS (SELECT * FROM AGENT_EVAL_RUN ORDER BY run_at DESC LIMIT 1),
+-- Latest run that covered the WHOLE eval set. A partial debug run (scripts/eval.mjs --only ...)
+-- previously became the headline: "50% (1 / 2)" on a two-question smoke test.
+ev AS (
+  SELECT * FROM AGENT_EVAL_RUN
+   WHERE questions >= (SELECT COUNT(*) FROM AGENT_EVAL_QUESTION)
+   ORDER BY run_at DESC LIMIT 1
+),
 par AS (
   SELECT COUNT(*) AS questions, COUNT_IF(status = 'MATCH') AS matched, COUNT_IF(status = 'AS_OF_GAP') AS as_of_gap, COUNT_IF(status = 'DIVERGE') AS diverged, MAX(run_at) AS run_at
     FROM AGENT_PARITY_RESULT
@@ -37,6 +43,21 @@ par AS (
 ),
 dv AS (SELECT * FROM V_DIVERGENCE_IMPACT),
 ct AS (SELECT * FROM V_CONTRACT_IMPACT),
+-- Cortex Analyst graded over the same eval set, per persona (scripts/analyst-parity.mjs).
+an AS (
+  SELECT COUNT_IF(should_answer) AS questions, COUNT_IF(should_answer AND status = 'PASS') AS passed,
+         COUNT_IF(NOT should_answer) AS refusals_expected, COUNT_IF(NOT should_answer AND status = 'PASS') AS refusals_correct,
+         COUNT_IF(status = 'FAIL' AND detail ILIKE 'SQL not a governed%') AS ungoverned_blocked,
+         ROUND(AVG(latency_ms)) AS mean_ms, MAX(run_at) AS run_at
+    FROM ANALYST_PARITY_RESULT
+   WHERE run_at = (SELECT MAX(run_at) FROM ANALYST_PARITY_RESULT)
+),
+-- The brief's problem, measured: spread of source-system answers to one question (sql/27).
+src AS (
+  SELECT MAX(IFF(is_governed, NULL, otd_value)) - MIN(IFF(is_governed, NULL, otd_value)) AS spread,
+         COUNT_IF(NOT is_governed) AS sources
+    FROM V_SOURCE_DEFINITION_SPREAD WHERE direction = 'OUTBOUND'
+),
 -- The one assumption. Four hours is a conservative reading of "someone
 -- notices two decks disagree, two analysts reconcile, a steward rules" --
 -- replace it with your own figure; every row that uses it says so.
@@ -85,7 +106,20 @@ SELECT * FROM (
   UNION ALL
   SELECT 13, 'Time', 'Speed-up versus the manual baseline',
          ROUND(b.manual_reconciliation_hours * 3600000 / NULLIF(e.mean_latency_ms, 0)) || 'x faster',
-         'ASSUMPTION', 'row 11 measured / row 12 assumed' FROM ev e, baseline b
+         'ASSUMPTION', 'row 11 measured / row 12 assumed' FROM ev e, baseline b  UNION ALL
+  SELECT 14, 'Consistency', 'Outbound OTD across source systems (TMS, CRM) vs. one governed answer',
+         ROUND(s.spread * 100, 1) || ' pts spread across ' || s.sources || ' sources -> 0 pts governed', 'MEASURED',
+         'V_SOURCE_DEFINITION_SPREAD' FROM src s
+  UNION ALL
+  SELECT 15, 'Accuracy', 'Cortex Analyst resolves answerable questions to the governed metric (run as each persona)',
+         ROUND(100 * a.passed / NULLIF(a.questions, 0), 1) || '% (' || a.passed || ' / ' || a.questions || '), '
+           || a.ungoverned_blocked || ' raw-table SQL blocked by the guard',
+         'MEASURED', 'ANALYST_PARITY_RESULT (run ' || TO_VARCHAR(a.run_at, 'YYYY-MM-DD') || ')' FROM an a WHERE a.questions > 0
+  UNION ALL
+  SELECT 16, 'Accuracy', 'Invented-metric questions refused: Cortex Analyst vs. registry engine',
+         a.refusals_correct || ' / ' || a.refusals_expected || ' Analyst vs. ' || e.refusals_correct || ' / ' || e.refusals_expected
+           || ' registry - why the registry engine answers and Analyst cross-checks',
+         'MEASURED', 'ANALYST_PARITY_RESULT + AGENT_EVAL_RUN' FROM an a, ev e WHERE a.refusals_expected > 0
 )
 ORDER BY ord;
 

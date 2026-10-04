@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button"
 import { StatusPill, Tag } from "@/components/ui-kit"
 import { DrilldownButton } from "@/components/drilldown"
 import { AskCharts } from "@/components/ask-charts"
+import { AnalystCrossCheck } from "@/components/analyst-cross-check"
 import { VoiceInput } from "@/components/voice-input"
 import { formatMetricValue } from "@/lib/format"
 import { assessTarget, ragTextClass } from "@/lib/target"
@@ -577,6 +578,11 @@ function Answer({
             )
           })}
         </div>
+      )}
+
+      {/* Independent second path: Cortex Analyst over the same view, under the same role. */}
+      {isScalar && metrics.length > 0 && (
+        <AnalystCrossCheck question={turn.question} metrics={metrics} governedRow={rows[0]} period={period} />
       )}
 
       {/* Chart. Type, ordering and panel split were all decided on the server. */}

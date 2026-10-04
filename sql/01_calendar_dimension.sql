@@ -30,7 +30,8 @@
 --
 -- The statement is built by string-extending the deployed DDL rather than being
 -- hand-transcribed, so the 18 KB of existing definition cannot be corrupted by a
--- typo. CREATE OR ALTER is used so existing grants survive.
+-- typo. CREATE OR ALTER is used so existing grants survive. The block is guarded,
+-- so re-running this file is a no-op once CALENDAR is present.
 -- ---------------------------------------------------------------------------
 
 USE DATABASE SUPPLY_CHAIN;
@@ -49,6 +50,13 @@ DECLARE
   cal_dims STRING := $$CALENDAR.CAL_DATE as calendar.date_key with synonyms=('date','day','event date') comment='Calendar day - lowest level of the time hierarchy. The event date of the fact: goods receipt for inbound, delivery for outbound, snapshot for inventory, completion for production.', CALENDAR.CAL_MONTH as calendar.month_start with synonyms=('month','period','monthly') comment='First day of the calendar month - level 2 of the time hierarchy.', CALENDAR.CAL_PERIOD as calendar.period with synonyms=('period label','yyyy-mm') comment='Calendar month as a YYYY-MM label.', CALENDAR.CAL_QUARTER as calendar.fiscal_quarter with synonyms=('quarter','fiscal quarter','q1','q2','q3','q4') comment='Fiscal quarter, calendar-aligned - level 3 of the time hierarchy.', CALENDAR.CAL_YEAR as calendar.year_num with synonyms=('year','annual') comment='Calendar year - top level of the time hierarchy.', CALENDAR.IS_FUTURE as IFF(calendar.date_key > CURRENT_DATE(), 1, 0) with synonyms=('future dated','not yet happened','open backlog') comment='1 when the event date is after today. Realized-service metrics must exclude these rows; they represent promised future activity, not measured performance.', CALENDAR.IS_WEEKDAY as IFF(calendar.is_weekday, 1, 0) comment='1 for Monday-Friday.', $$;
 BEGIN
   ddl := GET_DDL('SEMANTIC_VIEW', 'SUPPLY_CHAIN.SEMANTIC.SC_ONTOLOGY_360');
+
+  -- IDEMPOTENT. A second run would splice CALENDAR in twice and fail on a duplicate logical
+  -- table, so the file used to be strictly run-once. If the deployed view already carries the
+  -- entity, there is nothing to do; this makes `rebuild.mjs --from 01` and a full re-run safe.
+  IF (CONTAINS(UPPER(ddl), 'CALENDAR AS SUPPLY_CHAIN.RAW.DATE_DIM')) THEN
+    RETURN 'SC_ONTOLOGY_360 already has the CALENDAR conformed dimension - no change';
+  END IF;
 
   -- CREATE OR REPLACE drops grants; CREATE OR ALTER preserves them.
   ddl := REPLACE(ddl, 'create or replace semantic view SC_ONTOLOGY_360',

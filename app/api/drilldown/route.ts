@@ -13,7 +13,9 @@
  * GOVERNANCE.METRIC_EXCEPTION_RULE rather than hardcoded here, so the drill-down and the metric
  * cannot drift apart. That table's `exception_where` is interpolated into SQL, which is only safe
  * because the GOVERNANCE schema is admin-owned and not writable by any application role — it is
- * configuration, at the same trust level as the semantic view definitions themselves. Everything
+ * configuration, at the same trust level as the semantic view definitions themselves. As defence
+ * in depth, `exception_where` and `order_by` are additionally token-validated by lib/sql-guard.ts
+ * (only real fact columns, literals, operators and a few keywords pass). Everything
  * that arrives from the request, by contrast, is either bound or validated against
  * INFORMATION_SCHEMA:
  *   - metricId       looked up in the registry; unknown ids are rejected
@@ -24,6 +26,7 @@
 
 import { querySnowflake, getMetricRegistry, toIso } from "@/lib/sc"
 import { resolvePeriod } from "@/lib/period"
+import { validateExceptionWhere, validateOrderBy } from "@/lib/sql-guard"
 
 export const dynamic = "force-dynamic"
 
@@ -171,7 +174,8 @@ export async function POST(req: Request) {
       asOf: body.asOf ?? null,
     })
 
-    const where: string[] = [`(${rule.exceptionWhere})`]
+    const orderBy = validateOrderBy(rule.orderBy, columns)
+    const where: string[] = [`(${validateExceptionWhere(rule.exceptionWhere, columns)})`]
     const binds: unknown[] = []
 
     if (period.from) {
@@ -208,7 +212,7 @@ export async function POST(req: Request) {
       `SELECT ${display.join(", ")}\n` +
       `  FROM SUPPLY_CHAIN.${rule.canonicalFact}\n` +
       ` WHERE ${where.join("\n   AND ")}\n` +
-      ` ORDER BY ${rule.orderBy}\n` +
+      ` ORDER BY ${orderBy}\n` +
       ` LIMIT ${limit}${offset > 0 ? ` OFFSET ${offset}` : ""}`
 
     // Count the full exception population separately: the table shows the worst `limit` rows, but

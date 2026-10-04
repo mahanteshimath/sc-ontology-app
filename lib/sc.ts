@@ -304,6 +304,72 @@ export const getOntologyRelationships = cachedMetadata(async function getOntolog
   }))
 })
 
+/**
+ * The same four governed metrics read from SC_VALUE_CHAIN and SC_ONTOLOGY_360.
+ *
+ * Both views are defined over the same canonical facts with the same expressions (sql/24), so
+ * the values must be identical. Read live, not cached, because the point is to prove it now.
+ */
+export async function getValueChainParity(): Promise<
+  { metric: string; unit: string; chain: number | null; ontology360: number | null }[]
+> {
+  const rows = await querySnowflake(
+    `SELECT v.supplier_otd_pct AS v_sotd, o.supplier_otd_pct AS o_sotd,
+            v.otd_pct AS v_otd, o.otd_pct AS o_otd,
+            v.fill_rate_pct AS v_fill, o.fill_rate_pct AS o_fill,
+            v.landed_cost_per_unit AS v_lcpu, o.landed_cost_per_unit AS o_lcpu
+       FROM SEMANTIC_VIEW(SUPPLY_CHAIN.SEMANTIC.SC_VALUE_CHAIN
+              METRICS supply.supplier_otd_pct, customer_order.otd_pct,
+                      customer_order.fill_rate_pct, shipment.landed_cost_per_unit) v,
+            SEMANTIC_VIEW(SUPPLY_CHAIN.SEMANTIC.SC_ONTOLOGY_360
+              METRICS purchase_order.supplier_otd_pct, order_fulfillment.otd_pct,
+                      order_fulfillment.fill_rate_pct, landed_cost.landed_cost_per_unit) o`,
+  )
+  const r = rows[0] ?? {}
+  return [
+    { metric: "supplier_otd_pct", unit: "ratio", chain: num(r.V_SOTD), ontology360: num(r.O_SOTD) },
+    { metric: "otd_pct", unit: "ratio", chain: num(r.V_OTD), ontology360: num(r.O_OTD) },
+    { metric: "fill_rate_pct", unit: "ratio", chain: num(r.V_FILL), ontology360: num(r.O_FILL) },
+    { metric: "landed_cost_per_unit", unit: "usd", chain: num(r.V_LCPU), ontology360: num(r.O_LCPU) },
+  ]
+}
+
+/**
+ * "What is our OTD?" answered by each source system's native definition and by the governed
+ * metric (sql/27). Live, because the spread is the evidence for the problem statement.
+ */
+export async function getSourceDefinitionSpread(): Promise<
+  { direction: string; sourceSystem: string; nativeDefinition: string; value: number | null; isGoverned: boolean }[]
+> {
+  const rows = await querySnowflake(
+    `SELECT direction, source_system, native_definition, otd_value, is_governed
+       FROM SUPPLY_CHAIN.GOVERNANCE.V_SOURCE_DEFINITION_SPREAD`,
+  )
+  return rows.map((r) => ({
+    direction: String(r.DIRECTION),
+    sourceSystem: String(r.SOURCE_SYSTEM),
+    nativeDefinition: String(r.NATIVE_DEFINITION),
+    value: num(r.OTD_VALUE),
+    isGoverned: Boolean(r.IS_GOVERNED),
+  }))
+}
+
+/** Source-to-ontology attribute mapping (sql/27). */
+export const getSourceAttributeMap = cachedMetadata(async function getSourceAttributeMap() {
+  const rows = await querySnowflake(
+    `SELECT source_system, source_object, source_attribute, source_encoding, ontology_ref, transformation
+       FROM SUPPLY_CHAIN.GOVERNANCE.SOURCE_ATTRIBUTE_MAP ORDER BY source_system, source_attribute`,
+  )
+  return rows.map((r) => ({
+    sourceSystem: String(r.SOURCE_SYSTEM),
+    sourceObject: String(r.SOURCE_OBJECT),
+    sourceAttribute: String(r.SOURCE_ATTRIBUTE),
+    sourceEncoding: String(r.SOURCE_ENCODING),
+    ontologyRef: String(r.ONTOLOGY_REF),
+    transformation: String(r.TRANSFORMATION),
+  }))
+})
+
 /** Dimensions and metrics belonging to one ontology entity, read from INFORMATION_SCHEMA. */
 export const getEntityAttributes = cachedMetadata(async function getEntityAttributes(
   semanticView: string = "SC_ONTOLOGY_360",

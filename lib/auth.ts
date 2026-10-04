@@ -124,7 +124,29 @@ export async function signIn(username: string, password: string): Promise<string
     if (ok) matched = u
   }
   if (!matched) return null
+  return issueSession(matched, secret)
+}
 
+/**
+ * One-click judge access. Off unless DEMO_ONE_CLICK=true.
+ *
+ * A hackathon judge should reach the persona comparison in one click, not by asking for a password.
+ * The data is synthetic and every persona is read-only and Snowflake-scoped, so the risk is bounded —
+ * but the steward persona (all views, all rows) is never offered, regardless of configuration.
+ */
+export function oneClickEnabled(): boolean {
+  return process.env.DEMO_ONE_CLICK === "true"
+}
+
+export async function signInOneClick(username: string): Promise<string | null> {
+  const secret = process.env.AUTH_SECRET
+  if (!secret || !oneClickEnabled()) return null
+  const u = parseDemoUsers().find((x) => x.username === username)
+  if (!u || u.personaRole === "SC_ONTOLOGY_STEWARD") return null
+  return issueSession(u, secret)
+}
+
+async function issueSession(matched: DemoUserWithSecret, secret: string): Promise<string> {
   const payload: Session = {
     username: matched.username,
     personaRole: matched.personaRole,

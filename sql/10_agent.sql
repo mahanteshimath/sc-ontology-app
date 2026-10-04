@@ -43,6 +43,15 @@
 -- rules that keep a prediction from being reported as a measurement.
 -- ---------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------------
+-- SOURCE OF TRUTH. This spec is the agent as it is live on PJRTYEL-AZ37563 (the working copy,
+-- which includes VERSION$5), captured here so a rebuild or scripts/migrate.mjs reproduces it.
+-- Since the first build the live agent gained a RESPONSE FORMAT rule, a MULTI-TOOL COORDINATION
+-- rule, a rule that penalty and breach numbers come from Contract_Analyst, broader routing text,
+-- and a 120 s / 48,000 token budget (was 60 s / 24,000). If the agent is edited in Snowsight
+-- again, copy the new spec back into this file before the next rebuild, or it is overwritten.
+-- ---------------------------------------------------------------------------
+
 USE ROLE ACCOUNTADMIN;
 
 CREATE DATABASE IF NOT EXISTS SNOWFLAKE_INTELLIGENCE
@@ -73,8 +82,8 @@ models:
 orchestration:
   tool_not_accessible: accept
   budget:
-    seconds: 60
-    tokens: 24000
+    seconds: 120
+    tokens: 48000
 
 instructions:
   response: |
@@ -132,12 +141,19 @@ instructions:
     with different units on one axis: a percentage and a dollar total on the same
     scale is a misleading chart.
 
+    RESPONSE FORMAT. Lead with the headline number and its period in the first
+    sentence. Keep the full answer under 200 words. When showing tabular data,
+    use a short markdown table with at most 10 rows rather than embedding raw
+    JSON. Only call data_to_chart when the user explicitly asks for a chart or
+    the breakdown has more than 5 rows.
+
     Be concise. State the number, its period, and where it came from.
 
   orchestration: |
     Route by domain, and prefer the narrowest view that can answer the question:
       - supplier delivery, supplier fill, purchase price variance -> Supplier_Analyst
-      - customer delivery, OTIF, fill rate, perfect order -> Fulfillment_Analyst
+      - customer delivery, customer OTD, OTIF, fill rate, perfect order,
+        OTD by product family, OTD by region, defect reasons -> Fulfillment_Analyst
       - inventory cover, stock value, stockouts -> Inventory_Analyst
       - freight, landed cost, carrier billing -> Landed_Cost_Analyst
       - demand forecast versus actual -> Demand_Analyst
@@ -151,6 +167,16 @@ instructions:
       - what an agreement actually SAYS (clause wording, remedies, terms) ->
         Contract_Search, and quote the clause
 
+    NARROWEST VIEW RULE. If a question mentions only one domain (e.g. customer delivery
+    by product family), ALWAYS use the single-domain view (Fulfillment_Analyst), NEVER
+    Ontology_360_Analyst. The 360 view is reserved strictly for questions that
+    compare two or more domains on a shared dimension.
+
+    ONE QUERY PER ANSWER. Make one focused tool call per question. Do not run a
+    second exploratory query unless the first returned no data. When showing
+    breakdowns by defect reason, carrier, or region, use the OTD/OTIF percentage
+    metric (not raw line counts) unless the user specifically asks for counts.
+
     Use Ontology_360_Analyst when the question compares domains, because only that
     view carries the conformed dimensions that make the comparison valid.
 
@@ -158,6 +184,17 @@ instructions:
 
     If a tool is not accessible to the caller, say that access is the reason and
     name the metric. Do not silently substitute a different metric or view.
+
+    MULTI-TOOL COORDINATION. When a question needs both clause text AND a metric
+    (e.g. 'what does the contract say about X and how does their actual Y compare'),
+    plan both tool calls before executing. Call the text tool (Contract_Search)
+    first to identify the entity, then call the metric tool (Supplier_Analyst,
+    Contract_Analyst, etc.) for the number. Do not stop after the first tool.
+
+    PENALTY AND BREACH NUMBERS ALWAYS COME FROM Contract_Analyst, NEVER FROM
+    Contract_Search. If someone asks 'how much penalty exposure' or 'what is the
+    breach rate', that is a metric question for Contract_Analyst even if the word
+    'contract' appears.
 
   sample_questions:
     - question: "How does supplier on-time delivery compare with the on-time delivery we give customers?"
