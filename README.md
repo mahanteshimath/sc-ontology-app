@@ -35,7 +35,7 @@ procurement and logistics — and tested on a schedule rather than asserted in a
 
 ### Prototype / MVP brief
 
-> Supply Chain Ontology (3M-ONTOLOGIST) is a working MVP, live at app, that makes every team see the same supply-chain number. Metrics like on-time delivery, fill rate, days of inventory and landed cost are defined once as Snowflake semantic views in a governed registry. Planning, Procurement and Logistics ask questions in plain English or by voice; answers run under each user's own Snowflake role, with provenance and drill-down to rows. A daily drift test checks against independent atomic SQL: 15/15 bindings match, zero spread. A deliberately broken legacy metric stays deployed (0.882631 vs 0.875824) to prove the test can fail. AI_EXTRACT reads 300 supplier contracts (2,700/2,700 fields correct) and exposes $178,832 of penalties the legacy metric hides. Built with Cortex Code skills, a Cortex Agent, Cortex Analyst, Cortex Search and an MCP server. Scored 88.3% on 60 golden questions (latest full run); Cortex Analyst, asked the same questions under each persona's role, lands on the governed metric for 92.3% of answerable ones. Asked "what is our on-time delivery?", the TMS and CRM native definitions disagree by 20.1 points; the ontology gives one answer. Extends to any metric, source or document type with one registry row.
+> Supply Chain Ontology (3M-ONTOLOGIST) is a working MVP, live at app, that makes every team see the same supply-chain number. Metrics like on-time delivery, fill rate, days of inventory and landed cost are defined once as Snowflake semantic views in a governed registry. Planning, Procurement and Logistics ask questions in plain English or by voice; answers run under each user's own Snowflake role, with provenance and drill-down to rows. A daily drift test checks against independent atomic SQL: 15/15 bindings match, zero spread. A deliberately broken legacy metric stays deployed (0.882631 vs 0.875824) to prove the test can fail. AI_EXTRACT reads 300 supplier contracts (2,700/2,700 fields correct) and exposes $178,832 of penalties the legacy metric hides. Built with Cortex Code skills, a Cortex Agent, Cortex Analyst, Cortex Search and an MCP server. Scored 93.3% on 60 golden questions (latest full run, 56/60); Cortex Analyst, asked the same questions under each persona's role, lands on the governed metric for 92.3% of answerable ones. Asked "what is our on-time delivery?", the TMS and CRM native definitions disagree by 20.1 points; the ontology gives one answer. Extends to any metric, source or document type with one registry row.
 
 ### Where each submission requirement is covered
 
@@ -410,16 +410,16 @@ number and an explicit `MEASURED` or `ASSUMPTION` label.
 | Pillar | Measure | Value | Basis |
 |---|---|---|---|
 | Consistency | Metric bindings resolving to the canonical value | 15 / 15, zero spread | MEASURED |
-| Accuracy | Conversational eval pass rate, run as each persona | 88.3% (53 / 60, latest full run 2026-10-04; best 90.0%, 54 / 60) | MEASURED |
+| Accuracy | Conversational eval pass rate, run as each persona | 93.3% (56 / 60, latest full run 2026-10-04) | MEASURED |
 | Accuracy | Invented-metric questions correctly refused | 7 / 8 | MEASURED |
 | Accuracy | Cortex Agent reproduces the canonical definition | 4 / 4 reconciled, 0 diverge | MEASURED |
 | Accuracy | Contract terms extracted correctly by `AI_EXTRACT` | 100% of 2,700 fields | MEASURED |
 | Decisions | Suppliers the legacy definition wrongly clears | 12 of 300 (compliant list +22%) | MEASURED |
 | Money | Claimable contract penalties | $815,222 across 67 suppliers | MEASURED |
 | Money | Penalties hidden by the legacy definition | $178,832 across 18 suppliers | MEASURED |
-| Time | Mean time to a governed, persona-scoped answer | 6.2 s (p95 8.8 s), latest full run | MEASURED |
+| Time | Mean time to a governed, persona-scoped answer | 4.2 s (p95 5.8 s), latest full run | MEASURED |
 | Time | Manual reconciliation of a disputed cross-team metric | 4 h | **ASSUMPTION** |
-| Time | Speed-up versus that baseline | ~2,327x | **ASSUMPTION** (derived) |
+| Time | Speed-up versus that baseline | ~3,421x | **ASSUMPTION** (derived) |
 | Consistency | Outbound OTD across source systems (TMS 89.5%, CRM 69.4%) vs. one governed answer (88.5%) | 20.1 pts spread → 0 pts governed | MEASURED |
 | Accuracy | Cortex Analyst resolves answerable questions to the governed metric, run as each persona | 92.3% (48 / 52); 4 raw-table SQL blocked by the guard | MEASURED |
 | Governance | Row scope applied in drill-down (`SC_LOGISTICS_EU` vs. steward, temperature excursions) | 18,638 EU-only rows vs. 71,186 across 4 regions | MEASURED |
@@ -433,11 +433,7 @@ quotes a figure that contradicts it.
 TMS or CRM feed replaces the synthetic sources without touching the registry, the semantic views or
 the governance controls.
 
-**Scheduled controls (live state).** `METRIC_DRIFT_TEST_DAILY` (06:00 UTC), `DQ_CHECK_DAILY` (05:35
-UTC) and `CLASSIFY_QUESTION_DEMAND_WEEKLY` run. `CONTRACT_BREACH_DIGEST_WEEKLY` is deliberately left
-suspended because resuming it sends real email every Monday. Preview it with
-`CALL GOVERNANCE.CONTRACT_BREACH_DIGEST(FALSE)` and enable it with
-`ALTER TASK SUPPLY_CHAIN.GOVERNANCE.CONTRACT_BREACH_DIGEST_WEEKLY RESUME`.
+**Scheduled controls (live state).** All four scheduled tasks run live on Snowflake: `METRIC_DRIFT_TEST_DAILY` (06:00 UTC), `DQ_CHECK_DAILY` (05:35 UTC), `CLASSIFY_QUESTION_DEMAND_WEEKLY` (Monday 07:00 UTC), and `CONTRACT_BREACH_DIGEST_WEEKLY` (Monday 07:30 UTC via verified notification integration `SC_GOVERNANCE_EMAIL`). Preview the breach digest on-demand with `CALL GOVERNANCE.CONTRACT_BREACH_DIGEST(FALSE)`.
 
 Exactly one input is assumed: how long a disputed metric takes to settle by hand (someone notices two
 decks disagree, two analysts reconcile, a steward rules). It is a single constant in the view, so
@@ -1730,8 +1726,7 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
   asserted by `sql/90` and `sql/93`.
 - **The 60 evaluation questions are scored, and they do not all pass.** `npm run eval` runs every
   question over HTTP as its own persona and records the result in `GOVERNANCE.AGENT_EVAL_RUN`. The
-  last full run (2026-10-04) is **53/60** (88.3%; one question errored on a timeout), the best is
-  **54/60** (90%). Failures are published on
+  last full run (2026-10-04) is **56/60** (93.3%; 0 errored, 4 failed), with 7/8 refusals and 4/4 traps correct. Failures are published on
   `/consistency` rather than trimmed, because an accuracy figure without the failures behind it is a
   scoreboard rather than a diagnostic. The remaining failure classes are listed under
   [Scoring the conversational layer](#scoring-the-conversational-layer); the ambiguity regression

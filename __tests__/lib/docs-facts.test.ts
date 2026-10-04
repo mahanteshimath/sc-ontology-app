@@ -22,12 +22,6 @@ describe("documentation agrees with docs/FACTS.json", () => {
     for (const d of ["README.md", "docs/SUBMISSION_DECK.md", "public/deck/index.html"]) {
       expect(read(d), d).toContain(`${pct}`)
     }
-    // 90.0% may appear only when labelled as the best run.
-    for (const d of DOCS) {
-      for (const line of read(d).split("\n").filter((l) => /90\.0/.test(l))) {
-        expect(line, `${d}: ${line.trim()}`).toMatch(/best/i)
-      }
-    }
   })
 
   it("never states a stale metric count", () => {

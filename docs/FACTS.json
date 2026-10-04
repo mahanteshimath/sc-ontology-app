@@ -12,8 +12,8 @@
   "personas": 5,
   "eval": {
     "questions": 60,
-    "latestFullRun": { "passed": 53, "failed": 6, "errored": 1, "accuracyPct": 88.3, "meanLatencyMs": 6188, "p95LatencyMs": 8778 },
-    "bestFullRun": { "passed": 54, "accuracyPct": 90.0 }
+    "latestFullRun": { "passed": 56, "failed": 4, "errored": 0, "accuracyPct": 93.3, "meanLatencyMs": 4209, "p95LatencyMs": 5789 },
+    "bestFullRun": { "passed": 56, "accuracyPct": 93.3 }
   },
   "unitTests": 252,
   "rowScopeProof": { "persona": "SC_LOGISTICS_EU", "regionsVisible": 1, "excursionRowsEu": 18638, "excursionRowsSteward": 71186, "regionsSteward": 4 },

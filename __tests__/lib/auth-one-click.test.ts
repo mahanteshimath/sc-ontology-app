@@ -24,6 +24,10 @@ describe("one-click judge sign-in", () => {
     expect(token).toBeTruthy()
     const s = await verifySession(token)
     expect(s?.personaRole).toBe("SC_PROCUREMENT")
+    // Ephemeral 30-minute TTL, not the full 8-hour password session
+    const remainingSeconds = (s?.exp ?? 0) - Math.floor(Date.now() / 1000)
+    expect(remainingSeconds).toBeGreaterThan(25 * 60)
+    expect(remainingSeconds).toBeLessThanOrEqual(30 * 60)
   })
 
   it("never issues the steward persona", async () => {

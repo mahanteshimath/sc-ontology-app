@@ -138,19 +138,28 @@ export function oneClickEnabled(): boolean {
   return process.env.DEMO_ONE_CLICK === "true"
 }
 
+/** Allowed personas for one-click access: strictly read-only business roles, never steward or admin. */
+const ONE_CLICK_ALLOWED_ROLES = new Set(["SC_PLANNER", "SC_PROCUREMENT", "SC_LOGISTICS", "SC_LOGISTICS_EU"])
+/** Ephemeral 30-minute session for one-click judge access, rather than the 8-hour password session. */
+const ONE_CLICK_TTL_SECONDS = 30 * 60
+
 export async function signInOneClick(username: string): Promise<string | null> {
   const secret = process.env.AUTH_SECRET
   if (!secret || !oneClickEnabled()) return null
   const u = parseDemoUsers().find((x) => x.username === username)
-  if (!u || u.personaRole === "SC_ONTOLOGY_STEWARD") return null
-  return issueSession(u, secret)
+  if (!u || !ONE_CLICK_ALLOWED_ROLES.has(u.personaRole)) return null
+  return issueSession(u, secret, ONE_CLICK_TTL_SECONDS)
 }
 
-async function issueSession(matched: DemoUserWithSecret, secret: string): Promise<string> {
+async function issueSession(
+  matched: DemoUserWithSecret,
+  secret: string,
+  ttlSeconds: number = SESSION_TTL_SECONDS,
+): Promise<string> {
   const payload: Session = {
     username: matched.username,
     personaRole: matched.personaRole,
-    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+    exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   }
   const body = toBase64Url(new TextEncoder().encode(JSON.stringify(payload)))
   const key = await hmacKey(secret)
