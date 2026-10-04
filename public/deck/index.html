@@ -404,7 +404,8 @@ td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
         <ul class="pts" data-a style="--i:2">
           <li><b>Executed as each Snowflake role,</b> <span>with secondary roles off, so the database enforces access.</span></li>
           <li><b>Checked against atomic SQL.</b> <span>Two views cannot agree while both being wrong. Runs daily at 06:00 UTC.</span></li>
-          <li><b>A broken control stays live.</b> <span>0.882631 against the correct 0.875824 proves the test can fail.</span></li>
+          <li><b>Drill-down obeys the same role.</b> <span>Exception rows run as the signed-in persona, so row policy and cost masking apply; an unmapped user gets 403.</span></li>
+<li><b>A broken control stays live.</b> <span>0.882631 against the correct 0.875824 proves the test can fail.</span></li>
         </ul>
         <div class="kpis" data-a style="--i:3"><div><b>15 / 15</b>bindings match,<br>zero spread</div><div><b>4</b>personas,<br>same answer</div></div>
       </div>
@@ -453,7 +454,7 @@ td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
           <div class="eyebrow" data-a style="--i:0">Feature 05 · Operations</div>
           <h2 data-a style="--i:1">Built for operations, <em>not just reports.</em></h2>
         </div>
-        <p data-a style="--i:1">Plus governed forecasts shown only with their backtested accuracy, a guided tour, light and dark themes, and a shareable period with an as-of date.</p>
+        <p data-a style="--i:1">Plus governed forecasts shown only with their backtested accuracy, persona-scoped drill-down to the offending rows, light and dark themes, and a shareable period with an as-of date.</p>
       </div>
       <div class="pair">
         <figure data-a style="--i:2">
@@ -607,8 +608,9 @@ td.k{font:500 19px/1 var(--mono);color:var(--cyan)}
           <div class="r"><span class="g">Accuracy</span><span class="d">Agent vs app vs canonical SQL</span><span class="v">4 / 4</span></div>
           <div class="r"><span class="g">Accuracy</span><span class="d">Contract fields extracted correctly</span><span class="v">2,700 / 2,700</span></div>
           <div class="r"><span class="g">Trust</span><span class="d">Data-quality monitors passing</span><span class="v">15 / 15</span></div>
-          <div class="r"><span class="g">Time saved</span><span class="d">vs 4 h manual reconciliation (assumed)</span><span class="v">2,327<small>x</small></span></div>
-          <div class="r"><span class="g">Time</span><span class="d">Governed answer, then repeat</span><span class="v">18.0<small> s</small> → 1.7<small> s</small></span></div>
+          <div class="r"><span class="g">Governance</span><span class="d">EU persona drill-down: EU-only rows, cost masked</span><span class="v">18,245 vs 69,667</span></div>
+<div class="r"><span class="g">Time saved</span><span class="d">vs 4 h manual reconciliation (assumed)</span><span class="v">2,327<small>x</small></span></div>
+          <div class="r"><span class="g">Time</span><span class="d">Governed answer, then repeat</span><span class="v">6.2<small> s</small> → 1.7<small> s</small></span></div>
         </div>
         <div class="src" data-a style="--i:4"><b>Source</b> GOVERNANCE.V_IMPACT_SCORECARD · live at /impact. Data is synthetic; targets are illustrative.</div>
       </div>

@@ -22,6 +22,7 @@ ignore:
   - .git
   - "*.log"
   - output
+  - videos
 
 # Non-secret runtime configuration. The app reads no Snowflake SECRET objects, so there is
 # deliberately no `secrets:` block.
