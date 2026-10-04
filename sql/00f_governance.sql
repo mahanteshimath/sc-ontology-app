@@ -439,15 +439,11 @@ AS $$
 DECLARE
   res RESULTSET;
 BEGIN
-  CALL SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_TEST(0.000001);
-  res := (
-    SELECT metric_id, business_name, binding_count, canonical_value,
-           value_spread, relative_spread, status, detail, run_at, run_id
-      FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_RESULT
-     WHERE run_id = (SELECT run_id FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_RESULT
-                      ORDER BY run_at DESC LIMIT 1)
-     ORDER BY status DESC, metric_id
-  );
+  -- Return the inner call's own result set (already filtered to its RUN_ID) instead of
+  -- re-selecting "the latest run" by timestamp: two concurrent callers would otherwise
+  -- each be shown whichever run finished last, which is the time-window race RUN_ID exists
+  -- to prevent.
+  res := (EXECUTE IMMEDIATE 'CALL SUPPLY_CHAIN.GOVERNANCE.METRIC_DRIFT_TEST(0.000001)');
   RETURN TABLE(res);
 END;
 $$;

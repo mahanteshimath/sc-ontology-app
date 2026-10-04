@@ -135,7 +135,7 @@ OUTPUT       "Which suppliers breached but look compliant?"  -> 19 suppliers, $1
 |---|---|---|
 | Consistency | Metric bindings matching the canonical value | **15 / 15, zero spread** |
 | Consistency | Same metric, planning vs procurement vs logistics, each under its own role | **5 / 5 identical** (22 executions) |
-| Accuracy | Conversational eval, 60 questions, run as each persona | **90.0%** (54/60), failures published |
+| Accuracy | Conversational eval, 60 questions, run as each persona | **88.3%** (53/60, latest full run; best 90.0%), failures published |
 | Accuracy | Cortex Agent vs app vs canonical SQL | **4 / 4 reconciled** |
 | Accuracy | Contract terms extracted by AI_EXTRACT | **2,700 / 2,700 fields** |
 | Decisions | Suppliers wrongly cleared by the legacy metric | **12** (compliant list +22%) |
@@ -144,9 +144,9 @@ OUTPUT       "Which suppliers breached but look compliant?"  -> 19 suppliers, $1
 | Trust | Semantic views certified + DQ-monitored + drift-checked (`TRUSTED`) | **7 / 11**; 3 certified but their source tables have no DQ monitor yet (shown as such, not as trusted); the defect view is deliberately uncertified |
 | Trust | Data-quality monitors on canonical facts (DMFs with expectations) | **15 / 15 passing** |
 | Standards | Governed metrics mapped to SCOR | **13 / 15** (3 exact, 5 variant, 5 component); 2 declared not-in-SCOR |
-| Time | Governed, persona-scoped answer | **18.0 s** mean (p95 20.1 s) |
+| Time | Governed, persona-scoped answer | **6.2 s** mean (p95 8.8 s), latest full run |
 | Time | Same question again (mapping reused, value re-queried live) | **1.7 s** (was 16-20 s) |
-| Time | vs manual reconciliation (4 h, *assumed*) | ~799x faster *(assumption, labelled)* |
+| Time | vs manual reconciliation (4 h, *assumed*) | ~2,327x faster *(assumption, labelled)* |
 
 Source: `GOVERNANCE.V_IMPACT_SCORECARD` - `/impact`; trust rows `GOVERNANCE.V_TRUST_SIGNALS`; SCOR
 `GOVERNANCE.METRIC_SCOR_ALIGNMENT`; repeat latency `scripts/probe-latency.mjs`. Every row names its

@@ -47,7 +47,7 @@ vi.mock("../../lib/persona", () => ({
   runAsRole: (...a: unknown[]) => runAsRole(...a),
   runRowsAsRole: (...a: unknown[]) => runRowsAsRole(...a),
 }))
-vi.mock("../../lib/session", () => ({ currentSession: () => currentSession() }))
+vi.mock("../../lib/session", () => ({ currentSession: () => currentSession(), unmappedCallerResponse: () => null }))
 
 const METRIC = {
   metricId: "otd_pct",
@@ -341,7 +341,10 @@ describe("POST /api/ask", () => {
     const { POST } = await import("../../app/api/ask/route")
     const res = await POST(request({ question: "OTD?" }))
     expect(res.status).toBe(500)
-    expect((await res.json()).error).toContain("warehouse suspended")
+    // The driver message stays in the server log; the client gets a correlation reference.
+    const err = (await res.json()).error
+    expect(err).not.toContain("warehouse suspended")
+    expect(err).toMatch(/ref [0-9a-f]{8}/)
   })
 
   /**

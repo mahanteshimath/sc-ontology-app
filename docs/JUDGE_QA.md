@@ -118,7 +118,7 @@ Source: `GOVERNANCE.AGENT_EVAL_RUN`, `AGENT_EVAL_RESULT`.
 **"It's slow."**
 
 > The governed number shows before the prose. It's two calls, so the chart doesn't wait for the
-> narration. Mean latency is 18.0 s, and most of that is the model mapping the question. A
+> narration. Mean latency on the latest full run is 6.2 s (p95 8.8 s), and most of that is the model mapping the question. A
 > repeated question reuses the *mapping* and comes back in about 1.7 s. The *value* is always
 > re-queried live under the persona's role, and the answer shows a "mapping reused · value live"
 > chip so nobody is misled. A cached number could disagree with the view, and that is the one

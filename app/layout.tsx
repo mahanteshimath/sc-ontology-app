@@ -5,7 +5,7 @@ import { OnboardingTour } from "@/components/onboarding-tour"
 import { ThemeProvider } from "@/components/theme-provider"
 import { QueryProvider } from "@/components/query-provider"
 import { APP_TITLE, LOGO_SRC } from "@/lib/constants"
-import { currentSession } from "@/lib/session"
+import { displaySession } from "@/lib/session"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   // Read once here rather than in every page: the header needs it and the value is request-scoped.
-  const session = await currentSession()
+  const session = await displaySession()
 
   return (
     <html lang="en" className="overflow-x-hidden w-full max-w-full" suppressHydrationWarning>

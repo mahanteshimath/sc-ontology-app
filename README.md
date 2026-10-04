@@ -9,7 +9,7 @@ procurement and logistics — and tested on a schedule rather than asserted in a
   <img alt="React 19" src="https://img.shields.io/badge/React-19-087ea4?logo=react&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white">
   <img alt="Snowflake" src="https://img.shields.io/badge/Snowflake-semantic%20views-29b5e8?logo=snowflake&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-203%20%2F%20203%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-252%20%2F%20252%20passing-brightgreen">
   <img alt="Drift" src="https://img.shields.io/badge/metric%20drift-zero%20spread-brightgreen">
   <img alt="Hierarchies" src="https://img.shields.io/badge/hierarchy%20rollups-10%2F10%20proven-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/conversational%20eval-60%20questions%20scored-blue">
@@ -410,16 +410,34 @@ number and an explicit `MEASURED` or `ASSUMPTION` label.
 | Pillar | Measure | Value | Basis |
 |---|---|---|---|
 | Consistency | Metric bindings resolving to the canonical value | 15 / 15, zero spread | MEASURED |
-| Accuracy | Conversational eval pass rate, run as each persona | 90.0% (54 / 60) | MEASURED |
+| Accuracy | Conversational eval pass rate, run as each persona | 88.3% (53 / 60, latest full run 2026-10-04; best 90.0%, 54 / 60) | MEASURED |
 | Accuracy | Invented-metric questions correctly refused | 7 / 8 | MEASURED |
 | Accuracy | Cortex Agent reproduces the canonical definition | 4 / 4 reconciled, 0 diverge | MEASURED |
 | Accuracy | Contract terms extracted correctly by `AI_EXTRACT` | 100% of 2,700 fields | MEASURED |
 | Decisions | Suppliers the legacy definition wrongly clears | 12 of 300 (compliant list +22%) | MEASURED |
 | Money | Claimable contract penalties | $815,222 across 67 suppliers | MEASURED |
 | Money | Penalties hidden by the legacy definition | $178,832 across 18 suppliers | MEASURED |
-| Time | Mean time to a governed, persona-scoped answer | 18.0 s (p95 20.1 s) | MEASURED |
+| Time | Mean time to a governed, persona-scoped answer | 6.2 s (p95 8.8 s), latest full run | MEASURED |
 | Time | Manual reconciliation of a disputed cross-team metric | 4 h | **ASSUMPTION** |
-| Time | Speed-up versus that baseline | ~799x | **ASSUMPTION** (derived) |
+| Time | Speed-up versus that baseline | ~2,327x | **ASSUMPTION** (derived) |
+| Consistency | Outbound OTD across source systems (TMS 89.5%, CRM 69.4%) vs. one governed answer (88.5%) | 20.1 pts spread → 0 pts governed | MEASURED |
+| Accuracy | Cortex Analyst resolves answerable questions to the governed metric, run as each persona | 92.3% (48 / 52); 4 raw-table SQL blocked by the guard | MEASURED |
+| Governance | Row scope applied in drill-down (`SC_LOGISTICS_EU` vs. steward, temperature excursions) | 18,638 EU-only rows vs. 71,186 across 4 regions | MEASURED |
+| Governance | `MATERIAL_COST` masked for a non-steward persona | 1,000 / 1,000 masked (steward: 0) | MEASURED |
+
+All `MEASURED` values above were read from account QIXTRLM-IZ68023 on 2026-10-04 and are recorded
+in [`docs/FACTS.json`](docs/FACTS.json); `__tests__/lib/docs-facts.test.ts` fails if a document
+quotes a figure that contradicts it.
+
+**Beyond the demo.** [`docs/REAL_DATA_ADOPTION.md`](docs/REAL_DATA_ADOPTION.md) shows how a real SAP,
+TMS or CRM feed replaces the synthetic sources without touching the registry, the semantic views or
+the governance controls.
+
+**Scheduled controls (live state).** `METRIC_DRIFT_TEST_DAILY` (06:00 UTC), `DQ_CHECK_DAILY` (05:35
+UTC) and `CLASSIFY_QUESTION_DEMAND_WEEKLY` run. `CONTRACT_BREACH_DIGEST_WEEKLY` is deliberately left
+suspended because resuming it sends real email every Monday. Preview it with
+`CALL GOVERNANCE.CONTRACT_BREACH_DIGEST(FALSE)` and enable it with
+`ALTER TASK SUPPLY_CHAIN.GOVERNANCE.CONTRACT_BREACH_DIGEST_WEEKLY RESUME`.
 
 Exactly one input is assumed: how long a disputed metric takes to settle by hand (someone notices two
 decks disagree, two analysts reconcile, a steward rules). It is a single constant in the view, so
@@ -632,7 +650,7 @@ npm run dev                  # http://localhost:3000
 ### 5. Verify
 
 ```bash
-npm test                     # 203 / 203
+npm test                     # 252 / 252
 npm run smoke                # 21 end-to-end checks — needs the dev server running
 ```
 
@@ -802,11 +820,11 @@ real per-persona row scoping) is exactly the part that does not change when the 
 | `SNOWFLAKE_ACCOUNT` | for password auth | — | Account identifier. |
 | `SNOWFLAKE_USER` | for password auth | — | Service user. |
 | `SNOWFLAKE_PASSWORD` | for password auth | — | Service user password. |
-| `SNOWFLAKE_ROLE` | no | `ACCOUNTADMIN` | Base role for owner's-rights metadata reads. `SC_ONTOLOGY_STEWARD` is sufficient. |
+| `SNOWFLAKE_ROLE` | no | `SC_ONTOLOGY_STEWARD` | Base role for owner's-rights metadata reads. **Do not run the app as `ACCOUNTADMIN`**: it is only needed for the one-time build. See *Least-privilege runtime role* below. |
 | `SNOWFLAKE_WAREHOUSE` | no | `COMPUTE_WH` | Query warehouse. |
 | `SNOWFLAKE_CONNECTION_NAME` | no | file default | Selects a connection from `connections.toml` in local dev. |
 | `CALLERS_RIGHTS` | no | off | Runs governed metric reads with the caller's own grants. SPCS only. |
-| `SNOWFLAKE_SERVICE_AUTH` | set by `app.yml` | — | `spcs` tells the app the platform authenticates callers, so the demo gate is skipped. |
+| `SNOWFLAKE_SERVICE_AUTH` | set by `app.yml` | — | `spcs` tells the app the platform authenticates callers, so the demo gate is skipped and the caller is mapped to a persona via `GOVERNANCE.PERSONA_USER_MAP` (unmapped callers get 403). |
 
 ### Snowflake authentication precedence
 
@@ -925,7 +943,7 @@ scope would weaken it.
 ## Targets
 
 `DIRECTION` (`higher` / `lower` / `to_zero`) says which way is good; `TARGET_VALUE` says what good is.
-**Eight of the fourteen** metrics carry one.
+**Nine of the fifteen** metrics carry one.
 
 The other six — freight cost, freight invoiced, freight bill variance, landed cost, inventory value,
 PPV — are **deliberately untargeted**, and `TARGET_SOURCE` records why: they are absolute dollar
@@ -940,6 +958,23 @@ Target state and drift status render as two separate pills, deliberately. They a
 questions — *is the number acceptable* versus *do the views agree on the definition* — and a metric
 that is green on drift and red against target is the normal, healthy case for a business that is
 missing a goal while measuring it correctly.
+
+---
+
+## Least-privilege runtime role
+
+`ACCOUNTADMIN` is needed once, to build roles, policies, the notification integration and tasks.
+The running app never needs it:
+
+| Path | Runs as | Why |
+|---|---|---|
+| Metadata reads (registry, ontology, persona catalogue) | `SNOWFLAKE_ROLE`, default `SC_ONTOLOGY_STEWARD` | Shared reference data; read-only grants on `GOVERNANCE` and `SEMANTIC` |
+| Metric answers on `/api/ask` | the signed-in persona role (`runRowsAsRole`) | Row access and masking apply to the persona |
+| Exception rows on `/api/drilldown` | the signed-in persona role (`runRowsAsRole`) | Same: an EU-scoped persona sees only EU rows, and `MATERIAL_COST` is masked for non-steward roles |
+| Consistency proof | each persona role in turn | The comparison is meaningless otherwise |
+
+A persona that is denied gets a 403 with a correlation reference; the driver message stays in the
+server log, because it can name objects and roles.
 
 ---
 
@@ -1582,6 +1617,20 @@ reverted on the next deploy. Inside SPCS there are no Snowflake credentials to c
 reads the mounted session token — and `SNOWFLAKE_SERVICE_AUTH=spcs` skips the demo gate because the
 platform authenticates every ingress request.
 
+**Persona scope inside SPCS.** Skipping the demo gate does not mean serving everyone as the app.
+`lib/session.ts` reads the ingress-injected `Sf-Context-Current-User` header and maps it to one
+persona role through `GOVERNANCE.PERSONA_USER_MAP` (`sql/28_persona_user_map.sql`). Every data route
+then runs under that role, so row access and masking apply to the caller. **An unmapped caller gets
+HTTP 403**; there is no fallback to the application identity. Map a user with:
+
+```sql
+MERGE INTO SUPPLY_CHAIN.GOVERNANCE.PERSONA_USER_MAP t
+USING (SELECT 'JANE' user_name, 'SC_LOGISTICS_EU' persona_role) s
+   ON UPPER(t.user_name) = UPPER(s.user_name)
+ WHEN MATCHED THEN UPDATE SET persona_role = s.persona_role
+ WHEN NOT MATCHED THEN INSERT (user_name, persona_role) VALUES (s.user_name, s.persona_role);
+```
+
 ### After deploying, verify against the live URL rather than trusting the build
 
 ```bash
@@ -1657,13 +1706,13 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 | A hierarchy level renders struck through on `/ontology` | It names a dimension the semantic view does not declare | `CALL GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY();` and read `V_ONTOLOGY_HIERARCHY.validation_detail`. Fix the declaration in `sql/12`, not the page. |
 | `sign-in failed: 400` from a probe script | `smoke-outlook.mjs` / `smoke-chat.mjs` / `probe-asof.mjs` have no `.env.local` fallback | Set `SMOKE_PASSWORD` explicitly. |
 | `vercel env add` appears to hang forever | Fixed. It used `cmd /c "… < file"`, whose redirect never reaches the CLI's stdin | Pull the current `scripts/set-vercel-env.ps1`, which pipes natively with `--force`. |
-| Unit test failures on Windows | Fixed | `npm test` should report 203/203 on every platform. See [Known limitations](#known-limitations) for what was wrong. |
+| Unit test failures on Windows | Fixed | `npm test` should report 252/252 on every platform. See [Known limitations](#known-limitations) for what was wrong. |
 
 ---
 
 ## Known limitations
 
-- **Unit tests pass on Windows as well as Linux/macOS (203/203).** Eight used to fail on Windows. Two
+- **Unit tests pass on Windows as well as Linux/macOS (252/252).** Eight used to fail on Windows. Two
   causes, both fixed: `lib/snowflake.ts` built the SPCS secret mount path with `path.join`, which
   emits `\secrets\...` on Windows although the mount is always POSIX (now `path.posix.join`, scoped
   to the secret reader only - the TOML config lookup still uses native paths, as it must); and an
@@ -1681,7 +1730,8 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
   asserted by `sql/90` and `sql/93`.
 - **The 60 evaluation questions are scored, and they do not all pass.** `npm run eval` runs every
   question over HTTP as its own persona and records the result in `GOVERNANCE.AGENT_EVAL_RUN`. The
-  last run is **54/60** (90%), with 7/8 refusals and 3/4 traps correct. Failures are published on
+  last full run (2026-10-04) is **53/60** (88.3%; one question errored on a timeout), the best is
+  **54/60** (90%). Failures are published on
   `/consistency` rather than trimmed, because an accuracy figure without the failures behind it is a
   scoreboard rather than a diagnostic. The remaining failure classes are listed under
   [Scoring the conversational layer](#scoring-the-conversational-layer); the ambiguity regression
@@ -1768,7 +1818,7 @@ Before opening a pull request:
 
 ```bash
 npm run typecheck
-npm test                               # expect 203/203 on every platform
+npm test                               # expect 252/252 on every platform
 node scripts/rebuild.mjs --verify      # every SQL check must PASS
 npm run eval                           # score the 60 questions; publish the failures, don't trim them
 npm run smoke                          # needs npm run dev in another shell

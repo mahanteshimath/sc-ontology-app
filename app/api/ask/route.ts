@@ -69,7 +69,7 @@ import {
 import { runRowsAsRole } from "@/lib/persona"
 import { after } from "next/server"
 import { resolvePeriod, periodFilters, snapshotFilters } from "@/lib/period"
-import { currentSession } from "@/lib/session"
+import { currentSession, unmappedCallerResponse } from "@/lib/session"
 import { RESOLVER_MODEL, ONTOLOGY_VIEW } from "@/lib/constants"
 import { buildChart, type ChartSpec } from "@/lib/chart"
 import { disambiguate } from "@/lib/ambiguity"
@@ -777,10 +777,11 @@ Reply with ONLY a JSON object:
       sql: sqlByGroup.join("\n\n"),
     })
   } catch (e) {
-    console.error(new Date().toISOString(), "[ask] governed resolution failed", e)
-    return Response.json(
-      { error: e instanceof Error ? e.message : "Failed to answer the question" },
-      { status: 500 },
-    )
+    const denied = unmappedCallerResponse(e)
+    if (denied) return denied
+    const ref = crypto.randomUUID().slice(0, 8)
+    console.error(new Date().toISOString(), `[ask] ref=${ref} governed resolution failed`, e)
+    // Driver messages can name objects and roles; the reference ties the client error to the log.
+    return Response.json({ error: `Failed to answer the question (ref ${ref}).` }, { status: 500 })
   }
 }

@@ -5,7 +5,7 @@ import { PageShell, Section, SectionSkeleton } from "@/components/ui-kit"
 import { PeriodControl } from "@/components/period-control"
 import { getPersonas, getMetricRegistry, getTrustSignals } from "@/lib/sc"
 import { resolvePeriod, type ResolvedPeriod } from "@/lib/period"
-import { currentSession } from "@/lib/session"
+import { displaySession } from "@/lib/session"
 import { AskChat } from "@/components/ask-chat"
 
 export const dynamic = "force-dynamic"
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic"
 /** The chat needs the persona catalogue and the metric count, so it loads in its own section. */
 async function AskBody({ period }: { period: ResolvedPeriod }) {
   const [personas, registry, trust] = await Promise.all([getPersonas(), getMetricRegistry(), getTrustSignals()])
-  const session = await currentSession()
+  const session = await displaySession()
 
   /**
    * The persona list is scoped to the signed-in account.

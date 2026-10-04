@@ -930,14 +930,32 @@ async function buildWhere(
   return { clause: ` WHERE ${parts.join(" AND ")}`, binds }
 }
 
-/** The same filter rendering, with values inlined, for display as provenance only. */
+/**
+ * The same filter rendering with values inlined as escaped literals.
+ *
+ * This text is also EXECUTED on the persona path (runRowsAsRole takes the SQL text), so it is held
+ * to the same rules as renderFilter: the reference must be an identifier, the operator must be in
+ * the closed set, numbers must be finite, and strings are single-quote escaped with backslashes
+ * doubled (Snowflake treats backslash as an escape inside string literals).
+ */
+export function sqlLiteral(v: string | number): string {
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) throw new Error(`Non-finite numeric literal: ${v}`)
+    return String(v)
+  }
+  return `'${String(v).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`
+}
+
 function renderFilterForDisplay(f: SemanticFilter): string {
-  const lit = (v: string | number) => (typeof v === "number" ? String(v) : `'${String(v).replace(/'/g, "''")}'`)
+  const ref = assertIdent(f.ref, "filter dimension")
+  if (!FILTER_OPS.includes(f.op)) throw new Error(`Unsupported filter operator: ${f.op}`)
   if (f.op === "IN") {
     const values = Array.isArray(f.value) ? f.value : [f.value]
-    return `${f.ref} IN (${values.map(lit).join(", ")})`
+    if (values.length === 0 || values.length > 200) throw new Error(`IN filter on ${ref} has an invalid value count`)
+    return `${ref} IN (${values.map(sqlLiteral).join(", ")})`
   }
-  return `${f.ref} ${f.op} ${lit(f.value as string | number)}`
+  if (Array.isArray(f.value)) throw new Error(`Operator ${f.op} on ${ref} takes a single value, not a list`)
+  return `${ref} ${f.op} ${sqlLiteral(f.value)}`
 }
 
 // ---------------------------------------------------------------------------
@@ -996,7 +1014,10 @@ export async function querySemanticView(opts: {
     : querySnowflake(sql, { binds, callersRights })
 }
 
-/** The SQL text for a semantic-view query, for display as provenance in the UI. */
+/**
+ * The SQL text for a semantic-view query. Shown as provenance AND executed on the persona path, so
+ * every identifier is validated exactly as querySemanticView validates it.
+ */
 export function semanticViewSql(opts: {
   semanticView: string
   metrics: MetricRef[]
@@ -1004,14 +1025,17 @@ export function semanticViewSql(opts: {
   filters?: SemanticFilter[]
   orderBy?: string
 }): string {
-  const parts = [`SUPPLY_CHAIN.SEMANTIC.${opts.semanticView}`]
-  if (opts.dimensions?.length) parts.push(`  DIMENSIONS ${opts.dimensions.join(", ")}`)
-  parts.push(`  METRICS ${opts.metrics.join(", ")}`)
+  const sv = assertIdent(opts.semanticView, "semantic view")
+  const metrics = opts.metrics.map((m) => assertIdent(m, "metric"))
+  const dims = (opts.dimensions ?? []).map((d) => assertIdent(d, "dimension"))
+  const parts = [`SUPPLY_CHAIN.SEMANTIC.${sv}`]
+  if (dims.length) parts.push(`  DIMENSIONS ${dims.join(", ")}`)
+  parts.push(`  METRICS ${metrics.join(", ")}`)
   if (opts.filters?.length) {
     parts.push(`  WHERE ${opts.filters.map(renderFilterForDisplay).join("\n    AND ")}`)
   }
   let sql = `SELECT * FROM SEMANTIC_VIEW(\n${parts.join("\n")}\n)`
-  if (opts.orderBy) sql += `\nORDER BY ${opts.orderBy}`
+  if (opts.orderBy) sql += `\nORDER BY ${assertIdent(opts.orderBy, "order by column")}`
   return sql
 }
 

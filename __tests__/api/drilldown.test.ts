@@ -18,6 +18,11 @@ vi.mock("../../lib/sc", () => ({
   toIso: (v: unknown) => (v instanceof Date ? v.toISOString() : v === null || v === undefined ? null : String(v)),
 }))
 
+const currentSession = vi.fn()
+const runRowsAsRole = vi.fn()
+vi.mock("../../lib/session", () => ({ currentSession: () => currentSession(), unmappedCallerResponse: () => null }))
+vi.mock("../../lib/persona", () => ({ runRowsAsRole: (...a: unknown[]) => runRowsAsRole(...a) }))
+
 const FACT = "CANONICAL.FCT_SUPPLIER_DELIVERY_LINE"
 
 const METRIC = {
@@ -25,6 +30,10 @@ const METRIC = {
   businessName: "Supplier On-Time Delivery",
   canonicalFact: FACT,
   asOfScope: "REALIZED",
+  bindings: [
+    { semanticView: "SC_ONTOLOGY_360", metricReference: "purchase_order.supplier_otd_pct", personaRole: null },
+    { semanticView: "SC_SUPPLIER", metricReference: "purchase_order.supplier_otd_pct", personaRole: "SC_PROCUREMENT" },
+  ],
 }
 
 const RULE = {
@@ -49,6 +58,9 @@ const FACT_COLUMNS = [
 function setupQueries(overrides: { rule?: Record<string, unknown> | null } = {}) {
   querySnowflake.mockImplementation((sql: string) => {
     const s = String(sql)
+    if (s.includes("PERSONA_VIEW_ACCESS")) {
+      return Promise.resolve([{ SEMANTIC_VIEW: "SC_SUPPLIER" }, { SEMANTIC_VIEW: "SC_ONTOLOGY_360" }])
+    }
     if (s.includes("METRIC_EXCEPTION_RULE")) {
       const rule = overrides.rule === undefined ? RULE : overrides.rule
       return Promise.resolve(rule ? [rule] : [])
@@ -74,6 +86,9 @@ beforeEach(() => {
   getMetricRegistry.mockReset()
   getMetricRegistry.mockResolvedValue([METRIC])
   setupQueries()
+  currentSession.mockReset()
+  currentSession.mockResolvedValue(null)
+  runRowsAsRole.mockReset()
 })
 
 afterEach(() => vi.resetModules())
@@ -171,5 +186,54 @@ describe("POST /api/drilldown", () => {
     const { POST } = await import("../../app/api/drilldown/route")
     const body = await (await POST(request({ metricId: "supplier_otd_pct", period: "all" }))).json()
     expect(body.rows[0].RECEIPT_DATE).toBe("2026-08-14")
+  })
+
+  it("runs exception rows under the signed-in persona role, not the app identity", async () => {
+    currentSession.mockResolvedValue({ username: "eu", personaRole: "SC_LOGISTICS_EU" })
+    runRowsAsRole.mockResolvedValue({
+      rows: { rows: [{ PO_ID: "PO9", SUPPLIER_REGION: "EU", RECEIPT_DATE: "2026-08-01" }] },
+      count: { rows: [{ N: 3 }] },
+    })
+    const { POST } = await import("../../app/api/drilldown/route")
+    const body = await (await POST(request({ metricId: "supplier_otd_pct", period: "all" }))).json()
+
+    expect(runRowsAsRole).toHaveBeenCalledTimes(1)
+    expect(runRowsAsRole.mock.calls[0][0]).toBe("SC_LOGISTICS_EU")
+    expect(body.executedAs).toBe("SC_LOGISTICS_EU")
+    expect(body.total).toBe(3)
+    // No data query may leak through the owner's-rights pool.
+    expect(querySnowflake.mock.calls.some(([s]) => String(s).startsWith("SELECT PO_ID"))).toBe(false)
+  })
+
+  it("refuses a metric outside the persona's domain even though the cross-domain view is granted", async () => {
+    currentSession.mockResolvedValue({ username: "eu", personaRole: "SC_LOGISTICS_EU" })
+    const base = querySnowflake.getMockImplementation()!
+    querySnowflake.mockImplementation((sql: string) =>
+      String(sql).includes("PERSONA_VIEW_ACCESS")
+        ? Promise.resolve([{ SEMANTIC_VIEW: "SC_ONTOLOGY_360" }, { SEMANTIC_VIEW: "SC_TELEMETRY" }])
+        : base(sql),
+    )
+    const { POST } = await import("../../app/api/drilldown/route")
+    const res = await POST(request({ metricId: "supplier_otd_pct", period: "all" }))
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toMatch(/outside the SC_LOGISTICS_EU persona's domain/)
+    expect(runRowsAsRole).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 without driver detail when the persona is denied", async () => {
+    currentSession.mockResolvedValue({ username: "p", personaRole: "SC_PROCUREMENT" })
+    runRowsAsRole.mockResolvedValue({ rows: { rows: [], error: "not authorised" }, count: { rows: [] } })
+    const { POST } = await import("../../app/api/drilldown/route")
+    const res = await POST(request({ metricId: "supplier_otd_pct", period: "all" }))
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toMatch(/ref [0-9a-f]{8}/)
+  })
+
+  it("does not leak raw error messages to the client", async () => {
+    querySnowflake.mockRejectedValue(new Error("SQL compilation error: Object 'SECRET_DB.X' does not exist"))
+    const { POST } = await import("../../app/api/drilldown/route")
+    const res = await POST(request({ metricId: "supplier_otd_pct" }))
+    expect(res.status).toBe(500)
+    expect((await res.json()).error).not.toMatch(/SECRET_DB/)
   })
 })

@@ -213,7 +213,7 @@ press Enter. Then `/impact` for 3 seconds.
 
 ## 4:35 - 5:00 | Impact and close  (one slide: scorecard)
 
-> "Fifteen of fifteen bindings, zero spread. 54 of 60 conversational questions right, failures
+> "Fifteen of fifteen bindings, zero spread. 53 of 60 conversational questions right on the latest full run, failures
 > published. The Cortex Agent reproduces the canonical definition on 4 of 4. 2,700 contract fields
 > extracted correctly. $832,000 of claimable penalties, $196,000 of them invisible to the old
 > number. And all of it is a CI gate: a pull request that breaks a definition fails the build. A new

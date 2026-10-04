@@ -1,0 +1,26 @@
+{
+  "_comment": "Single source of truth for figures quoted in README.md, docs/*.md and public/deck. Measured on account QIXTRLM-IZ68023 on 2026-10-04. __tests__/lib/docs-facts.test.ts fails if a doc quotes a figure that contradicts this file.",
+  "measuredOn": "2026-10-04",
+  "account": "QIXTRLM-IZ68023",
+  "governedMetrics": 15,
+  "metricBindings": 30,
+  "driftTest": { "metricsPassing": 15, "metricsTotal": 15, "maxRelativeSpread": 0 },
+  "semanticViews": 12,
+  "ontologyRelationships": 15,
+  "targetedMetrics": 9,
+  "untargetedMetrics": 6,
+  "personas": 5,
+  "eval": {
+    "questions": 60,
+    "latestFullRun": { "passed": 53, "failed": 6, "errored": 1, "accuracyPct": 88.3, "meanLatencyMs": 6188, "p95LatencyMs": 8778 },
+    "bestFullRun": { "passed": 54, "accuracyPct": 90.0 }
+  },
+  "unitTests": 252,
+  "rowScopeProof": { "persona": "SC_LOGISTICS_EU", "regionsVisible": 1, "excursionRowsEu": 18638, "excursionRowsSteward": 71186, "regionsSteward": 4 },
+  "maskingProof": { "column": "FCT_LANDED_COST_SHIPMENT.MATERIAL_COST", "persona": "SC_LOGISTICS", "maskedOf1000": 1000, "stewardMaskedOf1000": 0 },
+  "definitionSpreadOtdPct": {
+    "inbound": { "erp": 89.7, "supplierPortal": 88.3, "governed": 87.6 },
+    "outbound": { "tms": 89.5, "crm": 69.4, "governed": 88.5 },
+    "maxSpreadPoints": 20.1
+  }
+}

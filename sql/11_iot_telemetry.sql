@@ -281,6 +281,13 @@ GRANT SELECT, REFERENCES ON SEMANTIC VIEW SC_TELEMETRY TO ROLE SC_LOGISTICS_EU;
 
 USE SCHEMA GOVERNANCE;
 
+-- Idempotent: re-running this file used to append a second copy of every row below,
+-- which doubled the drift test's binding count and listed the metric twice.
+DELETE FROM METRIC_DEFINITION     WHERE metric_id = 'temp_excursion_rate';
+DELETE FROM METRIC_BINDING        WHERE metric_id = 'temp_excursion_rate';
+DELETE FROM METRIC_EXCEPTION_RULE WHERE metric_id = 'temp_excursion_rate';
+DELETE FROM PERSONA_VIEW_ACCESS   WHERE semantic_view = 'SC_TELEMETRY';
+
 INSERT INTO METRIC_DEFINITION
   (metric_id, business_name, domain, definition, numerator, denominator, grain,
    canonical_fact, canonical_sql, unit, direction, owner_role, version, effective_from,

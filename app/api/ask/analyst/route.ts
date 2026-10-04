@@ -20,7 +20,7 @@
 
 import { querySnowflake, getMetricRegistry } from "@/lib/sc"
 import { runRowsAsRole } from "@/lib/persona"
-import { currentSession } from "@/lib/session"
+import { currentSession, unmappedCallerResponse } from "@/lib/session"
 import { ONTOLOGY_VIEW } from "@/lib/constants"
 import { governedStatement, referencedMetrics, isDecisionQuestion } from "@/lib/sql-guard"
 
@@ -60,8 +60,8 @@ export async function POST(req: Request) {
       })
     }
 
-    // The signed-in account decides the role, exactly as in /api/ask. Inside SPCS there is no demo
-    // session and the platform-authenticated app role is used.
+    // The signed-in account decides the role, exactly as in /api/ask. Inside SPCS the caller is
+    // mapped to a persona via GOVERNANCE.PERSONA_USER_MAP; an unmapped caller is refused.
     const session = await currentSession()
     const role = session?.personaRole ?? null
 
@@ -154,10 +154,10 @@ export async function POST(req: Request) {
       latencyMs: Date.now() - startedAt,
     })
   } catch (e) {
-    console.error(new Date().toISOString(), "[ask/analyst] cross-check failed", e)
-    return Response.json(
-      { error: e instanceof Error ? e.message : "Cortex Analyst cross-check failed" },
-      { status: 500 },
-    )
+    const denied = unmappedCallerResponse(e)
+    if (denied) return denied
+    const ref = crypto.randomUUID().slice(0, 8)
+    console.error(new Date().toISOString(), `[ask/analyst] ref=${ref} cross-check failed`, e)
+    return Response.json({ error: `Cortex Analyst cross-check failed (ref ${ref}).` }, { status: 500 })
   }
 }

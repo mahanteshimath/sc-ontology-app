@@ -42,7 +42,7 @@ import {
 } from "@/lib/period"
 import { assessTarget, ragChipClass, ragTextClass } from "@/lib/target"
 import { formatMetric, formatNumber } from "@/lib/format"
-import { currentSession } from "@/lib/session"
+import { displaySession } from "@/lib/session"
 import { BrandMark } from "@/components/brand-mark"
 import { Button } from "@/components/ui/button"
 import { summarizeLandingFacts } from "@/lib/landing-facts"
@@ -548,7 +548,7 @@ export default async function OverviewPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const session = await currentSession()
+  const session = await displaySession()
   if (!session) return <LandingPage />
 
   const sp = await searchParams

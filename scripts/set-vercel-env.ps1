@@ -8,8 +8,8 @@
 # Run `vercel link` first so .vercel/project.json exists.
 
 param(
-  [string]$Connection = "RQPCPYK-BY42913",
-  [string]$Account    = "RQPCPYK-BY42913",
+  [string]$Connection = "QIXTRLM-IZ68023",
+  [string]$Account    = "QIXTRLM-IZ68023",
   [string]$User       = "MONTY",
   [string]$Warehouse  = "COMPUTE_WH",
   # Deliberately not ACCOUNTADMIN. The app only reads governed objects; per-persona queries

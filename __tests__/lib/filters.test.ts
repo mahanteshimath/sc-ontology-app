@@ -183,6 +183,35 @@ describe("semanticViewSql", () => {
     })
     expect(sql).toContain("'O''Brien'")
   })
+
+  // This text is executed on the persona path, so it must enforce the same rules as the bound path.
+  it("rejects identifiers that are not plain references", async () => {
+    const { semanticViewSql } = await loadSc()
+    const base = { semanticView: "SC_ONTOLOGY_360", metrics: ["order_fulfillment.otd_pct"] }
+    expect(() => semanticViewSql({ ...base, semanticView: "X) ; DROP TABLE T --" })).toThrow(/Invalid/)
+    expect(() => semanticViewSql({ ...base, metrics: ["a.b, (SELECT 1)"] })).toThrow(/Invalid/)
+    expect(() => semanticViewSql({ ...base, dimensions: ["a.b--"] })).toThrow(/Invalid/)
+    expect(() => semanticViewSql({ ...base, orderBy: "1; DROP" })).toThrow(/Invalid/)
+    expect(() =>
+      semanticViewSql({ ...base, filters: [{ ref: "a.b OR 1=1" as never, op: "=", value: 1 }] }),
+    ).toThrow(/Invalid/)
+    expect(() =>
+      semanticViewSql({ ...base, filters: [{ ref: "a.b", op: "; --" as never, value: 1 }] }),
+    ).toThrow(/Unsupported/)
+  })
+
+  it("escapes backslashes and refuses non-finite numbers", async () => {
+    const { semanticViewSql, sqlLiteral } = await loadSc()
+    expect(sqlLiteral("a\\' OR 1=1 --")).toBe("'a\\\\'' OR 1=1 --'")
+    expect(() => sqlLiteral(Number.NaN)).toThrow(/Non-finite/)
+    expect(() =>
+      semanticViewSql({
+        semanticView: "SC_ONTOLOGY_360",
+        metrics: ["a.b"],
+        filters: [{ ref: "a.b", op: "=", value: Infinity }],
+      }),
+    ).toThrow(/Non-finite/)
+  })
 })
 
 describe("partitionByAsOfScope", () => {

@@ -27,6 +27,38 @@
 import { querySnowflake, getMetricRegistry, toIso } from "@/lib/sc"
 import { resolvePeriod } from "@/lib/period"
 import { validateExceptionWhere, validateOrderBy } from "@/lib/sql-guard"
+import { runRowsAsRole } from "@/lib/persona"
+import { currentSession, unmappedCallerResponse } from "@/lib/session"
+import { ONTOLOGY_VIEW } from "@/lib/constants"
+
+/** Bindings store the bare view name; the constant is fully qualified. */
+const CROSS_DOMAIN_VIEW = ONTOLOGY_VIEW.split(".").pop()!
+
+/**
+ * PERSONA SCOPE. Rule metadata and column checks are governance reads and run with owner's rights,
+ * but the exception rows themselves are data, so they run under the signed-in persona's role. That
+ * is what makes RAP_SHIP_REGION and the MATERIAL_COST masking policy apply here exactly as they do
+ * on /api/ask — an EU-scoped persona must not see global rows by clicking "drill down".
+ */
+async function runData(
+  role: string | null,
+  sql: string,
+  countSql: string,
+  binds: unknown[],
+): Promise<[Record<string, any>[], Record<string, any>[]]> {
+  if (!role) {
+    return Promise.all([querySnowflake(sql, { binds: binds as any }), querySnowflake(countSql, { binds: binds as any })])
+  }
+  const res = await runRowsAsRole(role, [
+    { key: "rows", sql, binds },
+    { key: "count", sql: countSql, binds },
+  ])
+  const err = res.rows?.error ?? res.count?.error
+  if (err) throw new PersonaDenied(err)
+  return [res.rows.rows, res.count.rows]
+}
+
+class PersonaDenied extends Error {}
 
 export const dynamic = "force-dynamic"
 
@@ -124,6 +156,9 @@ export async function POST(req: Request) {
       offset?: number
     }
 
+    const session = await currentSession()
+    const role = session?.personaRole ?? null
+
     const metricId = (body.metricId ?? "").trim()
     if (!metricId) return Response.json({ error: "metricId is required" }, { status: 400 })
 
@@ -134,6 +169,25 @@ export async function POST(req: Request) {
         { error: `"${metricId}" is not a registered metric.` },
         { status: 404 },
       )
+    }
+
+    // Domain scope, the same rule /api/ask applies: a persona may drill into a metric only if it is
+    // granted that metric's DOMAIN view. The cross-domain view does not count, or every persona
+    // could read every domain's exception rows. Found by the local smoke test: SC_PROCUREMENT was
+    // drilling into logistics telemetry it cannot ask about.
+    if (role) {
+      const access = await querySnowflake(
+        `SELECT semantic_view FROM SUPPLY_CHAIN.GOVERNANCE.PERSONA_VIEW_ACCESS WHERE role_name = ?`,
+        { binds: [role] },
+      )
+      const granted = new Set(access.map((r) => String(r.SEMANTIC_VIEW)))
+      const inScope = (metric.bindings ?? []).some((b) => b.semanticView !== CROSS_DOMAIN_VIEW && granted.has(b.semanticView))
+      if (!inScope) {
+        return Response.json(
+          { error: `${metric.businessName} is outside the ${role} persona's domain, so its rows are not shown.` },
+          { status: 403 },
+        )
+      }
     }
 
     const rule = await getExceptionRule(metricId)
@@ -220,10 +274,7 @@ export async function POST(req: Request) {
     const countSql =
       `SELECT COUNT(*) AS N FROM SUPPLY_CHAIN.${rule.canonicalFact} WHERE ${where.join(" AND ")}`
 
-    const [rows, countRows] = await Promise.all([
-      querySnowflake(sql, { binds: binds as any }),
-      querySnowflake(countSql, { binds: binds as any }),
-    ])
+    const [rows, countRows] = await runData(role, sql, countSql, binds)
 
     // Timestamps arrive from the driver as Date objects; normalise before serialising.
     const serialised = rows.map((r) => {
@@ -249,13 +300,18 @@ export async function POST(req: Request) {
       limit,
       hasMore: offset + serialised.length < Number(countRows[0]?.N ?? 0),
       total: Number(countRows[0]?.N ?? 0),
+      executedAs: role ?? "application",
       sql,
     })
   } catch (e) {
-    console.error(new Date().toISOString(), "[drilldown] exception query failed", e)
-    return Response.json(
-      { error: e instanceof Error ? e.message : "Failed to load exception rows" },
-      { status: 500 },
-    )
+    const ref = crypto.randomUUID().slice(0, 8)
+    const denied = unmappedCallerResponse(e)
+    if (denied) return denied
+    console.error(new Date().toISOString(), `[drilldown] ref=${ref} exception query failed`, e)
+    if (e instanceof PersonaDenied) {
+      return Response.json({ error: `Your persona is not authorised for these rows (ref ${ref}).` }, { status: 403 })
+    }
+    // Raw driver messages can name objects and roles; the reference ties the client error to the log.
+    return Response.json({ error: `Failed to load exception rows (ref ${ref}).` }, { status: 500 })
   }
 }

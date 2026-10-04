@@ -105,6 +105,7 @@ const FILES = [
   { file: "25_cortex_analyst_bridge.sql", phase: "increment", note: "Cortex Analyst SQL generator (owner's rights, SQL text only) - MUST follow 24" },
   { file: "26_masking.sql",            phase: "increment", note: "MP_COST_USD masking + SC_SENSITIVITY tag on unit/landed cost columns" },
   { file: "27_source_systems.sql",     phase: "increment", note: "ERP/portal/TMS/CRM/IoT source presentations and the live definition spread" },
+  { file: "28_persona_user_map.sql",   phase: "increment", note: "SPCS caller -> persona mapping; unmapped callers are refused, never served as the app" },
   { file: "90_verify_base.sql",        phase: "verify", note: "splice anchors, registry shape, THE DRIFT GATE" },
   { file: "91_verify_personas.sql",    phase: "verify", note: "EU row scope is genuinely filtering" },
   { file: "92_verify_counts.sql",      phase: "verify", note: "row counts, snapshot cardinality, data shape" },

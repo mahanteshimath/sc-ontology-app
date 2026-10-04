@@ -17,7 +17,7 @@ vi.mock("../../lib/sc", () => ({
   getMetricRegistry: () => getMetricRegistry(),
 }))
 vi.mock("../../lib/persona", () => ({ runRowsAsRole: (...a: unknown[]) => runRowsAsRole(...a) }))
-vi.mock("../../lib/session", () => ({ currentSession: () => currentSession() }))
+vi.mock("../../lib/session", () => ({ currentSession: () => currentSession(), unmappedCallerResponse: () => null }))
 
 function analystPayload(statement: string | null) {
   const content: unknown[] = [{ type: "text", text: "This is our interpretation" }]
