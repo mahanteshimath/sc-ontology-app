@@ -65,7 +65,7 @@ Source: `GOVERNANCE.V_DIVERGENCE_IMPACT`
  RAW --> CANONICAL (atomic-grain facts) <-+
               |
               v
- SEMANTIC  SC_ONTOLOGY_360 + 9 domain views   <-- the only query surface
+ SEMANTIC  12 semantic views (SC_ONTOLOGY_360 + domain views)   <-- the only query surface
               |      CERTIFIED tag (SNOWFLAKE.CORE.CERTIFICATION_STATUS)
               |                      |
               v                      v
