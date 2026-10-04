@@ -116,9 +116,9 @@ SELECT * FROM (
            || a.ungoverned_blocked || ' raw-table SQL blocked by the guard',
          'MEASURED', 'ANALYST_PARITY_RESULT (run ' || TO_VARCHAR(a.run_at, 'YYYY-MM-DD') || ')' FROM an a WHERE a.questions > 0
   UNION ALL
-  SELECT 16, 'Accuracy', 'Invented-metric questions refused: Cortex Analyst vs. registry engine',
-         a.refusals_correct || ' / ' || a.refusals_expected || ' Analyst vs. ' || e.refusals_correct || ' / ' || e.refusals_expected
-           || ' registry - why the registry engine answers and Analyst cross-checks',
+  SELECT 16, 'Accuracy', 'Invented-metric and out-of-scope questions not answered: Cortex Analyst path vs. registry engine',
+         a.refusals_correct || ' / ' || a.refusals_expected || ' Analyst path (guard + persona scope) vs. ' || e.refusals_correct || ' / ' || e.refusals_expected
+           || ' registry engine',
          'MEASURED', 'ANALYST_PARITY_RESULT + AGENT_EVAL_RUN' FROM an a, ev e WHERE a.refusals_expected > 0
 )
 ORDER BY ord;

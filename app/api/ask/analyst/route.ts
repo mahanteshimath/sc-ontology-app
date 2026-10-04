@@ -18,11 +18,11 @@
  * the answer must come from governed metric definitions, never from raw columns.
  */
 
-import { querySnowflake } from "@/lib/sc"
+import { querySnowflake, getMetricRegistry } from "@/lib/sc"
 import { runRowsAsRole } from "@/lib/persona"
 import { currentSession } from "@/lib/session"
 import { ONTOLOGY_VIEW } from "@/lib/constants"
-import { governedStatement } from "@/lib/sql-guard"
+import { governedStatement, referencedMetrics, isDecisionQuestion } from "@/lib/sql-guard"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -50,6 +50,15 @@ export async function POST(req: Request) {
     const question = (body.question ?? "").trim()
     if (!question) return Response.json({ error: "A question is required" }, { status: 400 })
     if (question.length > 500) return Response.json({ error: "Question is too long" }, { status: 400 })
+
+    if (isDecisionQuestion(question)) {
+      return Response.json({
+        engine: "cortex-analyst",
+        answerable: false,
+        rejected: "This asks for a decision, not a measurement. Governed metrics can inform it, but the answer is not computed.",
+        latencyMs: Date.now() - startedAt,
+      })
+    }
 
     // The signed-in account decides the role, exactly as in /api/ask. Inside SPCS there is no demo
     // session and the platform-authenticated app role is used.
@@ -100,6 +109,35 @@ export async function POST(req: Request) {
         sql: sqlBlock.statement,
         latencyMs: Date.now() - startedAt,
       })
+    }
+
+    // Domain scope, exactly as /api/ask: a metric is permitted only if the persona is granted a
+    // DOMAIN view that serves it. The cross-domain view alone must not widen access (eval Q53).
+    if (role) {
+      const [registry, access] = await Promise.all([
+        getMetricRegistry(),
+        querySnowflake(
+          `SELECT semantic_view FROM SUPPLY_CHAIN.GOVERNANCE.PERSONA_VIEW_ACCESS WHERE role_name = ?`,
+          { binds: [role] },
+        ),
+      ])
+      const granted = new Set(access.map((r: any) => String(r.SEMANTIC_VIEW)))
+      const denied = referencedMetrics(statement).filter((name) => {
+        const def = registry.find((m) => m.metricId.toLowerCase() === name)
+        return (
+          !!def &&
+          !def.bindings.some((b) => b.semanticView !== "SC_ONTOLOGY_360" && granted.has(b.semanticView))
+        )
+      })
+      if (denied.length > 0) {
+        return Response.json({
+          ...base,
+          answerable: false,
+          rejected: `${role} is not granted the domain that serves ${denied.join(", ")}, so the query was not executed.`,
+          sql: statement,
+          latencyMs: Date.now() - startedAt,
+        })
+      }
     }
 
     const result = await run(role, `SELECT * FROM (${statement}) LIMIT 200`)

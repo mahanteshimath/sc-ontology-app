@@ -16,6 +16,10 @@
  */
 import { connect, query } from "./sf.mjs"
 
+function isDecisionQuestion(question) {
+  return /\b(should|shall|ought)\s+(we|i)\b/i.test(question) || /\b(terminate|fire|blacklist|drop)\s+(a|the|which|our)?\s*(supplier|vendor|carrier)/i.test(question)
+}
+
 const limitArg = process.argv.indexOf("--limit")
 const LIMIT = limitArg > 0 ? Number(process.argv[limitArg + 1]) : null
 const VIEW = "SUPPLY_CHAIN.SEMANTIC.SC_ONTOLOGY_360"
@@ -31,6 +35,14 @@ function governed(sql) {
   return body
 }
 
+// Domain scope, as in app/api/ask/analyst: a metric is allowed only if the persona is granted a
+// DOMAIN view that serves it; the cross-domain view alone does not widen access (eval Q53).
+function referencedMetrics(sql) {
+  const m = /\bMETRICS\b([\s\S]*?)(?=\bDIMENSIONS\b|\bFACTS\b|\bWHERE\b|\)\s*(?:ORDER|QUALIFY|LIMIT|$)|\)\s*$)/i.exec(sql)
+  if (!m) return []
+  return m[1].split(",").map((p) => p.trim().replace(/[()]/g, "").split(".").pop().trim().toLowerCase()).filter(Boolean)
+}
+
 const conn = await connect("sc-ontology-analyst-parity")
 await query(conn, "USE ROLE ACCOUNTADMIN")
 await query(
@@ -41,6 +53,16 @@ await query(
      executed BOOLEAN, status STRING, detail STRING, latency_ms NUMBER, verified_query_used STRING)
    COMMENT = 'Cortex Analyst graded against the governed eval set, per persona role. Written by scripts/analyst-parity.mjs.'`,
 )
+
+const bindings = await query(conn, "SELECT metric_id, semantic_view FROM SUPPLY_CHAIN.GOVERNANCE.METRIC_BINDING")
+const access = await query(conn, "SELECT role_name, semantic_view FROM SUPPLY_CHAIN.GOVERNANCE.PERSONA_VIEW_ACCESS")
+const outOfScope = (role, stmt) =>
+  referencedMetrics(stmt).filter((name) => {
+    const views = bindings.filter((b) => b.METRIC_ID.toLowerCase() === name).map((b) => b.SEMANTIC_VIEW)
+    if (!views.length) return false
+    const granted = new Set(access.filter((a) => a.ROLE_NAME === role).map((a) => a.SEMANTIC_VIEW))
+    return !views.some((v) => v !== "SC_ONTOLOGY_360" && granted.has(v))
+  })
 
 const questions = await query(
   conn,
@@ -76,8 +98,13 @@ for (const q of subset) {
     found = [...String(stmt ?? "").matchAll(/\b(?:[a-z_][a-z_0-9]*\.)*([a-z_][a-z_0-9]*)\b/gi)].map((m) => m[1].toLowerCase())
 
     if (!q.SHOULD_ANSWER) {
-      status = sql ? "FAIL" : "PASS"
-      detail = sql ? "produced SQL for a question that should be refused" : "declined / asked to clarify"
+      // Effective refusal: no SQL, SQL the guard will not execute, or governed SQL for a metric
+      // outside the persona's domain grants. Only governed, in-scope SQL counts as an answer.
+      if (isDecisionQuestion(q.QUESTION)) { status = "PASS"; detail = "declined: decision question, not a measurement" }
+      else if (!sql) { status = "PASS"; detail = "declined / asked to clarify" }
+      else if (!stmt) { status = "PASS"; detail = "refused in effect: raw-table SQL blocked by the guard" }
+      else if (outOfScope(role, stmt).length) { status = "PASS"; detail = "refused in effect: metric outside persona domain grants" }
+      else { status = "FAIL"; detail = "produced executable governed SQL for a question that should be refused" }
     } else if (!stmt) {
       detail = sql ? "SQL not a governed SEMANTIC_VIEW query" : "no SQL produced"
     } else {

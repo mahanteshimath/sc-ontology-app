@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { validateExceptionWhere, validateOrderBy } from "@/lib/sql-guard"
+import { validateExceptionWhere, validateOrderBy, isDecisionQuestion } from "@/lib/sql-guard"
 
 const COLS = new Set([
   "IS_ON_TIME", "ORDERED_QTY", "RECEIVED_QTY", "SHIPPED_QTY", "TOTAL_LANDED_COST",
@@ -37,4 +37,9 @@ describe("sql-guard: injection attempts are rejected", () => {
   it.each(["DELIVERY_DATE; DROP TABLE X", "RANDOM()", "NOPE DESC"])("order by %s", (o) =>
     expect(() => validateOrderBy(o, COLS)).toThrow(),
   )
+})
+
+describe("isDecisionQuestion", () => {
+  it.each(["Which supplier should we terminate?", "Should we drop this carrier?"])("flags %s", (q) => expect(isDecisionQuestion(q)).toBe(true))
+  it.each(["What is our supplier on-time delivery?", "Which suppliers are late most often?", "What is our fill rate?"])("allows %s", (q) => expect(isDecisionQuestion(q)).toBe(false))
 })
