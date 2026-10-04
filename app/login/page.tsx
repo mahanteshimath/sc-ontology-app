@@ -3,7 +3,7 @@ import { LoginForm } from "@/components/login-form"
 import { OneClickPersonas } from "@/components/one-click-personas"
 import { APP_TITLE, TEAM_NAME } from "@/lib/constants"
 import Link from "next/link"
-import { ArrowLeft, LockKeyhole, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Info, LockKeyhole, ShieldCheck } from "lucide-react"
 import { BrandMark } from "@/components/brand-mark"
 
 export const dynamic = "force-dynamic"
@@ -32,14 +32,40 @@ export default async function LoginPage({
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(100,190,220,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(100,190,220,0.07)_1px,transparent_1px)] [background-size:56px_56px]" />
           <Link href="/" className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-200/10 text-cyan-200"><BrandMark className="h-7 w-7" /></span><span><span className="block text-sm font-semibold tracking-[0.16em]">SUPPLY CHAIN</span><span className="block text-[length:var(--fs-label)] tracking-[0.28em] text-cyan-200">ONTOLOGY CONTROL TOWER</span></span></Link>
           <div className="relative max-w-xl pb-16"><div className="mb-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">Secure operations workspace</div><h1 className="text-5xl font-semibold leading-[1.05] tracking-[-0.03em]">Make every number accountable.</h1><p className="mt-6 max-w-lg text-base leading-7 text-slate-300">Your role determines the governed views, row scope, and metric access behind every decision. Sign in to continue to the control tower.</p><div className="mt-10 grid max-w-md grid-cols-2 gap-3"><div className="rounded-xl border border-white/10 bg-white/[0.05] p-4"><ShieldCheck className="h-5 w-5 text-emerald-300" /><div className="mt-4 text-sm font-medium">Snowflake-enforced</div><div className="mt-1 text-xs leading-5 text-slate-400">Persona grants and row access policies apply at query time.</div></div><div className="rounded-xl border border-white/10 bg-white/[0.05] p-4"><LockKeyhole className="h-5 w-5 text-cyan-200" /><div className="mt-4 text-sm font-medium">Governed by design</div><div className="mt-1 text-xs leading-5 text-slate-400">Metrics resolve to the ontology, not ad hoc calculations.</div></div></div></div>
-          <div className="relative text-xs text-slate-400">{TEAM_NAME} · governed supply chain analytics</div>
+          <div className="relative flex items-center justify-between text-xs text-slate-400">
+            <span>{TEAM_NAME} · governed supply chain analytics</span>
+            <Link
+              href="/deck"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-cyan-300 hover:text-white transition-colors"
+            >
+              <Info className="h-3.5 w-3.5" aria-hidden />
+              <span>Submission deck</span>
+            </Link>
+          </div>
         </section>
 
         <section className="flex items-center justify-center px-5 py-10 sm:px-10">
           <div className="w-full max-w-md space-y-6">
             <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white lg:hidden"><ArrowLeft className="h-4 w-4" /> Back to overview</Link>
             <div className="lg:hidden"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-200/10 text-cyan-200"><BrandMark className="h-7 w-7" /></span><span><span className="block text-sm font-semibold tracking-[0.16em]">SUPPLY CHAIN</span><span className="block text-[length:var(--fs-label)] tracking-[0.28em] text-cyan-200">ONTOLOGY CONTROL TOWER</span></span></div></div>
-            <div><div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">Authorized access</div><h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em]">Sign in to continue</h2><p className="mt-2 text-sm leading-6 text-slate-400">Use your workspace credentials to open governed analytics.</p></div>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">Authorized access</div>
+                <Link
+                  href="/deck"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-0.5 text-[11px] font-medium text-cyan-200 hover:bg-cyan-300/20 hover:text-white transition-colors"
+                >
+                  <Info className="h-3 w-3 text-cyan-300" aria-hidden />
+                  <span>Submission Deck</span>
+                </Link>
+              </div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em]">Sign in to continue</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Use your workspace credentials to open governed analytics.</p>
+            </div>
 
         {!configured ? (
           <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.07] p-5 space-y-2">

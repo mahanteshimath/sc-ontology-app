@@ -46,7 +46,7 @@ import { displaySession } from "@/lib/session"
 import { BrandMark } from "@/components/brand-mark"
 import { Button } from "@/components/ui/button"
 import { summarizeLandingFacts } from "@/lib/landing-facts"
-import { ArrowRight, BarChart3, DatabaseZap, Network, ShieldCheck } from "lucide-react"
+import { ArrowRight, BarChart3, DatabaseZap, Info, Network, ShieldCheck } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -82,9 +82,20 @@ async function LandingPage() {
               <span className="block text-[length:var(--fs-label)] tracking-[0.28em] text-cyan-200">ONTOLOGY CONTROL TOWER</span>
             </span>
           </Link>
-          <Link href="/login?next=%2F" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
-            Sign in <ArrowRight className="ml-1 inline-block h-4 w-4" aria-hidden />
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/deck"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-cyan-200 transition-colors hover:text-white"
+            >
+              <Info className="h-4 w-4 text-cyan-300" aria-hidden />
+              <span>Submission Deck</span>
+            </Link>
+            <Link href="/login?next=%2F" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
+              Sign in <ArrowRight className="ml-1 inline-block h-4 w-4" aria-hidden />
+            </Link>
+          </div>
         </header>
 
         <section className="mx-auto grid min-h-[calc(100vh-81px)] w-full max-w-[1400px] items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:px-12 lg:pb-24 lg:pt-4">
@@ -99,10 +110,16 @@ async function LandingPage() {
             <p className="mt-7 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
               Connect supplier performance, fulfillment, inventory, landed cost, manufacturing, and demand through one governed ontology built for accountable action.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="h-12 rounded-lg bg-cyan-300 px-6 text-[#06283a] shadow-[0_10px_30px_rgba(41,181,232,0.18)] hover:bg-cyan-200">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row items-stretch sm:items-center">
+              <Button asChild size="lg" className="h-12 rounded-lg bg-cyan-300 px-6 text-[#06283a] shadow-[0_10px_30px_rgba(41,181,232,0.18)] hover:bg-cyan-200 font-semibold">
                 <Link href="/login?next=%2F">
                   Enter the control tower <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="h-12 rounded-lg border-cyan-200/30 bg-white/[0.04] px-5 text-white hover:bg-white/[0.08] hover:border-cyan-200/60 transition-colors">
+                <Link href="/deck" target="_blank" rel="noopener noreferrer">
+                  <Info className="mr-2 h-4 w-4 text-cyan-300" aria-hidden />
+                  Submission Deck
                 </Link>
               </Button>
             </div>

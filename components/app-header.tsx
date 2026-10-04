@@ -12,8 +12,10 @@ import {
   Boxes,
   ClipboardCheck,
   Database,
+  ExternalLink,
   GitCompareArrows,
   Globe,
+  Info,
   Network,
   Trophy,
 } from "lucide-react"
@@ -84,6 +86,18 @@ export function AppHeader({
           </nav>
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
+            <Link
+              href="/deck"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-secondary/50 px-2.5 py-1.5 text-[length:var(--fs-meta)] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-brand-primary/50 transition-colors shadow-sm"
+              title="Open Submission Deck & Architecture Brief"
+            >
+              <Info className="h-3.5 w-3.5 text-brand-primary" aria-hidden />
+              <span className="hidden sm:inline">Deck</span>
+              <ExternalLink className="h-3 w-3 opacity-60" aria-hidden />
+            </Link>
+
             {user && (
               <>
                 <div
