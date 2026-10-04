@@ -85,6 +85,9 @@ const VIEW = "SC_ONTOLOGY_360"
 /** Snowflake's compile error when a metric and dimension share no relationship path. */
 const NOT_RELATED = /are not related/i
 
+/** Bump when the resolver prompt rules change, so cached mappings from older rules are not reused. */
+const RESOLVER_RULES_VERSION = "2026-10-04-outlook-decision"
+
 /** "Which supplier should we terminate / fire / drop / blacklist" and similar. */
 const DECISION_QUESTION =
   /\b(should|shall|must)\s+(we|i)\s+(terminate|fire|drop|blacklist|cancel|replace|dismiss|cut|stop\s+(buying|using|working))\b|\b(terminate|fire|blacklist|dismiss)\s+(which|the\s+worst|any)\b/i
@@ -475,7 +478,7 @@ Reply with ONLY a JSON object:
     const cacheKey = resolverCacheKey({
       model: RESOLVER_MODEL,
       question,
-      catalogue: `${catalogue}\n#rules:${prompt.length}:${prompt.slice(prompt.indexOf("Rules:"), prompt.indexOf("Reply with ONLY"))}`,
+      catalogue: `${catalogue}\n#rules:${RESOLVER_RULES_VERSION}`,
       dimensions: dimCatalogue,
       denied: deniedBlock,
       conversation: conversationBlock,
