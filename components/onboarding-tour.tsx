@@ -214,7 +214,7 @@ export function OnboardingTour({
       {/* Restart Tour Quick Button in Header context (rendered in fixed position or exported) */}
       <button
         onClick={handleRestartTour}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-3 py-2 rounded-full border border-primary/40 bg-slate-900/90 text-primary hover:bg-slate-800 shadow-xl backdrop-blur-md text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full border-2 border-amber-400 bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 text-slate-900 shadow-[0_0_18px_rgba(251,191,36,0.85),0_0_40px_rgba(245,158,11,0.5)] hover:shadow-[0_0_26px_rgba(251,191,36,1),0_0_56px_rgba(245,158,11,0.7)] animate-pulse text-xs font-bold transition-all hover:scale-105 active:scale-95"
         title="Start Guided Platform Tour"
       >
         <Sparkles className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: "4s" }} />
@@ -290,7 +290,7 @@ export function OnboardingTour({
           {/* Animated Glow Outline over Target */}
           {targetRect && (
             <div
-              className="absolute pointer-events-none rounded-xl border-2 border-primary shadow-[0_0_25px_rgba(41,181,232,0.8)] animate-pulse"
+              className="absolute pointer-events-none rounded-xl border-2 border-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.9),0_0_36px_rgba(245,158,11,0.6)] animate-pulse"
               style={{
                 top: `${targetRect.top - 6}px`,
                 left: `${targetRect.left - 6}px`,
@@ -303,7 +303,7 @@ export function OnboardingTour({
 
           {/* Floating Tooltip Card */}
           <div
-            className="absolute z-[9999] w-full max-w-sm rounded-xl border border-border bg-slate-900 p-5 shadow-2xl text-slate-100 space-y-4 animate-in fade-in duration-200"
+            className="absolute z-[9999] w-full max-w-sm rounded-xl border border-amber-400/60 bg-slate-900 p-5 shadow-[0_0_30px_rgba(251,191,36,0.35)] text-slate-100 space-y-4 animate-in fade-in duration-200"
             style={{
               top: targetRect
                 ? targetRect.bottom + 16 + 260 > window.innerHeight
