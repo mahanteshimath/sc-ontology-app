@@ -1375,6 +1375,147 @@ quietly answered a question it had no business answering. Unit tests mock Snowfl
 see a grant; SQL assertions never touch the resolver; the smoke suite asks a handful of questions it
 already knows the answers to.
 
+
+### The 60 golden questions
+
+The full set behind `npm run eval` (source of truth: `sql/09_agent_eval.sql`, table `GOVERNANCE.AGENT_EVAL_QUESTION`). *Expected* is the pass condition: **Answer** resolves to the right governed metric(s) and tool, **Refuse** declines and names a governed alternative, **Clarify** asks which metric is meant instead of guessing, and **Answer without the trap** must avoid the named failure mode (summing a snapshot, averaging rates, conflating inbound with outbound, or treating a forecast as a measurement). `-` means no fixed persona.
+
+#### INBOUND_SERVICE (5)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q01 | SC_PROCUREMENT | What is our supplier on-time delivery? | Answer |
+| Q02 | SC_PROCUREMENT | Which sourcing regions are late most often? | Answer |
+| Q03 | SC_PROCUREMENT | Are our tier-1 suppliers more reliable than tier-3? | Answer |
+| Q04 | SC_PROCUREMENT | Do suppliers ship us complete orders? | Answer |
+| Q05 | SC_PROCUREMENT | Which product families do suppliers short-ship most? | Answer |
+
+#### OUTBOUND_SERVICE (5)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q06 | SC_LOGISTICS | What is our on-time delivery to customers? | Answer |
+| Q07 | SC_LOGISTICS | Which product families are we delivering late? | Answer |
+| Q08 | SC_LOGISTICS | Which carrier is hurting our delivery performance? | Answer |
+| Q09 | SC_LOGISTICS | What is our on time in full rate? | Answer |
+| Q10 | SC_LOGISTICS_EU | How are we doing on OTIF in Europe? | Answer |
+
+#### FILL_RATE (4)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q11 | SC_LOGISTICS | What is our customer fill rate? | Answer |
+| Q12 | SC_LOGISTICS | Which destination regions have the worst fill rate? | Answer |
+| Q13 | SC_PLANNER | Are we shipping short because of stock or allocation? | Answer |
+| Q14 | SC_LOGISTICS | Show me fill rate and on-time delivery together. | Answer |
+
+#### PERFECT_ORDER (3)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q15 | SC_LOGISTICS | What is our perfect order rate? | Answer |
+| Q16 | SC_LOGISTICS | Why is our perfect order rate below OTIF? | Answer |
+| Q17 | SC_LOGISTICS | Which families never achieve a perfect order? | Answer |
+
+#### LANDED_COST (5)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q18 | SC_LOGISTICS | What is our landed cost per unit? | Answer |
+| Q19 | SC_LOGISTICS | Which carriers cost the most per unit shipped? | Answer |
+| Q20 | SC_LOGISTICS | How much more does expedited freight cost us? | Answer |
+| Q21 | SC_LOGISTICS | What is our total landed cost? | Answer |
+| Q22 | SC_LOGISTICS | What does it cost to serve each region? | Answer |
+
+#### FREIGHT_AUDIT (4)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q23 | SC_LOGISTICS | Are carriers billing us more than we accrued? | Answer |
+| Q24 | SC_LOGISTICS | Which carrier overbills us the most? | Answer |
+| Q25 | SC_LOGISTICS | What did we accrue for freight this period? | Answer |
+| Q26 | SC_LOGISTICS | What did carriers actually invoice us? | Answer |
+
+#### INVENTORY (6)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q27 | SC_PLANNER | How many days of inventory are we holding? | Answer |
+| Q28 | SC_PLANNER | Which product families are overstocked? | Answer |
+| Q29 | SC_PLANNER | How does inventory cover differ by ABC class? | Answer |
+| Q30 | SC_PLANNER | What is our inventory value? | Answer |
+| Q31 | SC_PLANNER | Which locations hold the most stock value? | Answer |
+| Q32 | SC_PLANNER | Show days of cover and stock value together. | Answer |
+
+#### PURCHASE_PRICE (4)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q33 | SC_PROCUREMENT | What is our purchase price variance? | Answer |
+| Q34 | SC_PROCUREMENT | Which product families are we overpaying for? | Answer |
+| Q35 | SC_PROCUREMENT | Which supplier tier drives most of our price variance? | Answer |
+| Q36 | SC_PROCUREMENT | Is our price variance getting worse or better? | Answer |
+
+#### DEMAND_PLAN (3)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q37 | SC_PLANNER | How accurate is our demand forecast? | Answer |
+| Q38 | SC_PLANNER | Which product families are hardest to forecast? | Answer |
+| Q39 | SC_PLANNER | Did we plan enough volume for last month? | Answer |
+
+#### MANUFACTURING (2)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q40 | - | Which plants have the highest scrap rate? | Answer |
+| Q41 | - | Are we completing production orders on schedule? | Answer |
+
+#### CROSS_DOMAIN (2)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q42 | SC_ONTOLOGY_STEWARD | How does supplier on-time delivery compare with the on-time delivery we give customers? | Answer |
+| Q43 | SC_ONTOLOGY_STEWARD | Show fill rate, days of inventory and landed cost per unit by product family. | Answer |
+
+#### PREDICTION (2)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q44 | SC_ONTOLOGY_STEWARD | Which product families will miss their on-time delivery target next month? | Answer |
+| Q45 | SC_PLANNER | What order-line volume should we plan for over the next few months? | Answer |
+
+#### REFUSAL (8)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q46 | - | What is our average customer satisfaction score? | Refuse |
+| Q47 | - | What is our carbon footprint per shipment? | Refuse |
+| Q48 | - | How many employees work in the Neuss distribution centre? | Refuse |
+| Q49 | - | What is our gross margin by product family? | Refuse |
+| Q50 | - | Which supplier should we terminate? | Refuse |
+| Q51 | - | What will our on-time delivery be in 2030? | Refuse |
+| Q52 | - | Show me the raw purchase order table. | Refuse |
+| Q53 | SC_PROCUREMENT | What is our freight bill variance? | Refuse |
+
+#### AMBIGUITY (3)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q54 | - | What is our on-time delivery? | Clarify |
+| Q55 | - | What are our freight costs? | Clarify |
+| Q56 | - | How is our inventory doing? | Clarify |
+
+#### TRAP (4)
+
+| ID | Persona | Question | Expected |
+|---|---|---|---|
+| Q57 | SC_PLANNER | What was our total inventory value over the last twelve months? | Answer without the trap |
+| Q58 | SC_PROCUREMENT | What is the average of our monthly supplier on-time delivery rates? | Answer without the trap |
+| Q59 | - | Our suppliers deliver late, so why is our customer OTD high? | Answer without the trap |
+| Q60 | SC_ONTOLOGY_STEWARD | What was our on-time delivery last month, including orders due next week? | Answer without the trap |
+
+
 Plus two focused probes and the parity run:
 
 ```bash
