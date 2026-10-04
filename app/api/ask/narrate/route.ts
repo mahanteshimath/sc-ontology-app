@@ -151,8 +151,9 @@ export function templateNarration(input: {
   rows: Record<string, any>[]
   dimensionColumn: string | null
   periodLabel: string
+  totalRows?: number
 }): string {
-  const { metrics, rows, dimensionColumn, periodLabel } = input
+  const { metrics, rows, dimensionColumn, periodLabel, totalRows } = input
   if (metrics.length === 0 || rows.length === 0) return "No governed rows were returned for that question."
 
   const sentences: string[] = []
@@ -180,7 +181,7 @@ export function templateNarration(input: {
       const top = ranked[0]
       const bottom = ranked[ranked.length - 1]
       sentences.push(
-        `For ${periodLabel}, ${primary.businessName} ranges from ${formatMetricValue(bottom[primary.column], primary.unit)} (${bottom[dimensionColumn]}) to ${formatMetricValue(top[primary.column], primary.unit)} (${top[dimensionColumn]}) across ${rows.length} ${rows.length === 1 ? "category" : "categories"}.`,
+        `For ${periodLabel}, ${primary.businessName} ranges from ${formatMetricValue(bottom[primary.column], primary.unit)} (${bottom[dimensionColumn]}) to ${formatMetricValue(top[primary.column], primary.unit)} (${top[dimensionColumn]}) across ${rows.length} ${rows.length === 1 ? "category" : "categories"}${totalRows && totalRows > rows.length ? ` shown (of ${totalRows} returned)` : ""}.`,
       )
       if (primary.target !== null) {
         const missing = ranked.filter((r) =>
@@ -208,6 +209,7 @@ export async function POST(req: Request) {
       rows?: Record<string, any>[]
       dimensionColumn?: string | null
       periodLabel?: string
+  totalRows?: number
       personaLabel?: string | null
       snapshotDate?: string | null
     }
@@ -222,7 +224,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "metrics and rows are required" }, { status: 400 })
     }
 
-    const fallback = templateNarration({ metrics, rows, dimensionColumn, periodLabel })
+    const fallback = templateNarration({
+      metrics,
+      rows,
+      dimensionColumn,
+      periodLabel,
+      totalRows: typeof body.totalRows === "number" ? body.totalRows : undefined,
+    })
 
     /**
      * Everything the prose is allowed to say, numerically.

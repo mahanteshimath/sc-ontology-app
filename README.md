@@ -9,7 +9,7 @@ procurement and logistics — and tested on a schedule rather than asserted in a
   <img alt="React 19" src="https://img.shields.io/badge/React-19-087ea4?logo=react&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white">
   <img alt="Snowflake" src="https://img.shields.io/badge/Snowflake-semantic%20views-29b5e8?logo=snowflake&logoColor=white">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-174%20%2F%20174%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-203%20%2F%20203%20passing-brightgreen">
   <img alt="Drift" src="https://img.shields.io/badge/metric%20drift-zero%20spread-brightgreen">
   <img alt="Hierarchies" src="https://img.shields.io/badge/hierarchy%20rollups-10%2F10%20proven-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/conversational%20eval-60%20questions%20scored-blue">
@@ -19,7 +19,60 @@ procurement and logistics — and tested on a schedule rather than asserted in a
 
 **Live demo:** https://sc-ontology-app.vercel.app (behind a demo sign-in gate)
 
-Team 3M-ONTOLOGIST.
+---
+
+## Submission at a glance
+
+| | |
+|---|---|
+| **Team name** | 3M-ONTOLOGIST |
+| **Team leaders** | Mahantesh, Devansh, Sathyam |
+| **Team size** | 3 |
+| **Problem statement** | Teams compute the "same" supply-chain metric differently, get different numbers, and cannot prove which is right. The wrong one quietly clears non-compliant suppliers. |
+| **Live app** | https://sc-ontology-app.vercel.app (demo sign-in) |
+| **Submission deck** | [Live slides](https://sc-ontology-app.vercel.app/deck) (public, arrow keys to navigate) · [PDF](docs/SUBMISSION_DECK.pdf) · [slide copy](docs/SUBMISSION_DECK.md) |
+| **Demo material** | [Click-through script](docs/DEMO_SCRIPT.md) · [Video script](docs/VIDEO_SCRIPT.md) · [Judge Q&A](docs/JUDGE_QA.md) |
+
+### Prototype / MVP brief
+
+> Supply Chain Ontology (3M-ONTOLOGIST) is a working MVP, live at app, that makes every team see the same supply-chain number. Metrics like on-time delivery, fill rate, days of inventory and landed cost are defined once as Snowflake semantic views in a governed registry. Planning, Procurement and Logistics ask questions in plain English or by voice; answers run under each user's own Snowflake role, with provenance and drill-down to rows. A daily drift test checks against independent atomic SQL: 15/15 bindings match, zero spread. A deliberately broken legacy metric stays deployed (0.882631 vs 0.875824) to prove the test can fail. AI_EXTRACT reads 300 supplier contracts (2,700/2,700 fields correct) and exposes $178,832 of penalties the legacy metric hides. Built with Cortex Code skills, a Cortex Agent, Cortex Search and an MCP server. Scored 90.0% on 60 golden questions. Extends to any metric, source or document type with one registry row. Finally this is just not MVP its real world solution for many problems.
+
+### Where each submission requirement is covered
+
+| Requirement | Covered in |
+|---|---|
+| **1. Problem brief**: business problem, persona, pain point and improvement, industry | [Why this exists](#why-this-exists) · [What the divergence actually costs](#what-the-divergence-actually-costs) · deck slides 2-3. Personas: Planning, Procurement, Logistics (plus an EU-scoped variant) and the Ontology Steward. Industry: manufacturing supply chain. |
+| **2. Architecture**: data flow, CoCo CLI skills and how they connect, structured and unstructured sources, modular plug-in | [Architecture](#architecture) · [How it was built: CoCo skills and modules](#how-it-was-built-coco-skills-and-modules) · [Supplier contracts: the unstructured source](#supplier-contracts-the-unstructured-source) · deck slides 10-12 |
+| **3. Impact**: measurable outcomes, scalability, beyond the demo | [The impact scorecard](#the-impact-scorecard) · [Trust, standards and reach](#trust-standards-and-reach) · [Scaling beyond the demo](#scaling-beyond-the-demo) · deck slides 13-16 |
+
+### Why it is different
+
+| | Typical BI dashboard | Typical text-to-SQL chat | Supply Chain Ontology |
+|---|---|---|---|
+| Where a metric is defined | In each report | In each prompt | Once, in a governed registry |
+| Same number for every team | Hoped for | Not guaranteed | Proven daily, zero spread |
+| Access control | App layer | App layer | Snowflake role and row access policy |
+| Numbers in the answer | Not applicable | Can be invented | Invented figures discarded |
+| Contracts and free text | Left out | Left out | `AI_EXTRACT`, 2,700 / 2,700 fields |
+| Cost of disagreement | Unknown | Unknown | 12 suppliers, $178,832 hidden |
+
+### Product tour
+
+<table>
+  <tr>
+    <td width="50%"><img src="public/deck/deck-assets/ask-full.png" alt="Ask: a plain-English question answered with a governed value, chart and provenance"><br><b>Ask.</b> Plain English or voice in, a governed number out. The model picks registered metrics and never writes SQL.</td>
+    <td width="50%"><img src="public/deck/deck-assets/consistency.png" alt="Consistency: one metric executed as each persona role"><br><b>Consistency.</b> One metric executed as each real Snowflake role, with the recorded divergence and the negative control.</td>
+  </tr>
+  <tr>
+    <td><img src="public/deck/deck-assets/impact.png" alt="Impact scorecard with measured outcomes and their source objects"><br><b>Impact.</b> Every claim carries its source object and a MEASURED or ASSUMPTION label.</td>
+    <td><img src="public/deck/deck-assets/home.png" alt="Overview of governed metrics with targets and trends"><br><b>Overview.</b> Target, prior period, year-on-year and a 12-month trend for every headline metric, with drill-down to the offending rows.</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="public/deck/deck-assets/network-risk.png" alt="Network risk map with maritime chokepoints and simulated lane disruption"><br><b>Network risk.</b> Geospatial topology, maritime chokepoints and simulated lane disruption.</td>
+  </tr>
+</table>
+
+The live [ontology page](https://sc-ontology-app.vercel.app/ontology) draws the entity model straight from `INFORMATION_SCHEMA`.
 
 ---
 
@@ -41,6 +94,7 @@ Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
 
 ## Table of contents
 
+- [Submission at a glance](#submission-at-a-glance)
 - [The 60-second proof](#the-60-second-proof)
 - [Why this exists](#why-this-exists)
 - [What it does](#what-it-does)
@@ -118,7 +172,7 @@ meeting spent debating whose number is right instead of what to do about it.
 
 | | |
 |---|---|
-| **One definition, many consumers** | 14 governed metrics, each exposed through 2 semantic views. A dashboard figure and a conversational answer are the *same expression* evaluated by the same engine. |
+| **One definition, many consumers** | 15 governed metrics, each exposed through 2 semantic views. A dashboard figure and a conversational answer are the *same expression* evaluated by the same engine. |
 | **Agreement is tested** | `GOVERNANCE.METRIC_DRIFT_TEST()` evaluates every binding against the metric's canonical atomic-grain SQL and records the spread. Zero spread on the last run. Runs daily at 06:00 UTC. |
 | **Hierarchies are proven, not declared** | 7 drill paths, 17 levels. Every level is joined back to `INFORMATION_SCHEMA` and every rollup is measured against its source dimension, so a level that is not a true functional dependency fails the build. Two plausible rollups were measured and rejected. |
 | **The divergence has a price tag** | `GOVERNANCE.V_DIVERGENCE_IMPACT` replays both definitions at supplier grain against the registry target: 12 suppliers cleared without earning it, 0 wrongly escalated. Recomputed on read, never stored. |
@@ -126,7 +180,7 @@ meeting spent debating whose number is right instead of what to do about it.
 | **Personas are real roles** | Signing in selects a Snowflake role; queries run under it with secondary roles disabled, so grants and row access policies are enforced by the database, not the app. |
 | **Numbers drill down to rows** | Every metric declares what an "exception row" is, so the rows shown under a number come from the same fact the number is defined over and therefore reconcile to it. |
 | **Predictions are separated from measurements** | Forecasts live in their own registry, are excluded from the drift contract, and are never displayed without their backtested accuracy. |
-| **The whole database is reproducible** | `node scripts/rebuild.mjs` builds all 6.1M rows, 9 semantic views and the governance layer from nothing in ~4.5 minutes. |
+| **The whole database is reproducible** | `node scripts/rebuild.mjs` builds all 10.8M rows, 9 semantic views and the governance layer from nothing in ~4.5 minutes. |
 
 ---
 
@@ -472,7 +526,7 @@ flowchart TB
   client the governed metric, under the caller's own role, with no raw-SQL escape hatch.
 - **The backlog is measured, not guessed.** `V_ONTOLOGY_DEMAND` ranks the metrics people asked for
   and were refused, so the next registry row is the one with demand behind it.
-- **Scale is Snowflake's.** 6.1M rows rebuild in ~4.5 minutes on one warehouse; the semantic views
+- **Scale is Snowflake's.** 10.8M rows rebuild in ~4.5 minutes on one warehouse; the semantic views
   push computation to the engine, so volume is a warehouse-size decision, not a redesign.
 
 
@@ -515,7 +569,8 @@ flowchart TB
 │   └── set-vercel-env.ps1   pushes Snowflake settings to Vercel without printing the password
 ├── __tests__/               vitest — mocks lib/snowflake
 ├── .github/workflows/       governance-gate.yml: unit tests + CI_GOVERNANCE_GATE over OIDC
-├── docs/                    demo, video script, submission deck, judge Q&A
+├── docs/                    demo, video script, submission deck (md + pdf), judge Q&A
+├── public/deck/             the submission deck as a public static page, served at /deck
 ├── app.yml                  Snowflake App Runtime manifest (version: 2)
 └── AGENTS.md                APPLICATION SERVICE operations reference
 ```
@@ -545,7 +600,7 @@ snow connection test
 
 ```bash
 npm install
-node scripts/rebuild.mjs     # ~4.5 min: 6.1M rows, 9 semantic views, governance layer
+node scripts/rebuild.mjs     # ~4.5 min: 10.8M rows, 9 semantic views, governance layer
 ```
 
 ### 3. Configure the sign-in gate
@@ -570,7 +625,7 @@ npm run dev                  # http://localhost:3000
 ### 5. Verify
 
 ```bash
-npm test                     # 174 / 174
+npm test                     # 203 / 203
 npm run smoke                # 21 end-to-end checks — needs the dev server running
 ```
 
@@ -897,7 +952,7 @@ platform authenticates callers and the gate is skipped automatically.
 ### Caller's rights
 
 Governed **metric reads** can additionally run with the calling user's own Snowflake grants, so row
-access policies and masking apply to them. **Off by default**, enabled with `CALLERS_RIGHTS=1`.
+access policies apply to them. **Off by default**, enabled with `CALLERS_RIGHTS=1`.
 
 Off by default on purpose rather than inferred: today only the five `SC_*` persona roles hold
 `SELECT` on the semantic views, so enabling it before those grants exist turns every page into an
@@ -1454,13 +1509,13 @@ failing run is kept in `METRIC_DRIFT_NEGATIVE_CONTROL` as evidence.
 | A hierarchy level renders struck through on `/ontology` | It names a dimension the semantic view does not declare | `CALL GOVERNANCE.VALIDATE_ONTOLOGY_HIERARCHY();` and read `V_ONTOLOGY_HIERARCHY.validation_detail`. Fix the declaration in `sql/12`, not the page. |
 | `sign-in failed: 400` from a probe script | `smoke-outlook.mjs` / `smoke-chat.mjs` / `probe-asof.mjs` have no `.env.local` fallback | Set `SMOKE_PASSWORD` explicitly. |
 | `vercel env add` appears to hang forever | Fixed. It used `cmd /c "… < file"`, whose redirect never reaches the CLI's stdin | Pull the current `scripts/set-vercel-env.ps1`, which pipes natively with `--force`. |
-| Unit test failures on Windows | Fixed | `npm test` should report 174/174 on every platform. See [Known limitations](#known-limitations) for what was wrong. |
+| Unit test failures on Windows | Fixed | `npm test` should report 203/203 on every platform. See [Known limitations](#known-limitations) for what was wrong. |
 
 ---
 
 ## Known limitations
 
-- **Unit tests pass on Windows as well as Linux/macOS (174/174).** Eight used to fail on Windows. Two
+- **Unit tests pass on Windows as well as Linux/macOS (203/203).** Eight used to fail on Windows. Two
   causes, both fixed: `lib/snowflake.ts` built the SPCS secret mount path with `path.join`, which
   emits `\secrets\...` on Windows although the mount is always POSIX (now `path.posix.join`, scoped
   to the secret reader only - the TOML config lookup still uses native paths, as it must); and an
@@ -1565,7 +1620,7 @@ Before opening a pull request:
 
 ```bash
 npm run typecheck
-npm test                               # expect 174/174 on every platform
+npm test                               # expect 203/203 on every platform
 node scripts/rebuild.mjs --verify      # every SQL check must PASS
 npm run eval                           # score the 60 questions; publish the failures, don't trim them
 npm run smoke                          # needs npm run dev in another shell

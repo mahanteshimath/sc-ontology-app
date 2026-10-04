@@ -82,6 +82,9 @@ export const maxDuration = 90
 
 const VIEW = "SC_ONTOLOGY_360"
 
+/** Snowflake's compile error when a metric and dimension share no relationship path. */
+const NOT_RELATED = /are not related/i
+
 interface Resolution {
   answerable: boolean
   metricIds: string[]
@@ -487,12 +490,12 @@ Reply with ONLY a JSON object:
       resolution.metricIds,
       available.map((a) => a.metric.metricId),
     )
-    const chosen = disambiguation.metricIds
+    let chosen = disambiguation.metricIds
       .map((id) => available.find((a) => a.metric.metricId === id))
       .filter((x): x is { metric: (typeof registry)[number]; ref: string } => x !== undefined)
     if (disambiguation.note) resolution.reason = `${disambiguation.note} ${resolution.reason ?? ""}`.trim()
 
-    const validDimension =
+    let validDimension =
       resolution.dimension && dimensions.some((d) => d.ref === resolution.dimension)
         ? resolution.dimension
         : null
@@ -516,12 +519,59 @@ Reply with ONLY a JSON object:
       })
     }
 
+    /**
+     * ONTOLOGY BOUNDARY CHECK.
+     *
+     * Some metric/dimension pairs have no governed join path, by design: a part is bought from ~150
+     * suppliers, so landed cost cannot be attributed to a supplier without inventing an allocation
+     * rule. Previously such a question reached Snowflake and surfaced a raw compilation error.
+     *
+     * Each metric is compiled (EXPLAIN, nothing executes) against the requested dimension. Metrics
+     * that cannot be broken down that way are answered as a governed total instead, and the answer
+     * says exactly why — the boundary is part of the ontology, not a failure of it.
+     */
+    const boundary: { metricId: string; businessName: string; dimension: string }[] = []
+    let boundaryChosen: typeof chosen = []
+    if (validDimension) {
+      const dimRef = validDimension
+      const probes = await Promise.all(
+        chosen.map(async (c) => {
+          try {
+            await querySnowflake(
+              `EXPLAIN ${semanticViewSql({ semanticView: VIEW, metrics: [c.ref], dimensions: [dimRef], filters: [] })}`,
+            )
+            return true
+          } catch (e) {
+            if (e instanceof Error && NOT_RELATED.test(e.message)) return false
+            throw e
+          }
+        }),
+      )
+      boundaryChosen = chosen.filter((_, i) => !probes[i])
+      for (const c of boundaryChosen) {
+        boundary.push({ metricId: c.metric.metricId, businessName: c.metric.businessName, dimension: dimRef })
+      }
+      if (boundaryChosen.length === chosen.length) {
+        // Nothing can be broken down this way: answer every metric as a governed total.
+        validDimension = null
+        boundaryChosen = []
+      } else {
+        chosen = chosen.filter((_, i) => probes[i])
+      }
+    }
+    const boundaryNote = boundary.length
+      ? `Ontology boundary: ${boundary.map((b) => b.businessName).join(", ")} has no governed relationship to ${boundary[0].dimension.split(".")[0]} (it is not attributable without an allocation rule), so it is reported as a governed total rather than broken down.`
+      : null
+
     // Scope the query the same way the dashboards do: SNAPSHOT balances pin to one snapshot,
     // event metrics span the period with future-dated rows excluded. A question that mixes the two
     // is split into two queries so neither is computed on the other's terms.
     const realized = chosen.filter((c) => c.metric.asOfScope !== "SNAPSHOT")
     const snapshot = chosen.filter((c) => c.metric.asOfScope === "SNAPSHOT")
-    const snapshotDate = snapshot.length > 0 ? await snapshotDateLookup : null
+    const snapshotDate =
+      snapshot.length > 0 || boundaryChosen.some((c) => c.metric.asOfScope === "SNAPSHOT")
+        ? await snapshotDateLookup
+        : null
 
     const dims = validDimension ? [validDimension] : []
     const groups: { refs: string[]; filters: SemanticFilter[]; scope: string }[] = []
@@ -592,6 +642,35 @@ Reply with ONLY a JSON object:
       rows = mergeScopeGroups(parts, dims)
     }
 
+    // Boundary metrics: one dimensionless query per scope, under the same role as the main answer.
+    const boundaryTotals: Record<string, any> = {}
+    if (boundaryChosen.length) {
+      const bGroups = [
+        { refs: boundaryChosen.filter((c) => c.metric.asOfScope !== "SNAPSHOT").map((c) => c.ref), filters: periodFilters(period) },
+        ...(snapshotDate
+          ? [{ refs: boundaryChosen.filter((c) => c.metric.asOfScope === "SNAPSHOT").map((c) => c.ref), filters: snapshotFilters(snapshotDate) }]
+          : []),
+      ].filter((g) => g.refs.length)
+      let bParts: Record<string, any>[][] | null = null
+      if (persona && !personaError) {
+        const res = await runRowsAsRole(
+          persona.roleName,
+          bGroups.map((g, gi) => ({ key: String(gi), sql: semanticViewSql({ semanticView: VIEW, metrics: g.refs, dimensions: [], filters: g.filters }) })),
+        )
+        if (!Object.values(res).some((v) => v.error)) bParts = bGroups.map((_, gi) => res[String(gi)]?.rows ?? [])
+      }
+      if (!bParts) {
+        bParts = await Promise.all(
+          bGroups.map((g) => querySemanticView({ semanticView: VIEW, metrics: g.refs, dimensions: [], filters: g.filters })),
+        )
+      }
+      Object.assign(boundaryTotals, mergeScopeGroups(bParts, [])[0])
+      for (const g of bGroups) {
+        sqlByGroup.push(semanticViewSql({ semanticView: VIEW, metrics: g.refs, dimensions: [], filters: g.filters }))
+      }
+    }
+    if (boundaryNote) resolution.reason = `${resolution.reason ?? ""} ${boundaryNote}`.trim()
+
     // Cap the payload: charts and tables in the UI never need more than this.
     const capped = rows.slice(0, 200)
 
@@ -658,6 +737,13 @@ Reply with ONLY a JSON object:
       rowCount: rows.length,
       snapshotDate,
       resolverCached,
+      boundary: boundary.length
+        ? boundary.map((b) => {
+            const c = boundaryChosen.find((x) => x.metric.metricId === b.metricId)
+            const col = c ? c.ref.split(".")[1].toUpperCase() : null
+            return { ...b, unit: c?.metric.unit ?? null, value: col ? (boundaryTotals[col] ?? null) : null }
+          })
+        : [],
       sql: sqlByGroup.join("\n\n"),
     })
   } catch (e) {

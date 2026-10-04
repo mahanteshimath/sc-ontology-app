@@ -86,6 +86,8 @@ interface AskResponse {
   snapshotDate?: string | null
   /** The question-to-metric mapping was reused; the query itself still ran live. */
   resolverCached?: boolean
+  /** Metrics with no governed join path to the requested dimension, answered as totals. */
+  boundary?: { metricId: string; businessName: string; dimension: string; unit: string | null; value: number | null }[]
   sql?: string
   suggestions?: string[]
   error?: string
@@ -169,6 +171,7 @@ export function AskChat({
           metrics: answer.metrics,
           rows: answer.chartRows?.length ? answer.chartRows : answer.rows,
           dimensionColumn: answer.dimensionColumn ?? null,
+          totalRows: answer.rowCount ?? null,
           periodLabel: answer.period?.label ?? period.label,
           personaLabel: answer.persona?.personaLabel ?? null,
           snapshotDate: answer.snapshotDate ?? null,
@@ -479,6 +482,18 @@ function Answer({
           <Tag title="The question-to-metric mapping was reused from an identical earlier question. The governed query above ran live, under this persona's role.">
             mapping reused · value live
           </Tag>
+        )}
+        {answer.boundary && answer.boundary.length > 0 && (
+          <div className="w-full rounded-md border border-border p-3 u-meta" role="note">
+            <div className="u-label text-[var(--link)]">Ontology boundary</div>
+            {answer.boundary.map((b) => (
+              <p key={b.metricId} className="mt-1">
+                <strong>{b.businessName}</strong> = {formatMetricValue(b.value, b.unit)} (governed total).
+                It has no relationship to <span className="u-mono">{b.dimension.split(".")[0]}</span> in the ontology, so a
+                breakdown would require an allocation rule nobody has certified.
+              </p>
+            ))}
+          </div>
         )}
         {answer.personaError && (
           <span className="u-warn">
