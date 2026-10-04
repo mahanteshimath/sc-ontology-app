@@ -92,7 +92,7 @@ Five claims, each checkable in one click rather than taken on faith:
 | **Real World Relevance** | The brief's pain, measured live: asked "what is our on-time delivery?", the ERP, supplier portal, TMS and CRM native definitions give different answers over the **same events** — outbound spans **20.1 points** (69.4% CRM vs. 89.5% TMS). The governed metric is one value for every persona. | [`/ontology`](https://sc-ontology-app.vercel.app/ontology) — "Many source systems, one definition", from `GOVERNANCE.V_SOURCE_DEFINITION_SPREAD`. |
 | **Technical Execution** | Two independent text-to-SQL paths agree. Cortex Analyst, run under each persona's role, resolves **49 / 52** answerable eval questions to the governed metric; its 3 misses were raw-table SQL, which the guard refused to execute. On invented metrics it answers where the registry refuses (2 / 8 vs. 7 / 8), which is why the registry answers and Analyst cross-checks. | [`/ask`](https://sc-ontology-app.vercel.app/ask) — "Ask Cortex Analyst too" on any answer; `node scripts/analyst-parity.mjs` writes `GOVERNANCE.ANALYST_PARITY_RESULT`. |
 
-Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes), or the in-app [`/tour`](https://sc-ontology-app.vercel.app/tour).
+Full click-through: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (~5 minutes).
 
 ---
 

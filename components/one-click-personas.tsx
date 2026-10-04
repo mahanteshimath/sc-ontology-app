@@ -33,7 +33,7 @@ export function OneClickPersonas({
         setError(json.error ?? "Sign-in failed")
         return
       }
-      const target = next.startsWith("/") && !next.startsWith("//") ? next : "/tour"
+      const target = next.startsWith("/") && !next.startsWith("//") ? next : "/"
       router.replace(target)
       router.refresh()
     } finally {

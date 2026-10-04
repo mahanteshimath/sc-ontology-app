@@ -60,7 +60,7 @@ DEMO_USERS=planner:<pw>:SC_PLANNER;buyer:<pw>:SC_PROCUREMENT;logistics:<pw>:SC_L
             {oneClickEnabled() && (
               <OneClickPersonas
                 users={users.filter((u) => u.personaRole !== "SC_ONTOLOGY_STEWARD")}
-                next={Array.isArray(sp.next) ? sp.next[0] ?? "/tour" : sp.next ?? "/tour"}
+                next={Array.isArray(sp.next) ? sp.next[0] ?? "/" : sp.next ?? "/"}
               />
             )}
             <LoginForm next={next} />
