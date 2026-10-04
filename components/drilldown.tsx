@@ -98,7 +98,8 @@ export function DrilldownButton({
       <button
         type="button"
         onClick={toggle}
-        className="u-action disabled:opacity-50"
+        className="u-action -mx-1 inline-flex min-h-6 items-center px-1 py-1 disabled:opacity-50"
+        aria-expanded={open}
         disabled={mutation.isPending}
       >
         {mutation.isPending && !data
@@ -165,7 +166,7 @@ export function DrilldownButton({
                     type="button"
                     onClick={() => page(Math.max(0, offset - PAGE_SIZE))}
                     disabled={data.offset === 0 || mutation.isPending}
-                    className="rounded border border-border px-2 py-0.5 disabled:opacity-40 hover:bg-secondary/50"
+                    className="rounded border border-border px-3 py-1.5 disabled:opacity-40 hover:bg-secondary/50"
                   >
                     Previous
                   </button>
@@ -173,7 +174,7 @@ export function DrilldownButton({
                     type="button"
                     onClick={() => page(offset + PAGE_SIZE)}
                     disabled={!data.hasMore || mutation.isPending}
-                    className="rounded border border-border px-2 py-0.5 disabled:opacity-40 hover:bg-secondary/50"
+                    className="rounded border border-border px-3 py-1.5 disabled:opacity-40 hover:bg-secondary/50"
                   >
                     Next
                   </button>

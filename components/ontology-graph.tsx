@@ -163,14 +163,16 @@ export function OntologyGraph({ entities, relationships }: Props) {
           <input
             type="text"
             placeholder="Search entity or column..."
+            aria-label="Search entity or column"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md bg-secondary/60 border border-border focus:outline-none focus:ring-1 focus:ring-primary/60 placeholder:text-muted-foreground/60 transition-all"
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md bg-secondary/60 border border-border focus:outline-none focus:ring-1 focus:ring-primary/60 placeholder:text-muted-foreground transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+              className="absolute right-1 top-1/2 -translate-y-1/2 grid size-7 place-items-center text-xs text-muted-foreground hover:text-foreground"
             >
               ✕
             </button>
@@ -181,8 +183,9 @@ export function OntologyGraph({ entities, relationships }: Props) {
         <div className="flex items-center gap-1 bg-secondary/40 p-1 rounded-lg border border-border/40 text-xs">
           <button
             onClick={() => setFilterRole("ALL")}
+            aria-pressed={filterRole === "ALL"}
             className={cn(
-              "px-2.5 py-1 rounded-md transition-all font-medium text-[11px]",
+              "px-2.5 py-1.5 rounded-md transition-all font-medium text-[length:var(--fs-label)]",
               filterRole === "ALL"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -192,10 +195,11 @@ export function OntologyGraph({ entities, relationships }: Props) {
           </button>
           <button
             onClick={() => setFilterRole("DIMENSION")}
+            aria-pressed={filterRole === "DIMENSION"}
             className={cn(
-              "px-2.5 py-1 rounded-md transition-all font-medium text-[11px] flex items-center gap-1.5",
+              "px-2.5 py-1.5 rounded-md transition-all font-medium text-[length:var(--fs-label)] flex items-center gap-1.5",
               filterRole === "DIMENSION"
-                ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
+                ? "bg-sky-500/15 text-sky-800 dark:text-sky-300 border border-sky-500/30"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -204,10 +208,11 @@ export function OntologyGraph({ entities, relationships }: Props) {
           </button>
           <button
             onClick={() => setFilterRole("FACT")}
+            aria-pressed={filterRole === "FACT"}
             className={cn(
-              "px-2.5 py-1 rounded-md transition-all font-medium text-[11px] flex items-center gap-1.5",
+              "px-2.5 py-1.5 rounded-md transition-all font-medium text-[length:var(--fs-label)] flex items-center gap-1.5",
               filterRole === "FACT"
-                ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                ? "bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/30"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -221,12 +226,13 @@ export function OntologyGraph({ entities, relationships }: Props) {
           <button
             onClick={() => setViewMode("tiered")}
             className={cn(
-              "px-2.5 py-1 rounded-md transition-all font-medium text-[11px] flex items-center gap-1.5",
+              "px-2.5 py-1.5 rounded-md transition-all font-medium text-[length:var(--fs-label)] flex items-center gap-1.5",
               viewMode === "tiered"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
             title="3-Tier Architectural Layout"
+            aria-pressed={viewMode === "tiered"}
           >
             <Layers className="size-3.5" />
             Tiered Flow
@@ -234,12 +240,13 @@ export function OntologyGraph({ entities, relationships }: Props) {
           <button
             onClick={() => setViewMode("radial")}
             className={cn(
-              "px-2.5 py-1 rounded-md transition-all font-medium text-[11px] flex items-center gap-1.5",
+              "px-2.5 py-1.5 rounded-md transition-all font-medium text-[length:var(--fs-label)] flex items-center gap-1.5",
               viewMode === "radial"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
             title="Concentric Radial Orbit"
+            aria-pressed={viewMode === "radial"}
           >
             <CircleDot className="size-3.5" />
             Radial
@@ -259,22 +266,22 @@ export function OntologyGraph({ entities, relationships }: Props) {
           {viewMode === "tiered" && (
             <g className="pointer-events-none">
               {/* Tier 1 Header */}
-              <text x={24} y={35} className="fill-purple-400/70 text-[10px] font-mono uppercase font-semibold tracking-wider">
+              <text x={24} y={35} className="fill-purple-800 dark:fill-purple-300 text-[length:var(--fs-label)] font-mono uppercase font-semibold tracking-wider">
                 INBOUND & CUSTOMER FULFILLMENT FACTS
               </text>
               <line x1={24} y1={44} x2={W - 24} y2={44} stroke="currentColor" strokeWidth={0.8} opacity={0.15} />
 
               {/* Tier 2 Header (positioned at y=230, completely clear of all nodes) */}
               <rect x={16} y={215} width={W - 32} height={28} rx={6} className="fill-sky-500/[0.04] stroke-sky-500/20" strokeWidth={0.8} />
-              <text x={28} y={233} className="fill-sky-400/90 text-[10px] font-mono uppercase font-semibold tracking-wider">
+              <text x={28} y={233} className="fill-sky-800 dark:fill-sky-300 text-[length:var(--fs-label)] font-mono uppercase font-semibold tracking-wider">
                 CONFORMED DIMENSIONS (CORE HUB)
               </text>
-              <text x={W - 28} y={233} textAnchor="end" className="fill-sky-400/60 text-[10px] font-mono uppercase font-semibold tracking-wider">
+              <text x={W - 28} y={233} textAnchor="end" className="fill-sky-800 dark:fill-sky-300 text-[length:var(--fs-label)] font-mono uppercase font-semibold tracking-wider">
                 SHARED ACROSS EVERY FACT
               </text>
 
               {/* Tier 3 Header (positioned at y=475, completely clear of all nodes) */}
-              <text x={24} y={475} className="fill-purple-400/70 text-[10px] font-mono uppercase font-semibold tracking-wider">
+              <text x={24} y={475} className="fill-purple-800 dark:fill-purple-300 text-[length:var(--fs-label)] font-mono uppercase font-semibold tracking-wider">
                 PLANNING, MANUFACTURING & INVENTORY FACTS
               </text>
               <line x1={24} y1={484} x2={W - 24} y2={484} stroke="currentColor" strokeWidth={0.8} opacity={0.15} />
@@ -363,7 +370,7 @@ export function OntologyGraph({ entities, relationships }: Props) {
                     <text
                       textAnchor="middle"
                       y={4}
-                      className="fill-foreground text-[10px] font-mono font-medium"
+                      className="fill-foreground text-[length:var(--fs-label)] font-mono font-medium"
                     >
                       {r.fromColumns} → {r.toColumns}
                     </text>
@@ -481,11 +488,11 @@ export function OntologyGraph({ entities, relationships }: Props) {
                   )}
                 />
                 <h3 className="text-sm font-semibold font-mono">{selectedEntityObj.entity}</h3>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground font-mono">
+                <span className="text-[length:var(--fs-label)] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground font-mono">
                   {selectedEntityObj.entityRole}
                 </span>
                 {selectedEntityObj.ontologyClass && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 font-mono">
+                  <span className="text-[length:var(--fs-label)] px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-800 dark:text-sky-300 font-mono">
                     {selectedEntityObj.ontologyClass}
                   </span>
                 )}
@@ -534,7 +541,7 @@ export function OntologyGraph({ entities, relationships }: Props) {
           </span>
         </div>
 
-        <div className="text-right text-muted-foreground/80 font-mono text-[10px]">
+        <div className="text-right text-muted-foreground font-mono text-[length:var(--fs-label)]">
           {selected
             ? `Click ${selected} again to deselect`
             : "Click any entity or hover a connector line to inspect joins"}

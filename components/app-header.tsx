@@ -96,7 +96,7 @@ export function AppHeader({
                 </div>
                 <button
                   onClick={signOut}
-                  className="u-meta whitespace-nowrap rounded-md border border-transparent px-2.5 py-1.5 hover:border-border hover:text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+                  className="u-meta whitespace-nowrap rounded-md border border-transparent px-3 py-2 hover:border-border hover:text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
                 >
                   Sign out
                 </button>
@@ -143,7 +143,7 @@ function NavLink({
       data-tour={dataTour}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[length:var(--fs-meta)] whitespace-nowrap transition-colors",
+        "inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-[length:var(--fs-meta)] whitespace-nowrap transition-colors",
         active
           ? "bg-[color-mix(in_oklab,var(--brand-primary)_12%,var(--secondary))] text-foreground font-semibold"
           : "text-muted-foreground hover:text-foreground hover:bg-secondary/70",

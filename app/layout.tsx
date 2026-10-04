@@ -31,6 +31,7 @@ export default async function RootLayout({
       <body className="antialiased min-h-screen bg-background text-foreground overflow-x-hidden w-full max-w-full">
         <ThemeProvider>
           <QueryProvider>
+            <a href="#main" className="skip-link">Skip to content</a>
             <AppHeader
               user={session ? { username: session.username, personaRole: session.personaRole } : null}
             />

@@ -289,13 +289,40 @@
   html {
     scroll-behavior: smooth;
   }
+  /* Reduced motion keeps state changes (colour, opacity) but drops movement and looping effects. */
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      animation-duration: 1ms !important;
+      transition-property: color, background-color, border-color, opacity !important;
+      transition-duration: 120ms !important;
     }
+    .u-card-interactive:hover { transform: none; }
   }
+
+  /* Touch devices: every control reaches the 44px target size without changing the desktop density. */
+  @media (pointer: coarse) {
+    a[href], button, input:not([type="checkbox"]):not([type="radio"]), select, [role="button"] {
+      min-height: 44px;
+    }
+    a[href]:where(.u-prose a, p a) { min-height: 0; }
+  }
+
+  .skip-link {
+    position: fixed;
+    left: 1rem;
+    top: 0.5rem;
+    z-index: 10000;
+    padding: 0.625rem 1rem;
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: var(--fs-body);
+    font-weight: 600;
+    transform: translateY(-200%);
+  }
+  .skip-link:focus { transform: none; }
 }
 
 @layer components {

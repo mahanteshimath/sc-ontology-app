@@ -67,7 +67,7 @@ export function ProvenanceModal({
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold tracking-wide bg-primary/10 text-primary border border-primary/20 uppercase">
+          <span className="px-2.5 py-1 rounded-md text-[length:var(--fs-label)] font-semibold tracking-wide bg-primary/10 text-primary border border-primary/20 uppercase">
             SQL Provenance
           </span>
           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />

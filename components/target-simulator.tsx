@@ -114,6 +114,7 @@ export function TargetSimulator() {
 
         <input
           type="range"
+          aria-label="Target value"
           min={metric === "otd_pct" ? 0.82 : 0.95}
           max={metric === "otd_pct" ? 0.98 : 0.999}
           step={0.001}

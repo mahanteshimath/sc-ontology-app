@@ -346,28 +346,28 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
 
           <div className="rounded-lg border border-border bg-secondary/30 p-3.5 space-y-1 min-w-0">
             <div className="text-[11px] uppercase font-semibold text-muted-foreground flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
+              <TrendingUp className="w-3.5 h-3.5 text-[var(--status-warn)]" />
               Effective Transit Delay
             </div>
-            <div className="text-2xl font-bold text-amber-500">+{effectiveDelay.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">days</span></div>
+            <div className="text-2xl font-bold text-[var(--status-warn)]">+{effectiveDelay.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">days</span></div>
             <div className="text-[11px] text-muted-foreground truncate">vs baseline lead time</div>
           </div>
 
           <div className="rounded-lg border border-border bg-secondary/30 p-3.5 space-y-1 min-w-0">
             <div className="text-[11px] uppercase font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-rose-500" />
+              <Zap className="w-3.5 h-3.5 text-[var(--status-bad)]" />
               Freight Cost Uplift
             </div>
-            <div className="text-2xl font-bold text-rose-500">+{(avgUplift * 100).toFixed(0)}%</div>
+            <div className="text-2xl font-bold text-[var(--status-bad)]">+{(avgUplift * 100).toFixed(0)}%</div>
             <div className="text-[11px] text-muted-foreground truncate">Emergency surcharge estimate</div>
           </div>
 
           <div className="rounded-lg border border-border bg-secondary/30 p-3.5 space-y-1 min-w-0">
             <div className="text-[11px] uppercase font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Anchor className="w-3.5 h-3.5 text-indigo-400" />
+              <Anchor className="w-3.5 h-3.5 text-[var(--link)]" />
               Capacity Throughput
             </div>
-            <div className="text-2xl font-bold text-indigo-400">-{(maxCapacityRed * 100).toFixed(0)}%</div>
+            <div className="text-2xl font-bold text-[var(--link)]">-{(maxCapacityRed * 100).toFixed(0)}%</div>
             <div className="text-[11px] text-muted-foreground truncate">Container slot bottleneck</div>
           </div>
         </div>
@@ -384,7 +384,7 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
             </div>
 
             {/* Non-overlapping Top Bar Legend */}
-            <div className="flex items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] text-slate-300 flex-wrap min-w-0">
+            <div className="flex items-center gap-x-3 gap-y-1 text-[length:var(--fs-label)] sm:text-[11px] text-slate-300 flex-wrap min-w-0">
               <div className="flex items-center gap-1.5" title="Active scenario chokepoint">
                 <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse shrink-0" />
                 <span className="text-slate-200 whitespace-nowrap">Disrupted Chokepoint</span>
@@ -444,9 +444,9 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
                     <div className="font-semibold text-sm">{drawerData.data.laneId}: {drawerData.data.originName} → {drawerData.data.destinationRegion}</div>
                     <div className="p-3 rounded-lg bg-secondary/50 space-y-1.5 font-mono text-[11px]">
                       <div>Baseline Lead: <span className="font-bold">{drawerData.data.baselineTransitDays}d</span></div>
-                      <div className="text-amber-500">Simulated Lead: <span className="font-bold">{drawerData.data.simulatedTransitDays}d</span></div>
-                      <div className="text-emerald-500">Mitigated Lead: <span className="font-bold">{drawerData.data.mitigatedTransitDays}d</span></div>
-                      <div className="text-rose-500">Freight Uplift: <span className="font-bold">+{(drawerData.data.freightUpliftPct * 100).toFixed(0)}%</span></div>
+                      <div className="text-[var(--status-warn)]">Simulated Lead: <span className="font-bold">{drawerData.data.simulatedTransitDays}d</span></div>
+                      <div className="text-[var(--status-good)]">Mitigated Lead: <span className="font-bold">{drawerData.data.mitigatedTransitDays}d</span></div>
+                      <div className="text-[var(--status-bad)]">Freight Uplift: <span className="font-bold">+{(drawerData.data.freightUpliftPct * 100).toFixed(0)}%</span></div>
                     </div>
                     <p className="text-muted-foreground leading-relaxed">{drawerData.data.notes}</p>
                   </div>
@@ -519,9 +519,9 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
                 <th className="p-2.5">Dest Region</th>
                 <th className="p-2.5">Service Level</th>
                 <th className="p-2.5">Baseline Lead</th>
-                <th className="p-2.5 text-amber-500">Simulated Lead</th>
-                <th className="p-2.5 text-emerald-500">Mitigated Lead</th>
-                <th className="p-2.5 text-rose-500">Freight Uplift</th>
+                <th className="p-2.5 text-[var(--status-warn)]">Simulated Lead</th>
+                <th className="p-2.5 text-[var(--status-good)]">Mitigated Lead</th>
+                <th className="p-2.5 text-[var(--status-bad)]">Freight Uplift</th>
                 <th className="p-2.5">Mitigation Action</th>
               </tr>
             </thead>
@@ -533,19 +533,19 @@ export function NetworkRiskMap({ scenarios }: { scenarios: NetworkRiskScenario[]
                   onClick={() => setDrawerData({ type: "LANE", data: lane })}
                 >
                   <td className="p-2.5 font-mono font-medium text-foreground">{lane.laneId}</td>
-                  <td className="p-2.5">{lane.originName} <span className="text-[10px] text-muted-foreground">({lane.originNode})</span></td>
+                  <td className="p-2.5">{lane.originName} <span className="text-[length:var(--fs-label)] text-muted-foreground">({lane.originNode})</span></td>
                   <td className="p-2.5 font-semibold">{lane.destinationRegion}</td>
                   <td className="p-2.5">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border border-border bg-background">
+                    <span className="px-2 py-0.5 rounded-full text-[length:var(--fs-label)] font-medium border border-border bg-background">
                       {lane.serviceLevel}
                     </span>
                   </td>
                   <td className="p-2.5">{lane.baselineTransitDays} days</td>
-                  <td className="p-2.5 font-semibold text-amber-500">
-                    {lane.simulatedTransitDays} days <span className="text-[10px] font-normal">(+{lane.transitDelayDays.toFixed(1)}d)</span>
+                  <td className="p-2.5 font-semibold text-[var(--status-warn)]">
+                    {lane.simulatedTransitDays} days <span className="text-[length:var(--fs-label)] font-normal">(+{lane.transitDelayDays.toFixed(1)}d)</span>
                   </td>
-                  <td className="p-2.5 font-semibold text-emerald-500">{lane.mitigatedTransitDays} days</td>
-                  <td className="p-2.5 font-semibold text-rose-500">+{(lane.freightUpliftPct * 100).toFixed(0)}%</td>
+                  <td className="p-2.5 font-semibold text-[var(--status-good)]">{lane.mitigatedTransitDays} days</td>
+                  <td className="p-2.5 font-semibold text-[var(--status-bad)]">+{(lane.freightUpliftPct * 100).toFixed(0)}%</td>
                   <td className="p-2.5 font-mono text-[11px] text-primary">{lane.mitigationStrategy}</td>
                 </tr>
               ))}

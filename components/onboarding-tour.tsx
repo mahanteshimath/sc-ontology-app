@@ -214,16 +214,17 @@ export function OnboardingTour({
       {/* Restart Tour Quick Button in Header context (rendered in fixed position or exported) */}
       <button
         onClick={handleRestartTour}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full border-2 border-amber-400 bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 text-slate-900 shadow-[0_0_18px_rgba(251,191,36,0.85),0_0_40px_rgba(245,158,11,0.5)] hover:shadow-[0_0_26px_rgba(251,191,36,1),0_0_56px_rgba(245,158,11,0.7)] animate-pulse text-xs font-bold transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-4 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full border border-border bg-card px-3.5 text-[length:var(--fs-meta)] font-semibold text-foreground shadow-[var(--shadow-raised)] transition-colors hover:bg-secondary active:scale-[0.98]"
         title="Start Guided Platform Tour"
+        aria-label="Start guided platform tour"
       >
-        <Sparkles className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: "4s" }} />
-        <span>Guided Tour</span>
+        <Sparkles className="w-4 h-4 text-[var(--link)]" aria-hidden />
+        <span className="hidden sm:inline">Guided Tour</span>
       </button>
 
       {/* 1. WELCOME MODAL */}
       {tourState === "WELCOME" && (
-        <div className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div role="dialog" aria-modal="true" aria-labelledby="tour-welcome-title" className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="relative w-full max-w-md rounded-2xl border border-primary/30 bg-slate-900 p-6 shadow-2xl text-slate-100 space-y-5 animate-in zoom-in-95 duration-200 text-center overflow-hidden">
             <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-primary to-indigo-500" />
             
@@ -232,7 +233,7 @@ export function OnboardingTour({
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-lg font-bold tracking-tight text-white">Welcome to Supply Chain Ontology</h2>
+              <h2 id="tour-welcome-title" className="text-lg font-bold tracking-tight text-white">Welcome to Supply Chain Ontology</h2>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Take a 1-minute interactive tour to explore governed metrics, GIS network topology, SQL provenance, and AI conversational analytics.
               </p>
@@ -333,6 +334,7 @@ export function OnboardingTour({
                 onClick={handleEndTour}
                 className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                 title="Exit tour"
+                aria-label="Exit tour"
               >
                 <X className="w-4 h-4" />
               </button>

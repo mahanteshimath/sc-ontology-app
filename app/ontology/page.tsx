@@ -39,7 +39,7 @@ async function OntologyBody() {
 
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <StatTile label="Entities" value={String(entities.length)} sub="Ontology classes modelled" />
         <StatTile label="Conformed dimensions" value={String(dims.length)} sub="Shared across every fact" />
         <StatTile label="Facts" value={String(facts.length)} sub="Business processes measured" />
@@ -99,14 +99,14 @@ async function OntologyBody() {
                     <li key={l.levelNo} className="flex items-baseline gap-2 text-xs">
                       <span className="text-muted-foreground tabular-nums w-4 shrink-0">{l.levelNo}</span>
                       <span
-                        className={`font-mono ${l.resolves ? "text-foreground/90" : "text-red-500 line-through"}`}
+                        className={`font-mono ${l.resolves ? "text-foreground/90" : "text-[var(--status-bad)] line-through"}`}
                         title={l.description ?? undefined}
                       >
                         {l.levelDimension.toLowerCase()}
                       </span>
-                      {!l.resolves && <span className="text-[10px] text-red-500">not a dimension</span>}
+                      {!l.resolves && <span className="text-[length:var(--fs-label)] text-[var(--status-bad)]">not a dimension</span>}
                       {l.rollupStatus === "FAIL" && (
-                        <span className="text-[10px] text-red-500">{l.violationCount} split parents</span>
+                        <span className="text-[length:var(--fs-label)] text-[var(--status-bad)]">{l.violationCount} split parents</span>
                       )}
                     </li>
                   ))}
@@ -227,10 +227,10 @@ SELECT hierarchy_id, level_no, dimension_ref, resolves, rollup_status,
         </div>
       </section>
 
-      <section className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-4 py-3 text-sm">
+      <section aria-label="Export" className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border px-4 py-3 text-sm">
         <span className="font-semibold">Export as OWL/SKOS</span>
-        <a className="underline underline-offset-4" href="/api/ontology?format=ttl&download=1">Turtle (.ttl)</a>
-        <a className="underline underline-offset-4" href="/api/ontology?download=1">JSON-LD (.jsonld)</a>
+        <a className="inline-flex min-h-6 items-center py-1 text-[var(--link)] underline underline-offset-4" href="/api/ontology?format=ttl&download=1">Turtle (.ttl)</a>
+        <a className="inline-flex min-h-6 items-center py-1 text-[var(--link)] underline underline-offset-4" href="/api/ontology?download=1">JSON-LD (.jsonld)</a>
         <span className="text-xs text-muted-foreground">
           Generated from the deployed view and the metric registry, with SCOR codes as skos:exactMatch/closeMatch.
           Opens in Protégé or any triple store.

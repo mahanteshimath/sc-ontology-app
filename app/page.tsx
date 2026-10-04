@@ -79,7 +79,7 @@ async function LandingPage() {
             </span>
             <span>
               <span className="block text-sm font-semibold tracking-[0.16em] text-white">SUPPLY CHAIN</span>
-              <span className="block text-[10px] tracking-[0.28em] text-cyan-200/70">ONTOLOGY CONTROL TOWER</span>
+              <span className="block text-[length:var(--fs-label)] tracking-[0.28em] text-cyan-200">ONTOLOGY CONTROL TOWER</span>
             </span>
           </Link>
           <Link href="/login?next=%2F" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
@@ -129,13 +129,13 @@ async function LandingPage() {
                     <div key={label} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-lg border border-white/8 bg-white/[0.035] p-4">
                       <span className={`grid h-10 w-10 place-items-center rounded-lg bg-white/[0.06] ${tone}`}><Icon className="h-5 w-5" aria-hidden /></span>
                       <span><span className="block text-sm font-medium text-white">{label}</span><span className="mt-1 block whitespace-pre-line text-xs leading-5 text-slate-400">{value}</span></span>
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-slate-500">verified</span>
+                      <span className="font-mono text-[length:var(--fs-label)] uppercase tracking-widest text-slate-400">verified</span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-[#102939] p-4"><div className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Cortex-ready</div><div className="mt-2 text-xl font-semibold text-white">8 views</div><div className="mt-1 text-xs text-slate-400">Domain-specific analysis surfaces</div></div>
-                  <div className="rounded-lg bg-[#132d2a] p-4"><div className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Access posture</div><div className="mt-2 text-xl font-semibold text-emerald-200">RBAC + RAP</div><div className="mt-1 text-xs text-slate-400">Enforced in Snowflake</div></div>
+                  <div className="rounded-lg bg-[#102939] p-4"><div className="text-[length:var(--fs-label)] uppercase tracking-[0.16em] text-slate-400">Cortex-ready</div><div className="mt-2 text-xl font-semibold text-white">8 views</div><div className="mt-1 text-xs text-slate-400">Domain-specific analysis surfaces</div></div>
+                  <div className="rounded-lg bg-[#132d2a] p-4"><div className="text-[length:var(--fs-label)] uppercase tracking-[0.16em] text-slate-400">Access posture</div><div className="mt-2 text-xl font-semibold text-emerald-200">RBAC + RAP</div><div className="mt-1 text-xs text-slate-400">Enforced in Snowflake</div></div>
                 </div>
               </div>
             </div>

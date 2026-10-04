@@ -100,14 +100,14 @@ function MetricRow({ m, outlooks = [] }: { m: MetricDefinition; outlooks?: Metri
                 {m.scor && (
                   <span
                     title={`SCOR ${m.scor.attribute} / ${m.scor.process}: ${m.scor.metric} (${m.scor.alignment})`}
-                    className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border border-border bg-secondary/70"
+                    className="inline-flex items-center gap-1 text-[length:var(--fs-label)] uppercase font-semibold px-1.5 py-0.5 rounded border border-border bg-secondary/70"
                   >
                     SCOR {m.scor.code ?? m.scor.attribute}
                     {m.scor.alignment !== "EXACT" && <span className="font-normal normal-case opacity-70">{m.scor.alignment.toLowerCase().replace(/_/g, " ")}</span>}
                   </span>
                 )}
                 {outlooks.length > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/15 text-[var(--link)] border border-[var(--brand-primary)]/30">
+                  <span className="inline-flex items-center gap-1 text-[length:var(--fs-label)] uppercase font-semibold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/15 text-[var(--link)] border border-[var(--brand-primary)]/30">
                     Forecast
                   </span>
                 )}
@@ -226,7 +226,7 @@ function MetricRow({ m, outlooks = [] }: { m: MetricDefinition; outlooks?: Metri
                   </span>
                 )}
               </div>
-              <Link href="/outlook" className="u-meta text-[var(--link)] hover:text-foreground">
+              <Link href="/outlook" className="u-meta inline-flex min-h-6 items-center py-1 text-[var(--link)] underline-offset-4 hover:text-foreground hover:underline">
                 Interactive simulator &rsaquo;
               </Link>
             </div>
