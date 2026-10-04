@@ -85,6 +85,10 @@ const VIEW = "SC_ONTOLOGY_360"
 /** Snowflake's compile error when a metric and dimension share no relationship path. */
 const NOT_RELATED = /are not related/i
 
+/** "Which supplier should we terminate / fire / drop / blacklist" and similar. */
+const DECISION_QUESTION =
+  /\b(should|shall|must)\s+(we|i)\s+(terminate|fire|drop|blacklist|cancel|replace|dismiss|cut|stop\s+(buying|using|working))\b|\b(terminate|fire|blacklist|dismiss)\s+(which|the\s+worst|any)\b/i
+
 interface Resolution {
   answerable: boolean
   metricIds: string[]
@@ -240,6 +244,26 @@ export async function POST(req: Request) {
     const question = (body.question ?? "").trim()
     if (!question) return Response.json({ error: "A question is required" }, { status: 400 })
     if (question.length > 500) return Response.json({ error: "Question is too long" }, { status: 400 })
+
+    // Decisions about people or partners are not metrics. Refused deterministically, before any
+    // model call, so the answer cannot vary with the model's mood.
+    if (DECISION_QUESTION.test(question)) {
+      const reason =
+        "That is a decision, not a governed metric. The ontology reports the evidence (for example supplier on-time delivery, fill rate and price variance) and leaves the decision to the business."
+      logTurn({
+        personaRole: null,
+        question,
+        metricIds: [],
+        refused: true,
+        refusalReason: reason,
+        latencyMs: Date.now() - startedAt,
+      })
+      return Response.json({
+        answerable: false,
+        reason,
+        suggestions: ["Supplier On-Time Delivery by supplier", "Supplier Fill Rate by supplier", "Purchase Price Variance by supplier"],
+      })
+    }
 
     const rawHistory = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_TURNS) : []
 
@@ -435,6 +459,9 @@ Rules:
 - Supplier On-Time Delivery is INBOUND (did suppliers meet dates promised to us). On-Time Delivery is OUTBOUND (did we meet dates promised to customers). If the question is genuinely ambiguous between them, set answerable to false and say so.
 - Freight Cost is accrued; Freight Invoiced is what carriers billed. They are different metrics.
 - If no governed metric answers the question, set answerable to false and explain what is missing.
+- FORWARD-LOOKING QUESTIONS ("will miss next month", "forecast", "at risk"): the application attaches a governed forward outlook to the realized metric automatically. Answer with the realized metric the question is about (for a delivery target, On-Time Delivery broken down by the dimension asked) and say in the reason that the outlook is shown alongside. Do NOT refuse for lack of a forecast metric.
+- DECISIONS ARE NOT METRICS. If the question asks the system to make a decision or take an action on people or partners ("which supplier should we terminate/fire/blacklist", "who should we drop"), set answerable to false and say the ontology reports governed evidence (e.g. supplier on-time delivery, fill rate) but the decision belongs to the business. Do not pick metrics for it.
+- A question that mixes past and future ("last month, including orders due next week") is answered as the realized metric for the period; promised-but-not-yet-delivered rows are already excluded, so say that in the reason instead of refusing.
 
 Reply with ONLY a JSON object:
 {"answerable": true|false, "metricIds": ["..."], "dimension": "entity.dimension"|null, "reason": "one sentence"}`
@@ -448,7 +475,7 @@ Reply with ONLY a JSON object:
     const cacheKey = resolverCacheKey({
       model: RESOLVER_MODEL,
       question,
-      catalogue,
+      catalogue: `${catalogue}\n#rules:${prompt.length}:${prompt.slice(prompt.indexOf("Rules:"), prompt.indexOf("Reply with ONLY"))}`,
       dimensions: dimCatalogue,
       denied: deniedBlock,
       conversation: conversationBlock,
