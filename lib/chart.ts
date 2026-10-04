@@ -166,7 +166,7 @@ export function buildChart(input: {
       categoryCount: shown.length,
       truncated,
       note: truncated
-        ? `Showing ${MAX_CATEGORIES} of ${total} ${temporal ? "periods" : "categories"}${temporal ? "" : ", ranked by " + metrics[0].businessName}. The table below has every row.`
+        ? `Showing ${MAX_CATEGORIES} of ${total} ${temporal ? "periods" : "categories"}${temporal ? "" : ", ranked by " + metrics[0].businessName}. The table below lists the returned rows (up to 200).`
         : null,
     },
     rows: shown,

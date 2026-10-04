@@ -585,7 +585,7 @@ function Answer({
       {!isScalar && rows.length > 0 && (
         <details className="rounded-lg border border-border">
           <summary className="cursor-pointer px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-            Table · {answer.rowCount} row{answer.rowCount === 1 ? "" : "s"}
+            Table · {rows.length < (answer.rowCount ?? rows.length) ? `first ${rows.length} of ${answer.rowCount}` : rows.length} row{rows.length === 1 ? "" : "s"}
           </summary>
           <div className="overflow-auto max-h-[22rem] border-t border-border">
             <table className="w-full text-sm">
