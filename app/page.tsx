@@ -575,7 +575,7 @@ export default async function OverviewPage({
   return (
     <PageShell
       title="Supply Chain Ontology and Governed Conversational Analytics"
-      description="One governed metric layer for procurement, logistics, planning, and conversational analysis."
+      description="Reconciles scattered ERP (SAP receipts), logistics (TMS delivery & freight), WMS inventory, supplier contracts, and real-time IoT temperature telemetry into governed semantic views — delivering consistent, trustworthy cross-domain conversational analytics across procurement, logistics, and planning."
       actions={<PeriodControl asOf={period.asOf} description={period.description} />}
     >
       {/*

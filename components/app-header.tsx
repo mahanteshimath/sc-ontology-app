@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { APP_TITLE, TEAM_NAME } from "@/lib/constants"
 import { BrandMark } from "@/components/brand-mark"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   BarChart3,
@@ -12,7 +13,6 @@ import {
   Boxes,
   ClipboardCheck,
   Database,
-  ExternalLink,
   GitCompareArrows,
   Globe,
   Info,
@@ -86,18 +86,6 @@ export function AppHeader({
           </nav>
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
-            <Link
-              href="/deck"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-secondary/50 px-2.5 py-1.5 text-[length:var(--fs-meta)] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-brand-primary/50 transition-colors shadow-sm"
-              title="Open Submission Deck & Architecture Brief"
-            >
-              <Info className="h-3.5 w-3.5 text-brand-primary" aria-hidden />
-              <span className="hidden sm:inline">Deck</span>
-              <ExternalLink className="h-3 w-3 opacity-60" aria-hidden />
-            </Link>
-
             {user && (
               <>
                 <div
@@ -117,6 +105,17 @@ export function AppHeader({
               </>
             )}
             <ThemeToggle />
+            <Button variant="ghost" size="icon" asChild>
+              <Link
+                href="/deck"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Submission Deck & Architecture Brief"
+                aria-label="Submission Deck & Architecture Brief"
+              >
+                <Info className="h-4 w-4 text-brand-primary" aria-hidden />
+              </Link>
+            </Button>
           </div>
         </div>
 
