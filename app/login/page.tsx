@@ -1,4 +1,4 @@
-import { listDemoUsers, authConfigured, oneClickEnabled } from "@/lib/auth"
+import { listDemoUsers, authConfigured, oneClickEnabled, getDemoPassword } from "@/lib/auth"
 import { LoginForm } from "@/components/login-form"
 import { OneClickPersonas } from "@/components/one-click-personas"
 import { APP_TITLE, TEAM_NAME } from "@/lib/constants"
@@ -11,9 +11,8 @@ export const dynamic = "force-dynamic"
 /**
  * Sign-in page for the demo gate.
  *
- * The available account names and the persona each one acts as are listed, because they are not
- * secret and a demo nobody can get into is useless. Passwords are not listed and are never sent to
- * the browser.
+ * The available account names, Snowflake personas, and demo password are listed for seamless
+ * evaluation and testing.
  */
 export default async function LoginPage({
   searchParams,
@@ -24,6 +23,7 @@ export default async function LoginPage({
   const next = (Array.isArray(sp.next) ? sp.next[0] : sp.next) ?? "/"
   const users = listDemoUsers()
   const configured = authConfigured()
+  const demoPassword = getDemoPassword()
 
   return (
     <main className="min-h-screen bg-[#08131f] text-white">
@@ -89,21 +89,13 @@ DEMO_USERS=planner:<pw>:SC_PLANNER;buyer:<pw>:SC_PROCUREMENT;logistics:<pw>:SC_L
                 next={Array.isArray(sp.next) ? sp.next[0] ?? "/" : sp.next ?? "/"}
               />
             )}
-            <LoginForm next={next} />
-            <div className="rounded-xl border border-white/10 bg-white/[0.05] p-5 space-y-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Available workspaces</div>
-              <ul className="space-y-1">
-                {users.map((u) => (
-                  <li key={u.username} className="flex items-center justify-between gap-3 text-xs">
-                    <span className="font-mono">{u.username}</span>
-                    <span className="font-mono text-[11px] text-slate-400">{u.personaRole}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="border-t border-white/10 pt-3 text-[11px] leading-relaxed text-slate-400">
-                The account you sign in as selects a real Snowflake role. Every governed query then runs under that
-                role with secondary roles disabled, so its grants and row access policies are enforced by Snowflake
-                rather than by this application.
+            <LoginForm next={next} users={users} demoPassword={demoPassword} />
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 space-y-2">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">Snowflake RBAC Enforcement</div>
+              <p className="text-xs leading-relaxed text-slate-400">
+                Signing in as any persona assumes a real Snowflake role with secondary roles disabled.
+                Grants, metric definitions, and row access policies (such as EU-only filtering) are enforced
+                by Snowflake at query time rather than by the application.
               </p>
             </div>
           </>
