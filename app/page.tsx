@@ -46,7 +46,7 @@ import { displaySession } from "@/lib/session"
 import { BrandMark } from "@/components/brand-mark"
 import { Button } from "@/components/ui/button"
 import { summarizeLandingFacts } from "@/lib/landing-facts"
-import { ArrowRight, BarChart3, DatabaseZap, Info, Network, ShieldCheck } from "lucide-react"
+import { ArrowRight, BarChart3, DatabaseZap, ExternalLink, Info, Layers, Network, ShieldCheck, Workflow } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -67,7 +67,7 @@ async function LandingPage() {
   const facts = summarizeLandingFacts({ registry, entities })
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#08131f] text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#08131f] text-white">
       <div className="relative isolate">
         <div className="pointer-events-none absolute inset-0 -z-10 opacity-70 [background-image:linear-gradient(rgba(100,190,220,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(100,190,220,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
         <div className="pointer-events-none absolute right-[-12rem] top-[-12rem] -z-10 h-[34rem] w-[34rem] rounded-full border border-cyan-300/10 bg-cyan-300/[0.04] shadow-[0_0_120px_rgba(41,181,232,0.14)]" />
@@ -83,6 +83,13 @@ async function LandingPage() {
             </span>
           </Link>
           <div className="flex items-center gap-4">
+            <a
+              href="#architecture"
+              className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+            >
+              <Layers className="h-4 w-4 text-cyan-300" aria-hidden />
+              <span>Architecture</span>
+            </a>
             <Link
               href="/deck"
               target="_blank"
@@ -117,6 +124,12 @@ async function LandingPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="h-12 rounded-lg border-cyan-200/30 bg-white/[0.04] px-5 text-white hover:bg-white/[0.08] hover:border-cyan-200/60 transition-colors">
+                <a href="#architecture">
+                  <Layers className="mr-2 h-4 w-4 text-cyan-300" aria-hidden />
+                  Architecture &amp; Flow
+                </a>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="h-12 rounded-lg border-white/10 bg-white/[0.02] px-4 text-slate-300 hover:bg-white/[0.06] hover:text-white transition-colors">
                 <Link href="/deck" target="_blank" rel="noopener noreferrer">
                   <Info className="mr-2 h-4 w-4 text-cyan-300" aria-hidden />
                   Submission Deck
@@ -130,7 +143,7 @@ async function LandingPage() {
             </div>
           </div>
 
-          <div id="architecture" className="relative">
+          <div className="relative">
             <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-3 shadow-[0_30px_80px_rgba(0,0,0,0.24)] backdrop-blur-sm">
               <div className="rounded-xl border border-white/10 bg-[#0d1d2b] p-5 sm:p-7">
                 <div className="flex items-center justify-between border-b border-white/10 pb-5">
@@ -157,6 +170,132 @@ async function LandingPage() {
               </div>
             </div>
             <div className="absolute -bottom-5 -left-4 hidden rounded-lg border border-cyan-200/20 bg-[#102939] px-4 py-3 shadow-xl sm:block"><div className="flex items-center gap-2 text-xs text-cyan-100"><BarChart3 className="h-4 w-4" /> Ask with provenance</div></div>
+          </div>
+        </section>
+
+        {/* Full System Architecture & Data Flow Section */}
+        <section id="architecture" className="mx-auto w-full max-w-[1400px] border-t border-white/10 px-5 pb-24 pt-16 sm:px-8 lg:px-12">
+          <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/10 pb-8">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-200/[0.07] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                <Layers className="h-3.5 w-3.5 text-cyan-300" />
+                2 · Architecture &amp; Data Flow
+              </div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+                From 5 disparate sources to 1 single governed truth.
+              </h2>
+              <p className="mt-3 max-w-3xl text-base text-slate-300">
+                Atomic-grain conformed facts, Snowflake semantic views, daily automated drift verification, and multi-persona conversational access.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <Button asChild variant="outline" size="sm" className="border-cyan-200/30 bg-white/[0.04] text-white hover:bg-white/[0.08]">
+                <a href="/deck/deck-assets/architecture.svg" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-1.5 h-3.5 w-3.5 text-cyan-300" aria-hidden />
+                  Full-res SVG
+                </a>
+              </Button>
+              <Button asChild size="sm" className="bg-cyan-300 text-[#06283a] hover:bg-cyan-200 font-semibold">
+                <Link href="/deck#10" target="_blank" rel="noopener noreferrer">
+                  <span>Interactive Deck Slide</span>
+                  <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          {/* Architecture Visual Diagram */}
+          <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-[#091726] p-2 sm:p-5 shadow-[0_30px_90px_rgba(0,0,0,0.5)]">
+            <div className="mb-3 flex items-center justify-between px-3 pt-1 text-xs text-slate-400">
+              <span className="font-mono text-[11px] tracking-wider uppercase text-cyan-200/90 flex items-center gap-1.5">
+                <Workflow className="h-3.5 w-3.5 text-cyan-300" />
+                System Design · 5-Lane Pipeline Flow
+              </span>
+              <span className="text-[11px] text-slate-400">Yellow badges name the CoCo CLI skills used for each module</span>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#08131f]">
+              <img
+                src="/deck/deck-assets/architecture.svg"
+                alt="Supply Chain Ontology 5-stage architecture and data flow: Sources to Canonical to Ontology to Conversation to Personas"
+                className="w-full min-w-[900px] h-auto object-contain block"
+                loading="lazy"
+              />
+            </div>
+          </div>
+
+          {/* 5-Stage Breakdown with CoCo CLI Skills */}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              {
+                lane: "1 · Sources",
+                title: "Structured & Unstructured",
+                desc: "ERP (SAP MM), WMS/TMS, IoT telemetry, and 300 free-text contracts extracted via AI_EXTRACT.",
+                skills: ["migration-guide", "snowpark-python", "document-intelligence"],
+              },
+              {
+                lane: "2 · Canonical",
+                title: "Atomic-Grain Facts",
+                desc: "6.1M rows conformed grain. RAP_SHIP_REGION row policy, confidential masking, and 15 DMF monitors.",
+                skills: ["sql-author", "data-governance", "data-quality", "certify-object"],
+              },
+              {
+                lane: "3 · Ontology",
+                title: "Semantic & Governance",
+                desc: "SC_ONTOLOGY_360 query surface, 12 semantic views, metric registry, and daily drift test with 0 spread.",
+                skills: ["agent-studio", "snowflake-tasks", "alert", "ci-cd"],
+              },
+              {
+                lane: "4 · Conversation",
+                title: "Registry Engine & Agents",
+                desc: "AI_COMPLETE metric mapping, Cortex Analyst cross-check, Cortex Agent with 11 tools, and MCP server.",
+                skills: ["cortex-ai-function-studio", "agent-optimization", "machine-learning"],
+              },
+              {
+                lane: "5 · Personas",
+                title: "Role-Enforced Serving",
+                desc: "Planning, Procurement, Logistics, Logistics EU, and Steward running under native Snowflake roles.",
+                skills: ["snowflake-apps"],
+              },
+            ].map((col) => (
+              <div key={col.lane} className="flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.035] p-5">
+                <div>
+                  <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-cyan-200">{col.lane}</div>
+                  <div className="mt-1.5 text-base font-semibold text-white">{col.title}</div>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-300">{col.desc}</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">CoCo Skills</div>
+                  <div className="flex flex-wrap gap-1">
+                    {col.skills.map((s) => (
+                      <span key={s} className="rounded bg-amber-400/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-amber-300 border border-amber-400/20">
+                        ${s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Three Contracts Callout */}
+          <div className="mt-8 rounded-xl border border-cyan-200/20 bg-gradient-to-r from-cyan-950/40 via-[#0d2235] to-cyan-950/40 p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <span className="font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200">System Contract</span>
+                <h3 className="text-lg font-semibold text-white">How modular components plug together</h3>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+                  Three contracts guarantee zero divergence: <b>1. Atomic CANONICAL facts</b> (the only source of truth), <b>2. Metric Registry</b> (METRIC_DEFINITION + METRIC_BINDING), and <b>3. Persona Access</b> (PERSONA_VIEW_ACCESS + row access policy). Rebuilds all 6.1M rows in ~4.5 minutes via <code className="text-cyan-200">rebuild.mjs</code>.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                <Button asChild size="sm" className="bg-cyan-300 text-[#06283a] hover:bg-cyan-200 font-semibold">
+                  <Link href="/login?next=%2F">
+                    <span>Enter Control Tower</span>
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -599,7 +738,7 @@ export default async function OverviewPage({
         <Section title="Governed Outlook">{() => ForwardOutlookSummary()}</Section>
       </Suspense>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
           {
             href: "/ontology",
@@ -620,6 +759,11 @@ export default async function OverviewPage({
             href: "/ask",
             title: "Ask",
             body: "Governed natural-language answers with provenance.",
+          },
+          {
+            href: "/deck#10",
+            title: "Architecture",
+            body: "5-lane pipeline, CoCo CLI skills, and governance contracts.",
           },
         ].map((c) => (
           <Link
