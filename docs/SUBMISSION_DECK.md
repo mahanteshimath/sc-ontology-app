@@ -52,7 +52,9 @@ Source: `GOVERNANCE.V_DIVERGENCE_IMPACT`
 
 ## Section 2 - Architecture Diagram
 
-### 4. Data flow
+### 4. Architecture and data flow: From 5 disparate sources to 1 single governed truth
+
+> Diagram asset: `public/deck/deck-assets/architecture.svg` (5-lane system design: Sources → Canonical → Ontology → Conversation → Personas)
 
 ```
  STRUCTURED                         UNSTRUCTURED
