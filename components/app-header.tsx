@@ -64,9 +64,9 @@ export function AppHeader({
    */
   return (
     <header className="sticky top-0 z-50 w-full max-w-full overflow-x-hidden border-b border-border bg-background/95 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6">
-        <div className="flex items-center gap-3 py-3">
-          <Link href="/" className="flex items-center gap-2.5 min-w-0 rounded-md">
+      <div className="w-full max-w-[1400px] mx-auto px-4 2xl:px-6">
+        <div className="flex items-center gap-2.5 2xl:gap-3 py-2.5 2xl:py-3">
+          <Link href="/" className="flex items-center gap-2 2xl:gap-2.5 min-w-0 rounded-md shrink-0">
             {/* Inlined, not <Image>: see BrandMark for why currentColor needs to be in-document. */}
             <BrandMark className="shrink-0 text-[var(--brand-mark)]" />
             <span className="flex flex-col leading-tight min-w-0">
@@ -79,26 +79,26 @@ export function AppHeader({
           </Link>
 
           {/* On xl+ the nav shares the brand's row; below that it moves to its own row. */}
-          <nav data-tour="nav" aria-label="Primary" className="hidden xl:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden py-1">
+          <nav data-tour="nav" aria-label="Primary" className="hidden xl:flex items-center gap-0.5 min-w-0 flex-1 overflow-x-auto overflow-y-hidden py-1 u-no-scrollbar">
             {NAV.map((item) => (
               <NavLink key={item.href} item={item} pathname={pathname} />
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 shrink-0">
+          <div className="ml-auto flex items-center gap-1.5 2xl:gap-2 shrink-0">
             {user && (
               <>
                 <div
                   data-tour="user-role"
-                  className="hidden sm:flex flex-col items-end leading-tight"
+                  className="hidden sm:flex flex-col items-end leading-tight shrink-0"
                   title={`Governed queries for this session execute as ${user.personaRole}`}
                 >
                   <span className="text-[length:var(--fs-label)] font-medium">{user.username}</span>
-                  <span className="u-mono text-muted-foreground">{user.personaRole}</span>
+                  <span className="u-mono text-muted-foreground truncate max-w-[125px] 2xl:max-w-none">{user.personaRole}</span>
                 </div>
                 <button
                   onClick={signOut}
-                  className="u-meta whitespace-nowrap rounded-md border border-transparent px-3 py-2 hover:border-border hover:text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+                  className="u-meta whitespace-nowrap rounded-md border border-transparent px-2.5 2xl:px-3 py-1.5 2xl:py-2 hover:border-border hover:text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
                 >
                   Sign out
                 </button>
@@ -156,14 +156,14 @@ function NavLink({
       data-tour={dataTour}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-[length:var(--fs-meta)] whitespace-nowrap transition-colors",
+        "inline-flex items-center gap-1 2xl:gap-1.5 px-2 2xl:px-3 py-1.5 2xl:py-2 rounded-md text-xs 2xl:text-[length:var(--fs-meta)] whitespace-nowrap transition-colors shrink-0",
         active
           ? "bg-[color-mix(in_oklab,var(--brand-primary)_12%,var(--secondary))] text-foreground font-semibold"
           : "text-muted-foreground hover:text-foreground hover:bg-secondary/70",
       )}
     >
-      <Icon className="h-3.5 w-3.5" aria-hidden />
-      {item.label}
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span>{item.label}</span>
     </Link>
   )
 }

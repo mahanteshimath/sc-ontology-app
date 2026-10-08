@@ -453,4 +453,14 @@
   .u-scroll-x::-webkit-scrollbar {
     display: none;
   }
+
+  /* Suppresses visible native OS scrollbars across Chrome, Edge, Safari, Firefox while keeping scroll functionality */
+  .u-no-scrollbar {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .u-no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
